@@ -84,7 +84,7 @@ export default function Layout() {
                     <a
                       href="https://www.instagram.com/mmacaroca/"
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="flex items-center space-x-2 text-foreground/80"
                     >
                       <Instagram className="w-5 h-5" />
@@ -165,7 +165,7 @@ export default function Layout() {
             <a
               href="https://www.instagram.com/mmacaroca/"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className={cn(
                 'transition-colors',
                 isTransparentAndDarkBg
@@ -182,7 +182,7 @@ export default function Layout() {
             <a
               href="https://www.instagram.com/mmacaroca/"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className={cn(
                 '-mr-2 p-2 transition-colors',
                 isTransparentAndDarkBg
@@ -203,13 +203,16 @@ export default function Layout() {
       <footer className="bg-foreground text-background py-16 lg:py-24">
         <div className="container grid grid-cols-1 md:grid-cols-4 gap-12 lg:gap-16">
           <div className="md:col-span-1 flex flex-col items-start">
-            <div className="h-20 md:h-24 overflow-hidden flex items-center justify-start mb-6 -ml-4 md:-ml-6">
+            <Link
+              to="/"
+              className="h-20 md:h-24 overflow-hidden flex items-center justify-start mb-6 -ml-4 md:-ml-6 hover:opacity-80 transition-opacity"
+            >
               <img
                 src={logoMacaroca}
                 alt="Maçaroca"
                 className="h-44 md:h-52 w-auto object-contain mix-blend-screen opacity-100 max-w-none"
               />
-            </div>
+            </Link>
             <p className="text-sm text-background/70 font-light leading-relaxed">
               Criações femininas com alma, movimento e estilo. Peças autorais para mulheres que
               desejam se sentir elegantes, livres e únicas.
@@ -255,7 +258,7 @@ export default function Layout() {
                 <a
                   href="https://www.instagram.com/mmacaroca/"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-block hover:text-background transition-colors p-2 -ml-2"
                 >
                   <Instagram className="w-5 h-5" />

@@ -60,7 +60,7 @@ export default function Contato() {
                     <a
                       href={WHATSAPP_URL}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors"
                     >
                       +55 (44) 99988-1151
@@ -91,7 +91,7 @@ export default function Contato() {
                   <a
                     href={INSTAGRAM_URL}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="w-12 h-12 rounded-full border border-border bg-background flex items-center justify-center hover:bg-foreground hover:text-background transition-all duration-300"
                   >
                     <Instagram className="w-5 h-5" strokeWidth={1.5} />
@@ -99,7 +99,7 @@ export default function Contato() {
                   <a
                     href={INSTAGRAM_URL}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors"
                   >
                     Instagram: @mmacaroca

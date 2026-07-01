@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Reveal } from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
 import { HeartPulse, Shirt, Users, Highlighter } from 'lucide-react'
@@ -5,67 +6,62 @@ import schonIcon from '@/assets/s-correto-4afa7.png'
 import schonWordmark from '@/assets/so-by-macaroca-logo-peq-editado-4f9ae.png'
 import schonImage from '@/assets/1ac556d2-00cd-49ab-86f8-bdd7aa54daec-fe795.jpg'
 
+const WHATSAPP_URL =
+  'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.'
+
 export default function SchonMedical() {
   const handleWhatsApp = () => {
-    const text = `Olá, gostaria de solicitar um orçamento da Schön Medical para scrubs/uniformes profissionais.`
-    window.open(`https://wa.me/5544999881151?text=${encodeURIComponent(text)}`, '_blank')
+    window.open(WHATSAPP_URL, '_blank')
   }
 
   return (
     <div className="w-full flex-1">
-      {/* Hero */}
-      <section className="bg-secondary/30 pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
-        <div className="container">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-            <Reveal className="max-w-2xl z-10 relative">
-              <div className="mb-6 flex items-center space-x-4">
-                <img src={schonIcon} alt="Schön Icon" className="w-10 h-10 object-contain" />
-                <span className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground block">
-                  Linha Profissional
-                </span>
-              </div>
-
-              <div className="mb-10 -ml-2 w-full md:max-w-[90%] lg:max-w-full">
-                <img
-                  src={schonWordmark}
-                  alt="Schön Medical by Maçaroca"
-                  className="w-full h-auto object-contain drop-shadow-sm"
-                />
-              </div>
-
-              <h1 className="sr-only">Schön Medical by Maçaroca</h1>
-              <p className="text-2xl md:text-3xl font-serif text-foreground mb-6 leading-tight">
-                Vista conforto.
-                <br /> Transmita confiança.
-              </p>
-
-              <p className="text-lg text-muted-foreground font-light mb-10 leading-relaxed max-w-xl">
-                Scrubs e roupas profissionais para mulheres da saúde que buscam conforto, elegância
-                e presença no dia a dia.
-              </p>
-
-              <Button
-                size="lg"
-                onClick={handleWhatsApp}
-                className="rounded-none uppercase tracking-widest bg-[#2c3e50] hover:bg-[#1a252f] text-white px-8 h-14 text-xs"
-              >
-                Solicitar orçamento
-              </Button>
-            </Reveal>
-
-            <Reveal
-              delay={200}
-              className="relative flex items-center justify-center lg:justify-end"
+      {/* Full-width Hero */}
+      <section className="relative w-full min-h-[70vh] lg:min-h-[85vh] bg-[#2c3e50] flex items-center justify-center overflow-hidden pt-20">
+        <div className="absolute inset-0">
+          <img
+            src={schonImage}
+            alt=""
+            className="w-full h-full object-cover object-[center_20%] opacity-25"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#2c3e50]/70 via-[#2c3e50]/50 to-[#2c3e50]/90" />
+        </div>
+        <div className="container relative z-10 text-center py-20 flex flex-col items-center">
+          <Reveal className="flex flex-col items-center max-w-3xl">
+            <Link to="/" className="inline-block mb-8 hover:opacity-80 transition-opacity">
+              <img
+                src={schonIcon}
+                alt="Schön Medical"
+                className="w-16 h-16 md:w-20 md:h-20 mx-auto object-contain"
+              />
+            </Link>
+            <Link
+              to="/"
+              className="inline-block mb-10 w-full max-w-xl md:max-w-2xl hover:opacity-80 transition-opacity"
             >
-              <div className="relative w-full max-w-[500px] aspect-[4/5] overflow-hidden bg-muted border border-border/50 shadow-xl">
-                <img
-                  src={schonImage}
-                  alt="Profissional de Saúde com Schön Medical"
-                  className="w-full h-full object-cover object-[center_20%] transition-transform duration-1000 hover:scale-105"
-                />
-              </div>
-            </Reveal>
-          </div>
+              <img
+                src={schonWordmark}
+                alt="Schön Medical by Maçaroca"
+                className="w-full h-auto object-contain drop-shadow-lg"
+              />
+            </Link>
+            <h1 className="sr-only">Schön Medical by Maçaroca</h1>
+            <p className="text-2xl md:text-4xl font-serif text-white mb-6 leading-tight">
+              Vista conforto.
+              <br /> Transmita confiança.
+            </p>
+            <p className="text-base md:text-lg text-white/80 font-light mb-10 leading-relaxed max-w-xl">
+              Scrubs e roupas profissionais para mulheres da saúde que buscam conforto, elegância e
+              presença no dia a dia.
+            </p>
+            <Button
+              size="lg"
+              onClick={handleWhatsApp}
+              className="rounded-none uppercase tracking-widest bg-white text-[#2c3e50] hover:bg-white/90 px-8 h-14 text-xs"
+            >
+              Solicitar orçamento
+            </Button>
+          </Reveal>
         </div>
       </section>
 
@@ -83,7 +79,6 @@ export default function SchonMedical() {
               </p>
             </div>
           </Reveal>
-
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               {
@@ -129,9 +124,11 @@ export default function SchonMedical() {
       <section className="py-32 lg:py-40 bg-[#2c3e50] text-white text-center">
         <div className="container relative z-10">
           <Reveal className="max-w-3xl mx-auto flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full bg-white mb-10 flex items-center justify-center overflow-hidden shadow-lg">
-              <img src={schonIcon} alt="Schön Icon" className="w-12 h-12 object-contain" />
-            </div>
+            <Link to="/" className="mb-10 hover:opacity-80 transition-opacity">
+              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-lg mx-auto">
+                <img src={schonIcon} alt="Schön Medical" className="w-12 h-12 object-contain" />
+              </div>
+            </Link>
             <h2 className="text-3xl md:text-5xl font-serif mb-8 leading-tight">
               Pronta para transformar sua imagem profissional?
             </h2>

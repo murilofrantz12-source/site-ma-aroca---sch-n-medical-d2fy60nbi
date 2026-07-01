@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Reveal } from '@/components/Reveal'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 
@@ -11,13 +12,16 @@ export default function Sobre() {
               A Marca
             </h1>
             <div className="w-16 h-[1px] bg-foreground mx-auto mb-12" />
-            <div className="h-24 md:h-32 overflow-hidden flex items-center justify-center">
+            <Link
+              to="/"
+              className="h-24 md:h-32 overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity"
+            >
               <img
                 src={logoMacaroca}
                 alt="Maçaroca"
                 className="h-48 md:h-64 w-auto object-contain invert mix-blend-multiply opacity-90 max-w-none"
               />
-            </div>
+            </Link>
           </div>
         </Reveal>
 

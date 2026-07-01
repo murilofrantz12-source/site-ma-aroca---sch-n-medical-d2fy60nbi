@@ -21,13 +21,16 @@ export default function Index() {
         </div>
         <div className="absolute inset-0 flex items-center justify-center text-center p-6 mt-16">
           <Reveal className="max-w-4xl space-y-8 flex flex-col items-center">
-            <div className="h-40 sm:h-56 md:h-72 overflow-hidden flex items-center justify-center">
+            <Link
+              to="/"
+              className="h-40 sm:h-56 md:h-72 overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity"
+            >
               <img
                 src={logoMacaroca}
                 alt="Maçaroca - Você tem o poder"
                 className="h-[300px] sm:h-[450px] md:h-[550px] w-auto object-contain mix-blend-screen drop-shadow-2xl max-w-none"
               />
-            </div>
+            </Link>
             <h1 className="sr-only">Maçaroca - Você tem o poder de vestir presença</h1>
             <p className="text-base md:text-lg text-white/90 font-light max-w-2xl mx-auto drop-shadow leading-relaxed">
               Criações femininas com alma. Peças autorais para mulheres que desejam se sentir
@@ -47,7 +50,7 @@ export default function Index() {
                 className="rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-8 h-12 bg-transparent backdrop-blur-sm"
                 onClick={() =>
                   window.open(
-                    'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20Ma%C3%A7aroca.',
+                    'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.',
                     '_blank',
                   )
                 }
@@ -119,7 +122,7 @@ export default function Index() {
                   variant="outline"
                   onClick={() =>
                     window.open(
-                      'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20um%20or%C3%A7amento%20da%20Sch%C3%B6n%20Medical%20para%20scrubs%2Funiformes%20profissionais.',
+                      'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.',
                       '_blank',
                     )
                   }
