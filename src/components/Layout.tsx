@@ -4,7 +4,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, MessageCircle, Instagram } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { INSTAGRAM_URL } from '@/lib/constants'
 import { INSTAGRAM_URL, WHATSAPP_URL as WA_URL } from '@/lib/social-links'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 

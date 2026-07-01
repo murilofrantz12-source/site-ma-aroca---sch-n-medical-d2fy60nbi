@@ -10,7 +10,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Instagram, MapPin, Phone } from 'lucide-react'
-import { INSTAGRAM_URL } from '@/lib/constants'
 import { useState } from 'react'
 import { INSTAGRAM_URL, WHATSAPP_URL } from '@/lib/social-links'
 
