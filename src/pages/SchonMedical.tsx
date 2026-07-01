@@ -2,6 +2,8 @@ import { Reveal } from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
 import { HeartPulse, Shirt, Users, Highlighter } from 'lucide-react'
 import schonBg from '@/assets/image-3f6c4.png'
+import schonLogoHorizontal from '@/assets/so-by-macaroca-logo-peq-editado-9a89a.png'
+import schonLogoSquare from '@/assets/design-sem-nome-c2ee3.png'
 
 export default function SchonMedical() {
   const handleWhatsApp = () => {
@@ -28,9 +30,12 @@ export default function SchonMedical() {
               <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#2c3e50] mb-6 block">
                 Linha Profissional
               </span>
-              <h1 className="text-4xl md:text-5xl lg:text-7xl font-serif text-[#1a252f] leading-[1.1] mb-8">
-                Schön Medical:
-                <br />
+              <img
+                src={schonLogoHorizontal}
+                alt="Schön Medical by Maçaroca"
+                className="w-full max-w-[280px] md:max-w-[400px] h-auto object-contain mb-8"
+              />
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif text-[#1a252f] leading-[1.1] mb-8">
                 Vista conforto.
                 <br />
                 Transmita confiança.
@@ -55,7 +60,12 @@ export default function SchonMedical() {
       <section className="py-32 lg:py-40 bg-background">
         <div className="container">
           <Reveal>
-            <div className="text-center mb-20">
+            <div className="text-center mb-20 flex flex-col items-center">
+              <img
+                src={schonLogoSquare}
+                alt="Marca Schön"
+                className="w-20 h-20 md:w-24 md:h-24 object-contain mb-8 opacity-90"
+              />
               <h2 className="text-3xl md:text-5xl font-serif mb-6 text-foreground">
                 Por que escolher a Schön?
               </h2>
