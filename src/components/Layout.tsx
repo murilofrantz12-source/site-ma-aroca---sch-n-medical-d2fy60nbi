@@ -4,6 +4,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, MessageCircle, Instagram } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { INSTAGRAM_URL } from '@/lib/constants'
+import { INSTAGRAM_URL, WHATSAPP_URL as WA_URL } from '@/lib/social-links'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 
 const LINKS = [
@@ -33,8 +35,7 @@ export default function Layout() {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
-  const WHATSAPP_URL =
-    'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.'
+  const WHATSAPP_URL = WA_URL
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -78,7 +79,7 @@ export default function Layout() {
                   ))}
                   <div className="pt-8 border-t border-border flex flex-col space-y-6">
                     <a
-                      href="https://www.instagram.com/mmacaroca/"
+                      href={INSTAGRAM_URL}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center space-x-2 text-foreground/80"
@@ -160,7 +161,7 @@ export default function Layout() {
               )}
             />
             <a
-              href="https://www.instagram.com/mmacaroca/"
+              href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
@@ -177,7 +178,7 @@ export default function Layout() {
           {/* Mobile Right Action */}
           <div className="lg:hidden flex justify-end">
             <a
-              href="https://www.instagram.com/mmacaroca/"
+              href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
@@ -253,7 +254,7 @@ export default function Layout() {
               <li>+55 (44) 99988-1151</li>
               <li className="pt-4">
                 <a
-                  href="https://www.instagram.com/mmacaroca/"
+                  href={INSTAGRAM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block hover:text-background transition-colors p-2 -ml-2"

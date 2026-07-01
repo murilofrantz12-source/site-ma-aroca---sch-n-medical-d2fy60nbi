@@ -10,11 +10,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Instagram, MapPin, Phone } from 'lucide-react'
+import { INSTAGRAM_URL } from '@/lib/constants'
 import { useState } from 'react'
-
-const WHATSAPP_URL =
-  'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.'
-const INSTAGRAM_URL = 'https://www.instagram.com/mmacaroca/'
+import { INSTAGRAM_URL, WHATSAPP_URL } from '@/lib/social-links'
 
 export default function Contato() {
   const [formData, setFormData] = useState({
