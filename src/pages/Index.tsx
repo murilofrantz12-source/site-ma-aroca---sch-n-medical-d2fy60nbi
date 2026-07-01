@@ -51,7 +51,7 @@ export default function Index() {
       </section>
 
       {/* Brand Cards */}
-      <section className="py-24 lg:py-32 bg-background flex-shrink-0">
+      <section className="py-32 lg:py-40 bg-background flex-shrink-0">
         <div className="container grid md:grid-cols-2 gap-8 lg:gap-12">
           <Reveal delay={100} className="group relative aspect-[3/4] overflow-hidden bg-muted">
             <img
@@ -105,7 +105,7 @@ export default function Index() {
       </section>
 
       {/* Institutional Introduction */}
-      <section className="py-24 lg:py-32 bg-secondary/30 flex-shrink-0">
+      <section className="py-32 lg:py-40 bg-secondary/30 flex-shrink-0">
         <div className="container max-w-5xl text-center">
           <Reveal>
             <span className="text-foreground/60 uppercase tracking-[0.2em] text-xs font-medium block mb-6">

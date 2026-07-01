@@ -48,7 +48,7 @@ export default function SchonMedical() {
       </section>
 
       {/* Value Proposition */}
-      <section className="py-24 lg:py-32 bg-background">
+      <section className="py-32 lg:py-40 bg-background">
         <div className="container">
           <Reveal>
             <div className="text-center mb-20">
@@ -104,7 +104,7 @@ export default function SchonMedical() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 lg:py-32 bg-[#2c3e50] text-white text-center relative overflow-hidden">
+      <section className="py-32 lg:py-40 bg-[#2c3e50] text-white text-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[url('https://img.usecurling.com/p/1600/900?q=texture%20fabric')] mix-blend-overlay" />
         <div className="container relative z-10">
           <Reveal className="max-w-3xl mx-auto">
