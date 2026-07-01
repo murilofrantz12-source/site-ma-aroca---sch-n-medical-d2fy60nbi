@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Reveal } from '@/components/Reveal'
+import { WHATSAPP_URL } from '@/lib/social-links'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.23.26-ea69b.png'
 import macarocaBg from '@/assets/captura-de-tela-2026-07-01-as-09.26.51-5292d.png'
@@ -45,17 +46,14 @@ export default function Index() {
                 <Link to="/colecoes">Conhecer Coleções</Link>
               </Button>
               <Button
+                asChild
                 size="lg"
                 variant="outline"
                 className="rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-8 h-12 bg-transparent backdrop-blur-sm"
-                onClick={() =>
-                  window.open(
-                    'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.',
-                    '_blank',
-                  )
-                }
               >
-                Falar pelo WhatsApp
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  Falar pelo WhatsApp
+                </a>
               </Button>
               <Button
                 asChild
@@ -118,17 +116,14 @@ export default function Index() {
                   <Link to="/schon-medical">Conhecer a Linha</Link>
                 </Button>
                 <Button
+                  asChild
                   size="lg"
                   variant="outline"
-                  onClick={() =>
-                    window.open(
-                      'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.',
-                      '_blank',
-                    )
-                  }
                   className="rounded-none border-[#2c3e50] text-[#2c3e50] hover:bg-[#2c3e50] hover:text-white uppercase tracking-widest px-8 h-14 text-xs w-full sm:w-auto"
                 >
-                  Solicitar Orçamento
+                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                    Solicitar Orçamento
+                  </a>
                 </Button>
               </div>
             </Reveal>
