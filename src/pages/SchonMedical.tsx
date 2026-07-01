@@ -1,9 +1,6 @@
 import { Reveal } from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
 import { HeartPulse, Shirt, Users, Highlighter } from 'lucide-react'
-import schonBg from '@/assets/image-3f6c4.png'
-import schonLogoPrimary from '@/assets/captura-de-tela-2026-07-01-as-09.46.45-69ea9.png'
-import schonLogoSecondary from '@/assets/design-sem-nome-52990.png'
 
 export default function SchonMedical() {
   const handleWhatsApp = () => {
@@ -14,45 +11,29 @@ export default function SchonMedical() {
   return (
     <div className="w-full flex-1">
       {/* Hero */}
-      <section className="relative h-[85vh] min-h-[600px] w-full overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src={schonBg}
-            alt="Schön Medical"
-            className="w-full h-full object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 sm:via-white/70 to-transparent" />
-          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
-        </div>
-        <div className="absolute inset-0 flex items-center">
-          <div className="container">
-            <Reveal className="max-w-2xl">
-              <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#2c3e50] mb-6 block">
-                Linha Profissional
-              </span>
-              <img
-                src={schonLogoPrimary}
-                alt="Schön Medical by Maçaroca"
-                className="w-full max-w-[280px] md:max-w-[400px] h-auto object-contain mb-8 mix-blend-multiply"
-              />
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif text-[#1a252f] leading-[1.1] mb-8">
-                Vista conforto.
-                <br />
-                Transmita confiança.
-              </h1>
-              <p className="text-lg text-[#2c3e50]/80 font-light mb-10 leading-relaxed max-w-xl">
-                Scrubs e roupas profissionais para mulheres da saúde que buscam conforto, elegância
-                e presença no dia a dia.
-              </p>
-              <Button
-                size="lg"
-                onClick={handleWhatsApp}
-                className="rounded-none uppercase tracking-widest bg-[#2c3e50] hover:bg-[#1a252f] text-white px-8 h-14 text-xs"
-              >
-                Solicitar orçamento da Schön Medical
-              </Button>
-            </Reveal>
-          </div>
+      <section className="bg-secondary/30 py-32 lg:py-40">
+        <div className="container">
+          <Reveal className="max-w-2xl">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground mb-6 block">
+              Linha Profissional
+            </span>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif text-foreground leading-[1.1] mb-8">
+              Schön Medical
+              <br />
+              <span className="text-muted-foreground">Vista conforto. Transmita confiança.</span>
+            </h1>
+            <p className="text-lg text-muted-foreground font-light mb-10 leading-relaxed max-w-xl">
+              Scrubs e roupas profissionais para mulheres da saúde que buscam conforto, elegância e
+              presença no dia a dia.
+            </p>
+            <Button
+              size="lg"
+              onClick={handleWhatsApp}
+              className="rounded-none uppercase tracking-widest bg-[#2c3e50] hover:bg-[#1a252f] text-white px-8 h-14 text-xs"
+            >
+              Solicitar orçamento da Schön Medical
+            </Button>
+          </Reveal>
         </div>
       </section>
 
@@ -61,11 +42,6 @@ export default function SchonMedical() {
         <div className="container">
           <Reveal>
             <div className="text-center mb-20 flex flex-col items-center">
-              <img
-                src={schonLogoSecondary}
-                alt="Marca Schön"
-                className="w-20 h-20 md:w-24 md:h-24 object-contain mb-8 opacity-90 mix-blend-multiply dark:invert dark:mix-blend-screen"
-              />
               <h2 className="text-3xl md:text-5xl font-serif mb-6 text-foreground">
                 Por que escolher a Schön?
               </h2>
@@ -104,7 +80,7 @@ export default function SchonMedical() {
                 delay={i * 100}
                 className="text-center p-8 bg-secondary/5 border border-border/50 hover:border-[#2c3e50]/30 transition-colors group"
               >
-                <div className="w-16 h-16 mx-auto bg-white rounded-full flex items-center justify-center mb-8 shadow-sm text-[#2c3e50] group-hover:scale-110 transition-transform duration-300">
+                <div className="w-16 h-16 mx-auto bg-secondary rounded-full flex items-center justify-center mb-8 shadow-sm text-[#2c3e50] group-hover:scale-110 transition-transform duration-300">
                   <prop.icon className="w-8 h-8" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-lg font-serif mb-4 text-foreground">{prop.title}</h3>
@@ -118,8 +94,7 @@ export default function SchonMedical() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 lg:py-40 bg-[#2c3e50] text-white text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[url('https://img.usecurling.com/p/1600/900?q=texture%20fabric')] mix-blend-overlay" />
+      <section className="py-32 lg:py-40 bg-[#2c3e50] text-white text-center">
         <div className="container relative z-10">
           <Reveal className="max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-5xl font-serif mb-8 leading-tight">
