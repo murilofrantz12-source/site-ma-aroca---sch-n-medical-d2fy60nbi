@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Reveal } from '@/components/Reveal'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
-import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.15.53-eab41.png'
+import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.23.26-ea69b.png'
 
 export default function Index() {
   return (
@@ -13,9 +13,9 @@ export default function Index() {
           <img
             src={heroBg}
             alt="Maçaroca Fashion"
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover object-[center_15%] md:object-center"
           />
-          <div className="absolute inset-0 bg-black/50 transition-colors" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/70 transition-colors" />
         </div>
         <div className="absolute inset-0 flex items-center justify-center text-center p-6 mt-16">
           <Reveal className="max-w-4xl space-y-8 flex flex-col items-center">
@@ -70,11 +70,11 @@ export default function Index() {
         <div className="container grid md:grid-cols-2 gap-8 lg:gap-12">
           <Reveal delay={100} className="group relative aspect-[3/4] overflow-hidden bg-muted">
             <img
-              src="https://img.usecurling.com/p/800/1000?q=elegant%20dress%20woman&seed=macaroca"
+              src={heroBg}
               alt="Maçaroca"
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+              className="w-full h-full object-cover object-[center_15%] md:object-center transition-transform duration-1000 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8 sm:p-12 transition-opacity">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 flex flex-col justify-end p-8 sm:p-12 transition-opacity">
               <h2 className="text-3xl md:text-4xl font-serif text-white mb-4">Maçaroca</h2>
               <p className="text-white/80 font-light mb-8 max-w-sm leading-relaxed">
                 Vestidos, macacões, conjuntos e peças exclusivas com estilo, leveza e presença.
