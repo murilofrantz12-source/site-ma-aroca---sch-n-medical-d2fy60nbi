@@ -9,9 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Instagram, MapPin, Phone } from 'lucide-react'
+import { Instagram, MapPin, Phone, Mail, Clock } from 'lucide-react'
 import { useState } from 'react'
-import { INSTAGRAM_URL, WHATSAPP_URL } from '@/lib/social-links'
+import { contactInfo } from '@/lib/contact-info'
 
 export default function Contato() {
   const [formData, setFormData] = useState({
@@ -24,7 +24,7 @@ export default function Contato() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const text = `Olá, meu nome é ${formData.name}.\nTelefone: ${formData.phone}\nInteresse: ${formData.interest}\n\nMensagem:\n${formData.message}`
-    const waUrl = `https://wa.me/5544999881151?text=${encodeURIComponent(text)}`
+    const waUrl = `https://wa.me/${contactInfo.whatsapp.brasil.rawNumber}?text=${encodeURIComponent(text)}`
     window.location.href = waUrl
   }
 
@@ -51,20 +51,60 @@ export default function Contato() {
               <div className="space-y-10">
                 <div className="flex items-start space-x-5">
                   <Phone className="w-6 h-6 mt-1 text-foreground/60" strokeWidth={1.5} />
+                  <div className="flex-1">
+                    <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">WhatsApp</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-muted-foreground text-xs font-light">
+                          {contactInfo.whatsapp.brasil.label}
+                        </span>
+                        <a
+                          href={contactInfo.whatsapp.brasil.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors block"
+                        >
+                          {contactInfo.whatsapp.brasil.displayNumber}
+                        </a>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs font-light">
+                          {contactInfo.whatsapp.paraguai.label}
+                        </span>
+                        <a
+                          href={contactInfo.whatsapp.paraguai.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors block"
+                        >
+                          {contactInfo.whatsapp.paraguai.displayNumber}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-5">
+                  <Mail className="w-6 h-6 mt-1 text-foreground/60" strokeWidth={1.5} />
                   <div>
-                    <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">
-                      WhatsApp / Telefone
-                    </h3>
+                    <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">E-mail</h3>
                     <a
-                      href={WHATSAPP_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={contactInfo.email.link}
                       className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors"
                     >
-                      +55 (44) 99988-1151
+                      {contactInfo.email.display}
                     </a>
-                    <p className="text-muted-foreground font-light text-sm mt-1">
-                      Segunda a sexta, das 7h às 18h
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-5">
+                  <Clock className="w-6 h-6 mt-1 text-foreground/60" strokeWidth={1.5} />
+                  <div>
+                    <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">
+                      Horário de Atendimento
+                    </h3>
+                    <p className="text-muted-foreground font-light text-sm">
+                      {contactInfo.businessHours}
                     </p>
                   </div>
                 </div>
@@ -73,11 +113,13 @@ export default function Contato() {
                   <MapPin className="w-6 h-6 mt-1 text-foreground/60" strokeWidth={1.5} />
                   <div>
                     <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">
-                      Atendimento Online
+                      {contactInfo.location.title}
                     </h3>
-                    <p className="text-muted-foreground font-light text-sm">Base em Assunção, PY</p>
+                    <p className="text-muted-foreground font-light text-sm">
+                      {contactInfo.location.city}
+                    </p>
                     <p className="text-muted-foreground font-light text-sm mt-1 italic">
-                      Atendimento personalizado pelo Instagram e WhatsApp.
+                      {contactInfo.location.description}
                     </p>
                   </div>
                 </div>
@@ -87,7 +129,7 @@ export default function Contato() {
                 <h3 className="font-medium mb-6 uppercase tracking-wider text-xs">Redes Sociais</h3>
                 <div className="flex items-center space-x-4">
                   <a
-                    href={INSTAGRAM_URL}
+                    href={contactInfo.socialMedia.instagram.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-12 h-12 rounded-full border border-border bg-background flex items-center justify-center hover:bg-foreground hover:text-background transition-all duration-300"
@@ -95,12 +137,12 @@ export default function Contato() {
                     <Instagram className="w-5 h-5" strokeWidth={1.5} />
                   </a>
                   <a
-                    href={INSTAGRAM_URL}
+                    href={contactInfo.socialMedia.instagram.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors"
                   >
-                    Instagram: @mmacaroca
+                    Instagram: {contactInfo.socialMedia.instagram.username}
                   </a>
                 </div>
               </div>

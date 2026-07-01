@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Reveal } from '@/components/Reveal'
-import { WHATSAPP_URL } from '@/lib/social-links'
+import { contactInfo } from '@/lib/contact-info'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.23.26-ea69b.png'
 import macarocaBg from '@/assets/captura-de-tela-2026-07-01-as-09.26.51-5292d.png'
@@ -51,7 +51,11 @@ export default function Index() {
                 variant="outline"
                 className="rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-8 h-12 bg-transparent backdrop-blur-sm"
               >
-                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={contactInfo.whatsapp.brasil.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Falar pelo WhatsApp
                 </a>
               </Button>
@@ -121,7 +125,11 @@ export default function Index() {
                   variant="outline"
                   className="rounded-none border-[#2c3e50] text-[#2c3e50] hover:bg-[#2c3e50] hover:text-white uppercase tracking-widest px-8 h-14 text-xs w-full sm:w-auto"
                 >
-                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={contactInfo.whatsapp.brasil.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Solicitar Orçamento
                   </a>
                 </Button>
@@ -137,6 +145,53 @@ export default function Index() {
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-105"
               />
             </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* Business Hours & Contact Quick Info */}
+      <section className="py-16 bg-foreground text-background flex-shrink-0">
+        <div className="container max-w-5xl text-center">
+          <div className="grid md:grid-cols-3 gap-8 md:gap-12">
+            <div className="flex flex-col items-center">
+              <h3 className="text-xs uppercase tracking-[0.2em] text-background/60 mb-3">
+                Horário
+              </h3>
+              <p className="text-sm font-light">{contactInfo.businessHours}</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <h3 className="text-xs uppercase tracking-[0.2em] text-background/60 mb-3">E-mail</h3>
+              <a
+                href={contactInfo.email.link}
+                className="text-sm font-light hover:text-background/80 transition-colors"
+              >
+                {contactInfo.email.display}
+              </a>
+            </div>
+            <div className="flex flex-col items-center">
+              <h3 className="text-xs uppercase tracking-[0.2em] text-background/60 mb-3">
+                WhatsApp
+              </h3>
+              <div className="flex flex-col gap-1">
+                <a
+                  href={contactInfo.whatsapp.brasil.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-light hover:text-background/80 transition-colors"
+                >
+                  {contactInfo.whatsapp.brasil.label}: {contactInfo.whatsapp.brasil.displayNumber}
+                </a>
+                <a
+                  href={contactInfo.whatsapp.paraguai.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-light hover:text-background/80 transition-colors"
+                >
+                  {contactInfo.whatsapp.paraguai.label}:{' '}
+                  {contactInfo.whatsapp.paraguai.displayNumber}
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>

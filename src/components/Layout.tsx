@@ -1,10 +1,10 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Menu, MessageCircle, Instagram } from 'lucide-react'
+import { Menu, MessageCircle, Instagram, Mail } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { INSTAGRAM_URL, WHATSAPP_URL as WA_URL } from '@/lib/social-links'
+import { contactInfo, WHATSAPP_URL, INSTAGRAM_URL } from '@/lib/contact-info'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 
 const LINKS = [
@@ -34,8 +34,6 @@ export default function Layout() {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
-  const WHATSAPP_URL = WA_URL
-
   return (
     <div className="flex flex-col min-h-screen">
       <header
@@ -45,7 +43,6 @@ export default function Layout() {
         )}
       >
         <div className="container grid grid-cols-3 items-center">
-          {/* Mobile Menu Trigger */}
           <div className="lg:hidden flex justify-start">
             <Sheet>
               <SheetTrigger asChild>
@@ -100,7 +97,6 @@ export default function Layout() {
             </Sheet>
           </div>
 
-          {/* Desktop Left Nav */}
           <nav className="hidden lg:flex items-center space-x-8 justify-start">
             {LINKS.slice(0, 3).map((link) => (
               <Link
@@ -118,7 +114,6 @@ export default function Layout() {
             ))}
           </nav>
 
-          {/* Centered Logo */}
           <div className="flex justify-center overflow-hidden h-12 md:h-16">
             <Link
               to="/"
@@ -137,7 +132,6 @@ export default function Layout() {
             </Link>
           </div>
 
-          {/* Desktop Right Nav & Actions */}
           <div className="hidden lg:flex items-center justify-end space-x-6">
             {LINKS.slice(3).map((link) => (
               <Link
@@ -174,7 +168,6 @@ export default function Layout() {
             </a>
           </div>
 
-          {/* Mobile Right Action */}
           <div className="lg:hidden flex justify-end">
             <a
               href={INSTAGRAM_URL}
@@ -250,7 +243,42 @@ export default function Layout() {
           <div>
             <h4 className="font-serif text-lg mb-6 text-background/90">Contato</h4>
             <ul className="space-y-3 text-sm text-background/70 font-light">
-              <li>+55 (44) 99988-1151</li>
+              <li>
+                <span className="text-background/50 text-xs">
+                  {contactInfo.whatsapp.brasil.label}:
+                </span>{' '}
+                <a
+                  href={contactInfo.whatsapp.brasil.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-background transition-colors"
+                >
+                  {contactInfo.whatsapp.brasil.displayNumber}
+                </a>
+              </li>
+              <li>
+                <span className="text-background/50 text-xs">
+                  {contactInfo.whatsapp.paraguai.label}:
+                </span>{' '}
+                <a
+                  href={contactInfo.whatsapp.paraguai.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-background transition-colors"
+                >
+                  {contactInfo.whatsapp.paraguai.displayNumber}
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-background/50" strokeWidth={1.5} />
+                <a
+                  href={contactInfo.email.link}
+                  className="hover:text-background transition-colors"
+                >
+                  {contactInfo.email.display}
+                </a>
+              </li>
+              <li className="text-background/50 pt-2">{contactInfo.businessHours}</li>
               <li className="pt-4">
                 <a
                   href={INSTAGRAM_URL}
