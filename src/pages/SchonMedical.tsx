@@ -27,22 +27,22 @@ export default function SchonMedical() {
           <div className="absolute inset-0 bg-gradient-to-b from-[#2c3e50]/70 via-[#2c3e50]/50 to-[#2c3e50]/90" />
         </div>
         <div className="container relative z-10 text-center py-20 flex flex-col items-center">
-          <Reveal className="flex flex-col items-center max-w-3xl">
+          <Reveal className="flex flex-col items-center w-full">
             <Link to="/" className="inline-block mb-8 hover:opacity-80 transition-opacity">
               <img
                 src={schonIcon}
                 alt="Schön Medical"
-                className="w-16 h-16 md:w-20 md:h-20 mx-auto object-contain"
+                className="w-20 h-20 md:w-24 md:h-24 mx-auto object-contain"
               />
             </Link>
             <Link
               to="/"
-              className="inline-block mb-10 w-full max-w-xl md:max-w-2xl hover:opacity-80 transition-opacity"
+              className="inline-block mb-10 w-full max-w-4xl md:max-w-5xl lg:max-w-6xl hover:opacity-80 transition-opacity"
             >
               <img
                 src={schonWordmark}
                 alt="Schön Medical by Maçaroca"
-                className="w-full h-auto object-contain drop-shadow-lg"
+                className="w-full h-auto object-contain drop-shadow-2xl"
               />
             </Link>
             <h1 className="sr-only">Schön Medical by Maçaroca</h1>
