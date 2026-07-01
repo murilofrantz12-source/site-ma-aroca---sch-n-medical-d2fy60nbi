@@ -9,8 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Instagram, Mail, MapPin, Phone } from 'lucide-react'
+import { Instagram, MapPin, Phone } from 'lucide-react'
 import { useState } from 'react'
+
+const WHATSAPP_URL =
+  'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.'
+const INSTAGRAM_URL = 'https://www.instagram.com/mmacaroca/'
 
 export default function Contato() {
   const [formData, setFormData] = useState({
@@ -23,7 +27,7 @@ export default function Contato() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const text = `Olá, meu nome é ${formData.name}.\nTelefone: ${formData.phone}\nInteresse: ${formData.interest}\n\nMensagem:\n${formData.message}`
-    window.open(`https://wa.me/5511999999999?text=${encodeURIComponent(text)}`, '_blank')
+    window.open(`https://wa.me/5544999881151?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   return (
@@ -53,19 +57,16 @@ export default function Contato() {
                     <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">
                       WhatsApp / Telefone
                     </h3>
-                    <p className="text-muted-foreground font-light text-sm">(11) 99999-9999</p>
+                    <a
+                      href={WHATSAPP_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors"
+                    >
+                      +55 (44) 99988-1151
+                    </a>
                     <p className="text-muted-foreground font-light text-sm mt-1">
-                      Segunda a Sexta, das 9h às 18h
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-5">
-                  <Mail className="w-6 h-6 mt-1 text-foreground/60" strokeWidth={1.5} />
-                  <div>
-                    <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">E-mail</h3>
-                    <p className="text-muted-foreground font-light text-sm">
-                      contato@macaroca.com.br
+                      Segunda a sexta, das 7h às 18h
                     </p>
                   </div>
                 </div>
@@ -73,10 +74,12 @@ export default function Contato() {
                 <div className="flex items-start space-x-5">
                   <MapPin className="w-6 h-6 mt-1 text-foreground/60" strokeWidth={1.5} />
                   <div>
-                    <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">Ateliê</h3>
-                    <p className="text-muted-foreground font-light text-sm">São Paulo, SP</p>
+                    <h3 className="font-medium mb-2 uppercase tracking-wider text-xs">
+                      Atendimento Online
+                    </h3>
+                    <p className="text-muted-foreground font-light text-sm">Base em Assunção, PY</p>
                     <p className="text-muted-foreground font-light text-sm mt-1 italic">
-                      Atendimento presencial apenas com hora marcada
+                      Atendimento personalizado pelo Instagram e WhatsApp.
                     </p>
                   </div>
                 </div>
@@ -84,14 +87,22 @@ export default function Contato() {
 
               <div className="mt-16 pt-8 border-t border-border/50">
                 <h3 className="font-medium mb-6 uppercase tracking-wider text-xs">Redes Sociais</h3>
-                <div className="flex space-x-4">
+                <div className="flex items-center space-x-4">
                   <a
-                    href="https://instagram.com"
+                    href={INSTAGRAM_URL}
                     target="_blank"
                     rel="noreferrer"
                     className="w-12 h-12 rounded-full border border-border bg-background flex items-center justify-center hover:bg-foreground hover:text-background transition-all duration-300"
                   >
                     <Instagram className="w-5 h-5" strokeWidth={1.5} />
+                  </a>
+                  <a
+                    href={INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted-foreground font-light text-sm hover:text-foreground transition-colors"
+                  >
+                    Instagram: @mmacaroca
                   </a>
                 </div>
               </div>

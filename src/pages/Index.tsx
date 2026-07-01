@@ -47,7 +47,7 @@ export default function Index() {
                 className="rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-8 h-12 bg-transparent backdrop-blur-sm"
                 onClick={() =>
                   window.open(
-                    'https://wa.me/5511999999999?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20Ma%C3%A7aroca.',
+                    'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20Ma%C3%A7aroca.',
                     '_blank',
                   )
                 }
@@ -119,7 +119,7 @@ export default function Index() {
                   variant="outline"
                   onClick={() =>
                     window.open(
-                      'https://wa.me/5511999999999?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20um%20or%C3%A7amento%20da%20Sch%C3%B6n%20Medical%20para%20scrubs%2Funiformes%20profissionais.',
+                      'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20um%20or%C3%A7amento%20da%20Sch%C3%B6n%20Medical%20para%20scrubs%2Funiformes%20profissionais.',
                       '_blank',
                     )
                   }

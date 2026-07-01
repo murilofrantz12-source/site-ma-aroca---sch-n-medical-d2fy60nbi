@@ -34,8 +34,10 @@ export default function Layout() {
   }, [location.pathname])
 
   const handleWhatsApp = () => {
-    const msg = encodeURIComponent('Olá, vim pelo site da Maçaroca e gostaria de mais informações.')
-    window.open(`https://wa.me/5511999999999?text=${msg}`, '_blank')
+    window.open(
+      'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.',
+      '_blank',
+    )
   }
 
   return (
@@ -80,7 +82,7 @@ export default function Layout() {
                   ))}
                   <div className="pt-8 border-t border-border flex flex-col space-y-6">
                     <a
-                      href="https://instagram.com"
+                      href="https://www.instagram.com/mmacaroca/"
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center space-x-2 text-foreground/80"
@@ -161,7 +163,7 @@ export default function Layout() {
               )}
             />
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/mmacaroca/"
               target="_blank"
               rel="noreferrer"
               className={cn(
@@ -178,7 +180,7 @@ export default function Layout() {
           {/* Mobile Right Action */}
           <div className="lg:hidden flex justify-end">
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/mmacaroca/"
               target="_blank"
               rel="noreferrer"
               className={cn(
@@ -248,11 +250,10 @@ export default function Layout() {
           <div>
             <h4 className="font-serif text-lg mb-6 text-background/90">Contato</h4>
             <ul className="space-y-3 text-sm text-background/70 font-light">
-              <li>contato@macaroca.com.br</li>
-              <li>(11) 99999-9999</li>
+              <li>+55 (44) 99988-1151</li>
               <li className="pt-4">
                 <a
-                  href="https://instagram.com"
+                  href="https://www.instagram.com/mmacaroca/"
                   target="_blank"
                   rel="noreferrer"
                   className="inline-block hover:text-background transition-colors p-2 -ml-2"

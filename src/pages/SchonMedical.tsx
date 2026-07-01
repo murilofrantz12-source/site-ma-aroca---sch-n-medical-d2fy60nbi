@@ -8,7 +8,7 @@ import schonImage from '@/assets/1ac556d2-00cd-49ab-86f8-bdd7aa54daec-fe795.jpg'
 export default function SchonMedical() {
   const handleWhatsApp = () => {
     const text = `Olá, gostaria de solicitar um orçamento da Schön Medical para scrubs/uniformes profissionais.`
-    window.open(`https://wa.me/5511999999999?text=${encodeURIComponent(text)}`, '_blank')
+    window.open(`https://wa.me/5544999881151?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   return (
