@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, MessageCircle, Instagram } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import logoMacaroca from '@/assets/macaroca-4aef6.png'
 
 const LINKS = [
@@ -16,6 +17,9 @@ const LINKS = [
 export default function Layout() {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
+
+  const isHome = location.pathname === '/'
+  const isTransparentAndDarkBg = isHome && !scrolled
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,51 +41,26 @@ export default function Layout() {
   return (
     <div className="flex flex-col min-h-screen">
       <header
-        className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-background/90 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'}`}
+        className={cn(
+          'fixed top-0 w-full z-50 transition-all duration-300',
+          scrolled ? 'bg-background/95 backdrop-blur-md shadow-sm py-4' : 'bg-transparent py-6',
+        )}
       >
-        <div className="container flex items-center justify-between">
-          <Link to="/" className="flex flex-col items-start transition-opacity hover:opacity-80">
-            <img
-              src={logoMacaroca}
-              alt="Maçaroca"
-              className="h-10 md:h-12 w-auto object-contain invert mix-blend-multiply"
-            />
-          </Link>
-
-          <nav className="hidden lg:flex items-center space-x-8">
-            {LINKS.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className="text-xs font-medium uppercase tracking-widest text-foreground/80 hover:text-foreground transition-colors"
-              >
-                {link.name}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="hidden lg:flex items-center space-x-6">
-            <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-foreground/80 hover:text-foreground transition-colors"
-            >
-              <Instagram className="w-5 h-5" />
-            </a>
-            <Button
-              variant="outline"
-              className="rounded-none border-foreground text-foreground hover:bg-foreground hover:text-background uppercase tracking-widest text-xs"
-              onClick={handleWhatsApp}
-            >
-              Falar no WhatsApp
-            </Button>
-          </div>
-
-          <div className="lg:hidden">
+        <div className="container grid grid-cols-3 items-center">
+          {/* Mobile Menu Trigger */}
+          <div className="lg:hidden flex justify-start">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    '-ml-3',
+                    isTransparentAndDarkBg
+                      ? 'text-white hover:bg-white/20'
+                      : 'text-foreground hover:bg-foreground/10',
+                  )}
+                >
                   <Menu className="w-6 h-6" />
                 </Button>
               </SheetTrigger>
@@ -121,6 +100,94 @@ export default function Layout() {
               </SheetContent>
             </Sheet>
           </div>
+
+          {/* Desktop Left Nav */}
+          <nav className="hidden lg:flex items-center space-x-8 justify-start">
+            {LINKS.slice(0, 3).map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={cn(
+                  'text-xs font-medium uppercase tracking-[0.15em] transition-colors',
+                  isTransparentAndDarkBg
+                    ? 'text-white/90 hover:text-white'
+                    : 'text-foreground/80 hover:text-foreground',
+                )}
+              >
+                {link.name}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Centered Logo */}
+          <div className="flex justify-center">
+            <Link to="/" className="flex flex-col items-center transition-opacity hover:opacity-80">
+              <img
+                src={logoMacaroca}
+                alt="Maçaroca"
+                className={cn(
+                  'h-8 md:h-10 w-auto object-contain transition-all duration-300',
+                  isTransparentAndDarkBg
+                    ? 'invert mix-blend-screen opacity-100'
+                    : 'mix-blend-multiply opacity-95',
+                )}
+              />
+            </Link>
+          </div>
+
+          {/* Desktop Right Nav & Actions */}
+          <div className="hidden lg:flex items-center justify-end space-x-6">
+            {LINKS.slice(3).map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={cn(
+                  'text-xs font-medium uppercase tracking-[0.15em] transition-colors',
+                  isTransparentAndDarkBg
+                    ? 'text-white/90 hover:text-white'
+                    : 'text-foreground/80 hover:text-foreground',
+                )}
+              >
+                {link.name}
+              </Link>
+            ))}
+            <div
+              className={cn(
+                'h-4 w-px opacity-30',
+                isTransparentAndDarkBg ? 'bg-white' : 'bg-foreground',
+              )}
+            />
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                'transition-colors',
+                isTransparentAndDarkBg
+                  ? 'text-white/90 hover:text-white'
+                  : 'text-foreground/80 hover:text-foreground',
+              )}
+            >
+              <Instagram className="w-4 h-4" />
+            </a>
+          </div>
+
+          {/* Mobile Right Action */}
+          <div className="lg:hidden flex justify-end">
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                '-mr-2 p-2 transition-colors',
+                isTransparentAndDarkBg
+                  ? 'text-white hover:text-white/80'
+                  : 'text-foreground hover:text-foreground/80',
+              )}
+            >
+              <Instagram className="w-5 h-5" />
+            </a>
+          </div>
         </div>
       </header>
 
@@ -134,7 +201,7 @@ export default function Layout() {
             <img
               src={logoMacaroca}
               alt="Maçaroca"
-              className="h-14 md:h-16 w-auto object-contain mix-blend-screen mb-6 opacity-90"
+              className="h-14 md:h-16 w-auto object-contain invert mix-blend-screen mb-8 opacity-100"
             />
             <p className="text-sm text-background/70 font-light leading-relaxed">
               Criações femininas com alma, movimento e estilo. Peças autorais para mulheres que

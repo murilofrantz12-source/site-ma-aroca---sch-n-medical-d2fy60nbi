@@ -17,10 +17,10 @@ export default function Index() {
         </div>
         <div className="absolute inset-0 flex items-center justify-center text-center p-6 mt-16">
           <Reveal className="max-w-4xl space-y-8">
-            <span className="text-white/80 uppercase tracking-[0.3em] text-xs font-medium block mb-4">
-              MAÇAROCA
+            <span className="text-white/80 uppercase tracking-[0.4em] text-xs font-medium block mb-6">
+              O Design do Movimento
             </span>
-            <h1 className="text-4xl md:text-5xl lg:text-7xl font-serif text-white uppercase tracking-wider drop-shadow-lg leading-[1.1]">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-white uppercase tracking-wider drop-shadow-lg leading-[1.15]">
               Você tem o poder
               <br />
               de vestir presença

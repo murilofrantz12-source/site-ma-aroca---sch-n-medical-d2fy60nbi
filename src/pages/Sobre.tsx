@@ -14,7 +14,7 @@ export default function Sobre() {
             <img
               src={logoSecondary}
               alt="Mç"
-              className="w-20 h-20 object-contain invert mix-blend-multiply opacity-80"
+              className="w-24 h-24 object-contain mix-blend-multiply opacity-90"
             />
           </div>
         </Reveal>
