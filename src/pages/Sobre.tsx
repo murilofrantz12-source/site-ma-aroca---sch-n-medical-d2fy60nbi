@@ -1,5 +1,5 @@
 import { Reveal } from '@/components/Reveal'
-import logoSecondary from '@/assets/mc-d5139.png'
+import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 
 export default function Sobre() {
   return (
@@ -11,11 +11,13 @@ export default function Sobre() {
               A Marca
             </h1>
             <div className="w-16 h-[1px] bg-foreground mx-auto mb-12" />
-            <img
-              src={logoSecondary}
-              alt="Mç"
-              className="w-24 h-24 object-contain mix-blend-multiply opacity-90"
-            />
+            <div className="h-24 md:h-32 overflow-hidden flex items-center justify-center">
+              <img
+                src={logoMacaroca}
+                alt="Maçaroca"
+                className="h-48 md:h-64 w-auto object-contain invert mix-blend-multiply opacity-90 max-w-none"
+              />
+            </div>
           </div>
         </Reveal>
 

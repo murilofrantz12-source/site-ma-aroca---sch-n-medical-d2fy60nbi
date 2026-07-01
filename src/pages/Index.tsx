@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Reveal } from '@/components/Reveal'
+import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 
 export default function Index() {
   return (
@@ -16,15 +17,15 @@ export default function Index() {
           <div className="absolute inset-0 bg-black/40 transition-colors" />
         </div>
         <div className="absolute inset-0 flex items-center justify-center text-center p-6 mt-16">
-          <Reveal className="max-w-4xl space-y-8">
-            <span className="text-white/80 uppercase tracking-[0.4em] text-xs font-medium block mb-6">
-              O Design do Movimento
-            </span>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-white uppercase tracking-wider drop-shadow-lg leading-[1.15]">
-              Você tem o poder
-              <br />
-              de vestir presença
-            </h1>
+          <Reveal className="max-w-4xl space-y-8 flex flex-col items-center">
+            <div className="h-40 sm:h-56 md:h-72 overflow-hidden flex items-center justify-center">
+              <img
+                src={logoMacaroca}
+                alt="Maçaroca - Você tem o poder"
+                className="h-[300px] sm:h-[450px] md:h-[550px] w-auto object-contain mix-blend-screen drop-shadow-2xl max-w-none"
+              />
+            </div>
+            <h1 className="sr-only">Maçaroca - Você tem o poder de vestir presença</h1>
             <p className="text-base md:text-lg text-white/90 font-light max-w-2xl mx-auto drop-shadow leading-relaxed">
               Criações femininas com alma. Peças autorais para mulheres que desejam se sentir
               elegantes, livres e únicas.

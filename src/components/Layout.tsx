@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, MessageCircle, Instagram } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import logoMacaroca from '@/assets/macaroca-4aef6.png'
+import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 
 const LINKS = [
   { name: 'Início', path: '/' },
@@ -120,16 +120,19 @@ export default function Layout() {
           </nav>
 
           {/* Centered Logo */}
-          <div className="flex justify-center">
-            <Link to="/" className="flex flex-col items-center transition-opacity hover:opacity-80">
+          <div className="flex justify-center overflow-hidden h-12 md:h-16">
+            <Link
+              to="/"
+              className="flex items-center justify-center transition-opacity hover:opacity-80"
+            >
               <img
                 src={logoMacaroca}
                 alt="Maçaroca"
                 className={cn(
-                  'h-8 md:h-10 w-auto object-contain transition-all duration-300',
+                  'h-28 md:h-40 w-auto object-contain transition-all duration-300 max-w-none',
                   isTransparentAndDarkBg
-                    ? 'invert mix-blend-screen opacity-100'
-                    : 'mix-blend-multiply opacity-95',
+                    ? 'mix-blend-screen opacity-100'
+                    : 'invert mix-blend-multiply opacity-95',
                 )}
               />
             </Link>
@@ -198,11 +201,13 @@ export default function Layout() {
       <footer className="bg-foreground text-background py-16 lg:py-24">
         <div className="container grid grid-cols-1 md:grid-cols-4 gap-12 lg:gap-16">
           <div className="md:col-span-1 flex flex-col items-start">
-            <img
-              src={logoMacaroca}
-              alt="Maçaroca"
-              className="h-14 md:h-16 w-auto object-contain invert mix-blend-screen mb-8 opacity-100"
-            />
+            <div className="h-20 md:h-24 overflow-hidden flex items-center justify-start mb-6 -ml-4 md:-ml-6">
+              <img
+                src={logoMacaroca}
+                alt="Maçaroca"
+                className="h-44 md:h-52 w-auto object-contain mix-blend-screen opacity-100 max-w-none"
+              />
+            </div>
             <p className="text-sm text-background/70 font-light leading-relaxed">
               Criações femininas com alma, movimento e estilo. Peças autorais para mulheres que
               desejam se sentir elegantes, livres e únicas.
