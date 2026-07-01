@@ -27,7 +27,8 @@ export default function Contato() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const text = `Olá, meu nome é ${formData.name}.\nTelefone: ${formData.phone}\nInteresse: ${formData.interest}\n\nMensagem:\n${formData.message}`
-    window.open(`https://wa.me/5544999881151?text=${encodeURIComponent(text)}`, '_blank')
+    const waUrl = `https://wa.me/5544999881151?text=${encodeURIComponent(text)}`
+    window.location.href = waUrl
   }
 
   return (

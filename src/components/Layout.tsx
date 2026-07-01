@@ -33,12 +33,8 @@ export default function Layout() {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
-  const handleWhatsApp = () => {
-    window.open(
-      'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.',
-      '_blank',
-    )
-  }
+  const WHATSAPP_URL =
+    'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.'
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -90,13 +86,14 @@ export default function Layout() {
                       <Instagram className="w-5 h-5" />
                       <span className="text-sm uppercase tracking-widest">Instagram</span>
                     </a>
-                    <Button
-                      variant="outline"
-                      className="w-full rounded-none border-foreground text-foreground uppercase tracking-widest text-xs"
-                      onClick={handleWhatsApp}
+                    <a
+                      href={WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center w-full rounded-none border border-foreground bg-transparent text-foreground uppercase tracking-widest text-xs h-10 px-4 py-2 hover:bg-foreground/5 transition-colors"
                     >
                       Falar no WhatsApp
-                    </Button>
+                    </a>
                   </div>
                 </nav>
               </SheetContent>
@@ -275,13 +272,15 @@ export default function Layout() {
         </div>
       </footer>
 
-      <button
-        onClick={handleWhatsApp}
+      <a
+        href={WHATSAPP_URL}
+        target="_blank"
+        rel="noopener noreferrer"
         className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-elevation hover:scale-110 transition-transform duration-300 z-50 animate-fade-in-up"
         aria-label="Falar no WhatsApp"
       >
         <MessageCircle className="w-6 h-6" />
-      </button>
+      </a>
     </div>
   )
 }
