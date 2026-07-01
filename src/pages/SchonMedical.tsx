@@ -1,7 +1,7 @@
 import { Reveal } from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
 import { HeartPulse, Shirt, Users, Highlighter } from 'lucide-react'
-import schonIcon from '@/assets/s-10273.jpg'
+import schonIcon from '@/assets/s-correto-4afa7.png'
 import schonWordmark from '@/assets/so-by-macaroca-logo-peq-editado-4f9ae.png'
 import schonImage from '@/assets/1ac556d2-00cd-49ab-86f8-bdd7aa54daec-fe795.jpg'
 
@@ -19,11 +19,7 @@ export default function SchonMedical() {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
             <Reveal className="max-w-2xl z-10 relative">
               <div className="mb-6 flex items-center space-x-4">
-                <img
-                  src={schonIcon}
-                  alt="Schön Icon"
-                  className="w-10 h-10 object-contain mix-blend-multiply"
-                />
+                <img src={schonIcon} alt="Schön Icon" className="w-10 h-10 object-contain" />
                 <span className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground block">
                   Linha Profissional
                 </span>
@@ -134,11 +130,7 @@ export default function SchonMedical() {
         <div className="container relative z-10">
           <Reveal className="max-w-3xl mx-auto flex flex-col items-center">
             <div className="w-16 h-16 rounded-full bg-white mb-10 flex items-center justify-center overflow-hidden shadow-lg">
-              <img
-                src={schonIcon}
-                alt="Schön Icon"
-                className="w-12 h-12 object-contain mix-blend-multiply"
-              />
+              <img src={schonIcon} alt="Schön Icon" className="w-12 h-12 object-contain" />
             </div>
             <h2 className="text-3xl md:text-5xl font-serif mb-8 leading-tight">
               Pronta para transformar sua imagem profissional?
