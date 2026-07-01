@@ -2,8 +2,8 @@ import { Reveal } from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
 import { HeartPulse, Shirt, Users, Highlighter } from 'lucide-react'
 import schonBg from '@/assets/image-3f6c4.png'
-import schonLogoHorizontal from '@/assets/so-by-macaroca-logo-peq-editado-9a89a.png'
-import schonLogoSquare from '@/assets/design-sem-nome-c2ee3.png'
+import schonLogoPrimary from '@/assets/captura-de-tela-2026-07-01-as-09.46.45-69ea9.png'
+import schonLogoSecondary from '@/assets/design-sem-nome-52990.png'
 
 export default function SchonMedical() {
   const handleWhatsApp = () => {
@@ -31,9 +31,9 @@ export default function SchonMedical() {
                 Linha Profissional
               </span>
               <img
-                src={schonLogoHorizontal}
+                src={schonLogoPrimary}
                 alt="Schön Medical by Maçaroca"
-                className="w-full max-w-[280px] md:max-w-[400px] h-auto object-contain mb-8"
+                className="w-full max-w-[280px] md:max-w-[400px] h-auto object-contain mb-8 mix-blend-multiply"
               />
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif text-[#1a252f] leading-[1.1] mb-8">
                 Vista conforto.
@@ -62,9 +62,9 @@ export default function SchonMedical() {
           <Reveal>
             <div className="text-center mb-20 flex flex-col items-center">
               <img
-                src={schonLogoSquare}
+                src={schonLogoSecondary}
                 alt="Marca Schön"
-                className="w-20 h-20 md:w-24 md:h-24 object-contain mb-8 opacity-90"
+                className="w-20 h-20 md:w-24 md:h-24 object-contain mb-8 opacity-90 mix-blend-multiply dark:invert dark:mix-blend-screen"
               />
               <h2 className="text-3xl md:text-5xl font-serif mb-6 text-foreground">
                 Por que escolher a Schön?
