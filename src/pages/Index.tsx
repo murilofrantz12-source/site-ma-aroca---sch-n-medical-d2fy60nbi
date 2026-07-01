@@ -4,7 +4,7 @@ import { Reveal } from '@/components/Reveal'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.23.26-ea69b.png'
 import macarocaBg from '@/assets/captura-de-tela-2026-07-01-as-09.26.51-5292d.png'
-import schonBg from '@/assets/image-3f6c4.png'
+import schonBg from '@/assets/1ac556d2-00cd-49ab-86f8-bdd7aa54daec-fe795.jpg'
 
 export default function Index() {
   return (
@@ -67,57 +67,79 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Brand Cards */}
-      <section className="py-32 lg:py-40 bg-background flex-shrink-0">
-        <div className="container grid md:grid-cols-2 gap-8 lg:gap-12">
-          <Reveal delay={100} className="group relative aspect-[3/4] overflow-hidden bg-muted">
-            <img
-              src={macarocaBg}
-              alt="Maçaroca"
-              className="w-full h-full object-cover object-[center_15%] md:object-center transition-transform duration-1000 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 flex flex-col justify-end p-8 sm:p-12 transition-opacity">
-              <h2 className="text-3xl md:text-4xl font-serif text-white mb-4">Maçaroca</h2>
-              <p className="text-white/80 font-light mb-8 max-w-sm leading-relaxed">
+      {/* Brands Editorial Section */}
+      <section className="py-24 lg:py-32 bg-background flex-shrink-0 flex flex-col gap-24 lg:gap-32">
+        {/* Maçaroca */}
+        <div className="container">
+          <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <Reveal className="order-1 aspect-[4/5] lg:aspect-[3/4] overflow-hidden bg-muted">
+              <img
+                src={macarocaBg}
+                alt="Maçaroca"
+                className="w-full h-full object-cover object-[center_15%] md:object-center transition-transform duration-1000 hover:scale-105"
+              />
+            </Reveal>
+            <Reveal delay={100} className="order-2 flex flex-col justify-center items-start">
+              <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-6">Maçaroca</h2>
+              <p className="text-muted-foreground font-light mb-8 max-w-md leading-relaxed text-lg">
                 Vestidos, macacões, conjuntos e peças exclusivas com estilo, leveza e presença.
               </p>
               <Button
                 asChild
-                variant="link"
-                className="text-white p-0 h-auto justify-start uppercase tracking-widest text-xs hover:no-underline group/btn"
+                size="lg"
+                className="rounded-none uppercase tracking-widest px-8 h-14 text-xs"
               >
-                <Link to="/colecoes" className="flex items-center gap-2">
-                  Ver Coleção
-                  <span className="transition-transform group-hover/btn:translate-x-1">&rarr;</span>
-                </Link>
+                <Link to="/colecoes">Ver Coleção</Link>
               </Button>
-            </div>
-          </Reveal>
+            </Reveal>
+          </div>
+        </div>
 
-          <Reveal delay={200} className="group relative aspect-[3/4] overflow-hidden bg-muted">
-            <img
-              src={schonBg}
-              alt="Schön Medical"
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8 sm:p-12 transition-opacity">
-              <h2 className="text-3xl md:text-4xl font-serif text-white mb-4">Schön Medical</h2>
-              <p className="text-white/80 font-light mb-8 max-w-sm leading-relaxed">
+        {/* Schön Medical */}
+        <div className="container">
+          <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <Reveal className="order-2 md:order-1 flex flex-col justify-center items-start">
+              <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-6">
+                Schön Medical
+              </h2>
+              <p className="text-muted-foreground font-light mb-8 max-w-md leading-relaxed text-lg">
                 Scrubs e roupas profissionais para mulheres da saúde que buscam conforto, elegância
                 e confiança.
               </p>
-              <Button
-                asChild
-                variant="link"
-                className="text-white p-0 h-auto justify-start uppercase tracking-widest text-xs hover:no-underline group/btn"
-              >
-                <Link to="/schon-medical" className="flex items-center gap-2">
-                  Conhecer a Linha
-                  <span className="transition-transform group-hover/btn:translate-x-1">&rarr;</span>
-                </Link>
-              </Button>
-            </div>
-          </Reveal>
+              <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                <Button
+                  asChild
+                  size="lg"
+                  className="rounded-none uppercase tracking-widest px-8 h-14 text-xs bg-[#2c3e50] hover:bg-[#1a252f] text-white w-full sm:w-auto"
+                >
+                  <Link to="/schon-medical">Conhecer a Linha</Link>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() =>
+                    window.open(
+                      'https://wa.me/5511999999999?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20um%20or%C3%A7amento%20da%20Sch%C3%B6n%20Medical%20para%20scrubs%2Funiformes%20profissionais.',
+                      '_blank',
+                    )
+                  }
+                  className="rounded-none border-[#2c3e50] text-[#2c3e50] hover:bg-[#2c3e50] hover:text-white uppercase tracking-widest px-8 h-14 text-xs w-full sm:w-auto"
+                >
+                  Solicitar Orçamento
+                </Button>
+              </div>
+            </Reveal>
+            <Reveal
+              delay={100}
+              className="order-1 md:order-2 aspect-[4/5] lg:aspect-[3/4] overflow-hidden bg-muted"
+            >
+              <img
+                src={schonBg}
+                alt="Schön Medical"
+                className="w-full h-full object-cover transition-transform duration-1000 hover:scale-105"
+              />
+            </Reveal>
+          </div>
         </div>
       </section>
 
