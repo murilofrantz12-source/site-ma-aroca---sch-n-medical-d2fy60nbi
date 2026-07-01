@@ -78,8 +78,9 @@ export function ProductCard({ product }: ProductCardProps) {
                   handleWhatsApp()
                 }}
                 size="sm"
-                className="rounded-none bg-white text-black hover:bg-white/90 text-[10px] uppercase tracking-widest h-8 px-4"
+                className="rounded-none bg-white text-black hover:bg-white/90 text-[10px] uppercase tracking-widest h-8 px-4 flex items-center gap-1.5"
               >
+                <MessageCircle className="w-3 h-3" />
                 Consultar
               </Button>
             </div>

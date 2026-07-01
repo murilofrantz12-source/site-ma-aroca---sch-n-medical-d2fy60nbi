@@ -144,12 +144,11 @@ export default function Contato() {
                     <SelectValue placeholder="Selecione o assunto" />
                   </SelectTrigger>
                   <SelectContent className="rounded-none font-light">
-                    <SelectItem value="macaroca">Comprar peças Maçaroca</SelectItem>
-                    <SelectItem value="schon">Comprar uniformes Schön Medical</SelectItem>
-                    <SelectItem value="personalizado">
-                      Pedido Personalizado / Vestir Equipe
-                    </SelectItem>
-                    <SelectItem value="outros">Dúvidas Gerais / Outros Assuntos</SelectItem>
+                    <SelectItem value="Maçaroca">Maçaroca</SelectItem>
+                    <SelectItem value="Schön Medical">Schön Medical</SelectItem>
+                    <SelectItem value="Pedido personalizado">Pedido personalizado</SelectItem>
+                    <SelectItem value="Orçamento para equipe">Orçamento para equipe</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

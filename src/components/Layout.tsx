@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Menu, MessageCircle, Instagram } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import logoMacaroca from '@/assets/macaroca-4aef6.png'
 
 const LINKS = [
   { name: 'Início', path: '/' },
@@ -36,17 +37,15 @@ export default function Layout() {
   return (
     <div className="flex flex-col min-h-screen">
       <header
-        className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-background/90 backdrop-blur-md shadow-sm py-4' : 'bg-transparent py-6'}`}
+        className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-background/90 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-5'}`}
       >
         <div className="container flex items-center justify-between">
-          <Link
-            to="/"
-            className="text-2xl font-serif font-bold uppercase tracking-wider text-foreground"
-          >
-            Maçaroca
-            <span className="text-xs block font-sans font-normal text-muted-foreground tracking-widest mt-0.5">
-              + Schön
-            </span>
+          <Link to="/" className="flex flex-col items-start transition-opacity hover:opacity-80">
+            <img
+              src={logoMacaroca}
+              alt="Maçaroca"
+              className="h-10 md:h-12 w-auto object-contain invert mix-blend-multiply"
+            />
           </Link>
 
           <nav className="hidden lg:flex items-center space-x-8">
@@ -131,8 +130,12 @@ export default function Layout() {
 
       <footer className="bg-foreground text-background py-16 lg:py-24">
         <div className="container grid grid-cols-1 md:grid-cols-4 gap-12 lg:gap-16">
-          <div className="md:col-span-1">
-            <h3 className="font-serif text-2xl uppercase mb-6">Maçaroca</h3>
+          <div className="md:col-span-1 flex flex-col items-start">
+            <img
+              src={logoMacaroca}
+              alt="Maçaroca"
+              className="h-14 md:h-16 w-auto object-contain mix-blend-screen mb-6 opacity-90"
+            />
             <p className="text-sm text-background/70 font-light leading-relaxed">
               Criações femininas com alma, movimento e estilo. Peças autorais para mulheres que
               desejam se sentir elegantes, livres e únicas.

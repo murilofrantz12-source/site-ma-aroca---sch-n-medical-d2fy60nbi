@@ -1,15 +1,21 @@
 import { Reveal } from '@/components/Reveal'
+import logoSecondary from '@/assets/mc-d5139.png'
 
 export default function Sobre() {
   return (
     <div className="w-full pt-32 pb-24 bg-background min-h-screen flex-1">
       <div className="container max-w-5xl">
         <Reveal>
-          <div className="text-center mb-24">
+          <div className="text-center mb-24 flex flex-col items-center">
             <h1 className="text-4xl md:text-6xl font-serif mb-8 uppercase tracking-wider">
               A Marca
             </h1>
-            <div className="w-16 h-[1px] bg-foreground mx-auto" />
+            <div className="w-16 h-[1px] bg-foreground mx-auto mb-12" />
+            <img
+              src={logoSecondary}
+              alt="Mç"
+              className="w-20 h-20 object-contain invert mix-blend-multiply opacity-80"
+            />
           </div>
         </Reveal>
 

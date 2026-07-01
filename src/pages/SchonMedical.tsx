@@ -27,6 +27,8 @@ export default function SchonMedical() {
                 Linha Profissional
               </span>
               <h1 className="text-4xl md:text-5xl lg:text-7xl font-serif text-[#1a252f] leading-[1.1] mb-8">
+                Schön Medical:
+                <br />
                 Vista conforto.
                 <br />
                 Transmita confiança.
@@ -40,7 +42,7 @@ export default function SchonMedical() {
                 onClick={handleWhatsApp}
                 className="rounded-none uppercase tracking-widest bg-[#2c3e50] hover:bg-[#1a252f] text-white px-8 h-14 text-xs"
               >
-                Solicitar Orçamento
+                Solicitar orçamento da Schön Medical
               </Button>
             </Reveal>
           </div>
@@ -66,22 +68,22 @@ export default function SchonMedical() {
             {[
               {
                 icon: HeartPulse,
-                title: 'Conforto em Longas Jornadas',
+                title: 'Conforto para longas jornadas',
                 desc: 'Tecidos com elastano e toque macio que acompanham perfeitamente seus movimentos.',
               },
               {
                 icon: Shirt,
-                title: 'Imagem Profissional',
+                title: 'Imagem profissional',
                 desc: 'Cortes inspirados na alfaiataria que elevam sua autoridade sem perder a feminilidade.',
               },
               {
                 icon: Users,
-                title: 'Pedidos Individuais ou Equipes',
+                title: 'Pedidos individuais ou para equipes',
                 desc: 'Atendemos desde peças únicas até a padronização completa de clínicas e hospitais.',
               },
               {
                 icon: Highlighter,
-                title: 'Personalização Refinada',
+                title: 'Personalização (bordados)',
                 desc: 'Seu nome e especialidade bordados com extrema perfeição, cuidado e requinte.',
               },
             ].map((prop, i) => (

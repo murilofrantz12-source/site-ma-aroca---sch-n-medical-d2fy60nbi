@@ -18,16 +18,16 @@ export default function Index() {
         <div className="absolute inset-0 flex items-center justify-center text-center p-6 mt-16">
           <Reveal className="max-w-4xl space-y-8">
             <span className="text-white/80 uppercase tracking-[0.3em] text-xs font-medium block mb-4">
-              Maçaroca
+              MAÇAROCA
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-7xl font-serif text-white uppercase tracking-wider drop-shadow-lg leading-[1.1]">
               Você tem o poder
               <br />
-              de vestir presença.
+              de vestir presença
             </h1>
             <p className="text-base md:text-lg text-white/90 font-light max-w-2xl mx-auto drop-shadow leading-relaxed">
-              Criações femininas com alma, movimento e estilo. Peças autorais para mulheres que
-              desejam se sentir elegantes, livres e únicas.
+              Criações femininas com alma. Peças autorais para mulheres que desejam se sentir
+              elegantes, livres e únicas.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
               <Button
@@ -36,6 +36,19 @@ export default function Index() {
                 className="rounded-none bg-white text-black hover:bg-white/90 text-xs tracking-widest uppercase px-8 h-12"
               >
                 <Link to="/colecoes">Conhecer Coleções</Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-8 h-12 bg-transparent backdrop-blur-sm"
+                onClick={() =>
+                  window.open(
+                    'https://wa.me/5511999999999?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20mais%20sobre%20a%20Ma%C3%A7aroca.',
+                    '_blank',
+                  )
+                }
+              >
+                Falar pelo WhatsApp
               </Button>
               <Button
                 asChild
