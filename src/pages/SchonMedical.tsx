@@ -25,11 +25,11 @@ export default function SchonMedical() {
                 </span>
               </div>
 
-              <div className="mb-8 -ml-2">
+              <div className="mb-10 -ml-2 w-full md:max-w-[90%] lg:max-w-full">
                 <img
                   src={schonWordmark}
                   alt="Schön Medical by Maçaroca"
-                  className="h-20 sm:h-24 lg:h-28 w-auto object-contain drop-shadow-sm"
+                  className="w-full h-auto object-contain drop-shadow-sm"
                 />
               </div>
 
