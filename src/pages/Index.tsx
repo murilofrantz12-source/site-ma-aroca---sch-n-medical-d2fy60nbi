@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Reveal } from '@/components/Reveal'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
+import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.15.53-eab41.png'
 
 export default function Index() {
   return (
@@ -10,11 +11,11 @@ export default function Index() {
       <section className="relative h-screen w-full overflow-hidden flex-shrink-0">
         <div className="absolute inset-0">
           <img
-            src="https://img.usecurling.com/p/1600/900?q=fashion%20editorial%20woman%20elegant%20outdoors"
+            src={heroBg}
             alt="Maçaroca Fashion"
             className="w-full h-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-black/40 transition-colors" />
+          <div className="absolute inset-0 bg-black/50 transition-colors" />
         </div>
         <div className="absolute inset-0 flex items-center justify-center text-center p-6 mt-16">
           <Reveal className="max-w-4xl space-y-8 flex flex-col items-center">
