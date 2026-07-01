@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Reveal } from '@/components/Reveal'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.23.26-ea69b.png'
+import macarocaBg from '@/assets/captura-de-tela-2026-07-01-as-09.26.51-5292d.png'
 
 export default function Index() {
   return (
@@ -70,7 +71,7 @@ export default function Index() {
         <div className="container grid md:grid-cols-2 gap-8 lg:gap-12">
           <Reveal delay={100} className="group relative aspect-[3/4] overflow-hidden bg-muted">
             <img
-              src={heroBg}
+              src={macarocaBg}
               alt="Maçaroca"
               className="w-full h-full object-cover object-[center_15%] md:object-center transition-transform duration-1000 group-hover:scale-105"
             />
