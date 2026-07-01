@@ -1,6 +1,7 @@
 import { Reveal } from '@/components/Reveal'
 import { Button } from '@/components/ui/button'
 import { HeartPulse, Shirt, Users, Highlighter } from 'lucide-react'
+import schonBg from '@/assets/image-3f6c4.png'
 
 export default function SchonMedical() {
   const handleWhatsApp = () => {
@@ -14,11 +15,12 @@ export default function SchonMedical() {
       <section className="relative h-[85vh] min-h-[600px] w-full overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://img.usecurling.com/p/1600/900?q=female%20medical%20professional%20clean"
+            src={schonBg}
             alt="Schön Medical"
             className="w-full h-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/80 sm:via-white/70 to-transparent" />
+          <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
         </div>
         <div className="absolute inset-0 flex items-center">
           <div className="container">

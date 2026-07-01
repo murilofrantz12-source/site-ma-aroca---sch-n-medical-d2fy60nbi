@@ -4,6 +4,7 @@ import { Reveal } from '@/components/Reveal'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.23.26-ea69b.png'
 import macarocaBg from '@/assets/captura-de-tela-2026-07-01-as-09.26.51-5292d.png'
+import schonBg from '@/assets/image-3f6c4.png'
 
 export default function Index() {
   return (
@@ -95,7 +96,7 @@ export default function Index() {
 
           <Reveal delay={200} className="group relative aspect-[3/4] overflow-hidden bg-muted">
             <img
-              src="https://img.usecurling.com/p/800/1000?q=medical%20scrub%20professional%20woman&seed=schon"
+              src={schonBg}
               alt="Schön Medical"
               className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
             />
