@@ -1,23 +1,27 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Menu, MessageCircle, Instagram, Mail } from 'lucide-react'
+import { Menu, Instagram, Mail } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { contactInfo, WHATSAPP_URL, INSTAGRAM_URL } from '@/lib/contact-info'
+import { contactInfo, INSTAGRAM_URL } from '@/lib/contact-info'
+import { WhatsAppChoice } from '@/components/WhatsAppChoice'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { useLanguage } from '@/lib/i18n'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 
 const LINKS = [
-  { name: 'Início', path: '/' },
-  { name: 'Coleções', path: '/colecoes' },
-  { name: 'Schön Medical', path: '/schon-medical' },
-  { name: 'Sobre', path: '/sobre' },
-  { name: 'Contato', path: '/contato' },
-]
+  { key: 'home', path: '/' },
+  { key: 'collections', path: '/colecoes' },
+  { key: 'schon', path: '/schon-medical' },
+  { key: 'about', path: '/sobre' },
+  { key: 'contact', path: '/contato' },
+] as const
 
 export default function Layout() {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
+  const { t } = useLanguage()
 
   const isHome = location.pathname === '/'
   const isTransparentAndDarkBg = isHome && !scrolled
@@ -70,10 +74,11 @@ export default function Layout() {
                       to={link.path}
                       className="text-xl font-serif uppercase tracking-wider text-foreground"
                     >
-                      {link.name}
+                      {t.nav[link.key]}
                     </Link>
                   ))}
                   <div className="pt-8 border-t border-border flex flex-col space-y-6">
+                    <LanguageSwitcher />
                     <a
                       href={INSTAGRAM_URL}
                       target="_blank"
@@ -81,16 +86,15 @@ export default function Layout() {
                       className="flex items-center space-x-2 text-foreground/80"
                     >
                       <Instagram className="w-5 h-5" />
-                      <span className="text-sm uppercase tracking-widest">Instagram</span>
+                      <span className="text-sm uppercase tracking-widest">
+                        {t.common.instagram}
+                      </span>
                     </a>
-                    <a
-                      href={WHATSAPP_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <WhatsAppChoice
                       className="inline-flex items-center justify-center w-full rounded-none border border-foreground bg-transparent text-foreground uppercase tracking-widest text-xs h-10 px-4 py-2 hover:bg-foreground/5 transition-colors"
                     >
-                      Falar no WhatsApp
-                    </a>
+                      {t.common.whatsapp}
+                    </WhatsAppChoice>
                   </div>
                 </nav>
               </SheetContent>
@@ -109,7 +113,7 @@ export default function Layout() {
                     : 'text-foreground/80 hover:text-foreground',
                 )}
               >
-                {link.name}
+                {t.nav[link.key]}
               </Link>
             ))}
           </nav>
@@ -144,9 +148,10 @@ export default function Layout() {
                     : 'text-foreground/80 hover:text-foreground',
                 )}
               >
-                {link.name}
+                {t.nav[link.key]}
               </Link>
             ))}
+            <LanguageSwitcher dark={isTransparentAndDarkBg} />
             <div
               className={cn(
                 'h-4 w-px opacity-30',
@@ -169,19 +174,7 @@ export default function Layout() {
           </div>
 
           <div className="lg:hidden flex justify-end">
-            <a
-              href={INSTAGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                '-mr-2 p-2 transition-colors',
-                isTransparentAndDarkBg
-                  ? 'text-white hover:text-white/80'
-                  : 'text-foreground hover:text-foreground/80',
-              )}
-            >
-              <Instagram className="w-5 h-5" />
-            </a>
+            <LanguageSwitcher dark={isTransparentAndDarkBg} />
           </div>
         </div>
       </header>
@@ -190,125 +183,101 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <footer className="bg-foreground text-background py-16 lg:py-24">
-        <div className="container grid grid-cols-1 md:grid-cols-4 gap-12 lg:gap-16">
-          <div className="md:col-span-1 flex flex-col items-start">
-            <Link
-              to="/"
-              className="h-20 md:h-24 overflow-hidden flex items-center justify-start mb-6 -ml-4 md:-ml-6 hover:opacity-80 transition-opacity"
-            >
-              <img
-                src={logoMacaroca}
-                alt="Maçaroca"
-                className="h-44 md:h-52 w-auto object-contain mix-blend-screen opacity-100 max-w-none"
-              />
-            </Link>
-            <p className="text-sm text-background/70 font-light leading-relaxed">
-              Criações femininas com alma, movimento e estilo. Peças autorais para mulheres que
-              desejam se sentir elegantes, livres e únicas.
-            </p>
-          </div>
-          <div>
-            <h4 className="font-serif text-lg mb-6 text-background/90">Navegação</h4>
-            <ul className="space-y-3 text-sm text-background/70 font-light">
-              {LINKS.map((l) => (
-                <li key={l.path}>
-                  <Link to={l.path} className="hover:text-background transition-colors">
-                    {l.name}
+      <footer className="bg-foreground text-background py-14 lg:py-20">
+        <div className="container">
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.4fr_1fr_1.1fr] lg:gap-16">
+            <div className="flex max-w-md flex-col items-start">
+              <Link
+                to="/"
+                className="h-20 md:h-24 overflow-hidden flex items-center justify-start mb-5 -ml-4 md:-ml-6 hover:opacity-80 transition-opacity"
+              >
+                <img
+                  src={logoMacaroca}
+                  alt="Maçaroca"
+                  className="h-44 md:h-52 w-auto object-contain mix-blend-screen opacity-100 max-w-none"
+                />
+              </Link>
+              <p className="max-w-sm text-sm text-background/62 font-light leading-relaxed">
+                {t.footer.description}
+              </p>
+            </div>
+
+            <div>
+              <h4 className="mb-6 text-[10px] font-medium uppercase tracking-[0.22em] text-background/45">
+                {t.footer.navigation}
+              </h4>
+              <nav className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm text-background/72 font-light lg:grid-cols-1">
+                {LINKS.map((l) => (
+                  <Link key={l.path} to={l.path} className="hover:text-background transition-colors">
+                    {t.nav[l.key]}
                   </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-serif text-lg mb-6 text-background/90">Suporte</h4>
-            <ul className="space-y-3 text-sm text-background/70 font-light">
-              <li>
-                <Link to="/contato" className="hover:text-background transition-colors">
-                  Trocas e Entregas
-                </Link>
-              </li>
-              <li>
-                <Link to="/contato" className="hover:text-background transition-colors">
-                  Política de Privacidade
-                </Link>
-              </li>
-              <li>
-                <Link to="/contato" className="hover:text-background transition-colors">
-                  Fale Conosco
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-serif text-lg mb-6 text-background/90">Contato</h4>
-            <ul className="space-y-3 text-sm text-background/70 font-light">
-              <li>
-                <span className="text-background/50 text-xs">
-                  {contactInfo.whatsapp.brasil.label}:
-                </span>{' '}
-                <a
-                  href={contactInfo.whatsapp.brasil.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-background transition-colors"
-                >
-                  {contactInfo.whatsapp.brasil.displayNumber}
-                </a>
-              </li>
-              <li>
-                <span className="text-background/50 text-xs">
-                  {contactInfo.whatsapp.paraguai.label}:
-                </span>{' '}
-                <a
-                  href={contactInfo.whatsapp.paraguai.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-background transition-colors"
-                >
-                  {contactInfo.whatsapp.paraguai.displayNumber}
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-background/50" strokeWidth={1.5} />
+                ))}
+              </nav>
+            </div>
+
+            <div>
+              <h4 className="mb-6 text-[10px] font-medium uppercase tracking-[0.22em] text-background/45">
+                {t.footer.contact}
+              </h4>
+              <div className="space-y-5 text-sm text-background/72 font-light">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                  <a
+                    href={contactInfo.whatsapp.brasil.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group border border-background/12 px-4 py-3 transition-colors hover:border-background/35"
+                  >
+                    <span className="block text-[10px] uppercase tracking-[0.2em] text-background/40">
+                      {t.common.brasil}
+                    </span>
+                    <span className="mt-1 block group-hover:text-background">
+                      {contactInfo.whatsapp.brasil.displayNumber}
+                    </span>
+                  </a>
+                  <a
+                    href={contactInfo.whatsapp.paraguai.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group border border-background/12 px-4 py-3 transition-colors hover:border-background/35"
+                  >
+                    <span className="block text-[10px] uppercase tracking-[0.2em] text-background/40">
+                      {t.common.paraguai}
+                    </span>
+                    <span className="mt-1 block group-hover:text-background">
+                      {contactInfo.whatsapp.paraguai.displayNumber}
+                    </span>
+                  </a>
+                </div>
                 <a
                   href={contactInfo.email.link}
-                  className="hover:text-background transition-colors"
+                  className="inline-flex items-center gap-2 hover:text-background transition-colors"
                 >
+                  <Mail className="w-4 h-4 text-background/40" strokeWidth={1.5} />
                   {contactInfo.email.display}
                 </a>
-              </li>
-              <li className="text-background/50 pt-2">{contactInfo.businessHours}</li>
-              <li className="pt-4">
-                <a
-                  href={INSTAGRAM_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block hover:text-background transition-colors p-2 -ml-2"
-                >
-                  <Instagram className="w-5 h-5" />
-                </a>
-              </li>
-            </ul>
+                <div className="flex items-center gap-5 pt-1">
+                  <p className="text-xs text-background/45">{t.contactInfo.businessHours}</p>
+                  <a
+                    href={INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 w-9 items-center justify-center border border-background/12 transition-colors hover:border-background/35 hover:text-background"
+                  >
+                    <Instagram className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="container mt-16 pt-8 border-t border-background/20 text-xs text-background/50 font-light flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <p>
-            © {new Date().getFullYear()} Maçaroca + Schön Medical. Todos os direitos reservados.
-          </p>
-          <p>CNPJ: 00.000.000/0001-00</p>
+
+          <div className="mt-14 flex flex-col gap-4 border-t border-background/12 pt-6 text-xs text-background/42 font-light md:flex-row md:items-center md:justify-between">
+            <p>© {new Date().getFullYear()} Maçaroca + Schön Medical.</p>
+            <p>{t.footer.rights}</p>
+          </div>
         </div>
       </footer>
 
-      <a
-        href={WHATSAPP_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-elevation hover:scale-110 transition-transform duration-300 z-50 animate-fade-in-up"
-        aria-label="Falar no WhatsApp"
-      >
-        <MessageCircle className="w-6 h-6" />
-      </a>
+      <WhatsAppChoice floating />
     </div>
   )
 }

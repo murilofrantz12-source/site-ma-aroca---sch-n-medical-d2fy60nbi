@@ -46,5 +46,15 @@ screenshot.png
 .env*
 !.env
 
+# Local brand references and raw working exports
+MATERIAL_MACAROCA/
+docs/
+package-lock.json
+src/assets/ana-frente.png
+src/assets/anacostas.png
+src/assets/macaroca-silhueta-catalogo.png
+src/assets/macaroca-sobre.png
+src/assets/schon-silhueta-catalogo.png
+
 # Linux kernel core dumps (e.g. when oxfmt or pnpm crash)
 core.[0-9]*

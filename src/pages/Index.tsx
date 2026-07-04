@@ -1,100 +1,122 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Reveal } from '@/components/Reveal'
-import { contactInfo } from '@/lib/contact-info'
+import { WhatsAppChoice } from '@/components/WhatsAppChoice'
+import { useLanguage } from '@/lib/i18n'
+import { MessageCircle, Ruler, Scissors, Users } from 'lucide-react'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
-import heroBg from '@/assets/captura-de-tela-2026-07-01-as-09.23.26-ea69b.png'
-import macarocaBg from '@/assets/captura-de-tela-2026-07-01-as-09.26.51-5292d.png'
+import heroBg from '@/assets/optimized/home-hero.jpg'
+import macarocaBg from '@/assets/optimized/home-macaroca.jpg'
 import schonBg from '@/assets/1ac556d2-00cd-49ab-86f8-bdd7aa54daec-fe795.jpg'
 
 export default function Index() {
+  const { t } = useLanguage()
+  const trustIcons = [MessageCircle, Scissors, Ruler, Users]
+
   return (
     <div className="w-full flex-1 flex flex-col">
       {/* Hero Section */}
-      <section className="relative h-screen w-full overflow-hidden flex-shrink-0">
+      <section className="relative min-h-[100svh] w-full overflow-hidden flex-shrink-0">
         <div className="absolute inset-0">
           <img
             src={heroBg}
-            alt="Maçaroca Fashion"
-            className="w-full h-full object-cover object-[center_15%] md:object-center"
+            alt={t.home.heroAlt}
+            fetchPriority="high"
+            className="w-full h-full object-cover object-[center_34%]"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/70 transition-colors" />
         </div>
-        <div className="absolute inset-0 flex items-center justify-center text-center p-6 mt-16">
-          <Reveal className="max-w-4xl space-y-8 flex flex-col items-center">
+        <div className="absolute inset-0 flex items-center justify-center text-center px-5 pb-10 pt-28 sm:p-6 sm:pt-32">
+          <Reveal className="max-w-4xl space-y-5 sm:space-y-8 flex flex-col items-center">
             <Link
               to="/"
-              className="h-40 sm:h-56 md:h-72 overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity"
+              className="h-28 sm:h-48 md:h-64 overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity"
             >
               <img
                 src={logoMacaroca}
                 alt="Maçaroca - Você tem o poder"
-                className="h-[300px] sm:h-[450px] md:h-[550px] w-auto object-contain mix-blend-screen drop-shadow-2xl max-w-none"
+                decoding="async"
+                className="h-[210px] sm:h-[330px] md:h-[470px] w-auto object-contain mix-blend-screen drop-shadow-2xl max-w-none"
               />
             </Link>
-            <h1 className="sr-only">Maçaroca - Você tem o poder de vestir presença</h1>
+            <h1 className="sr-only">{t.home.srTitle}</h1>
             <p className="text-base md:text-lg text-white/90 font-light max-w-2xl mx-auto drop-shadow leading-relaxed">
-              Criações femininas com alma. Peças autorais para mulheres que desejam se sentir
-              elegantes, livres e únicas.
+              {t.home.heroText}
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
+            <div className="flex w-full max-w-xs flex-col sm:max-w-none sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-4 sm:pt-8">
               <Button
                 asChild
                 size="lg"
-                className="rounded-none bg-white text-black hover:bg-white/90 text-xs tracking-widest uppercase px-8 h-12"
+                className="w-full sm:w-auto rounded-none bg-white text-black hover:bg-white/90 text-xs tracking-widest uppercase px-6 sm:px-8 h-12"
               >
-                <Link to="/colecoes">Conhecer Coleções</Link>
+                <Link to="/colecoes">{t.home.seeCatalog}</Link>
               </Button>
+              <WhatsAppChoice className="inline-flex w-full sm:w-auto items-center justify-center rounded-none border border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-6 sm:px-8 h-12 bg-transparent backdrop-blur-sm transition-colors">
+                {t.home.whatsapp}
+              </WhatsAppChoice>
               <Button
                 asChild
                 size="lg"
                 variant="outline"
-                className="rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-8 h-12 bg-transparent backdrop-blur-sm"
+                className="w-full sm:w-auto rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-6 sm:px-8 h-12 bg-transparent backdrop-blur-sm"
               >
-                <a
-                  href={contactInfo.whatsapp.brasil.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Falar pelo WhatsApp
-                </a>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="rounded-none border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-8 h-12 bg-transparent backdrop-blur-sm"
-              >
-                <Link to="/schon-medical">Conhecer Schön Medical</Link>
+                <Link to="/schon-medical">{t.home.knowSchon}</Link>
               </Button>
             </div>
           </Reveal>
         </div>
       </section>
 
+      {/* Trust Section */}
+      <section className="border-b border-border/60 bg-background py-8 sm:py-10 flex-shrink-0">
+        <div className="container">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+            {t.home.trust.map((item, index) => {
+              const Icon = trustIcons[index]
+              return (
+                <Reveal
+                  key={item}
+                  delay={index * 80}
+                  className="flex items-center gap-4 border border-border/50 bg-secondary/20 px-4 py-4 sm:px-5 sm:py-5"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-foreground/15 bg-background text-foreground">
+                    <Icon className="h-5 w-5" strokeWidth={1.5} />
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.14em] sm:tracking-[0.16em] text-foreground/75 leading-relaxed">
+                    {item}
+                  </span>
+                </Reveal>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Brands Editorial Section */}
-      <section className="py-24 lg:py-32 bg-background flex-shrink-0 flex flex-col gap-24 lg:gap-32">
+      <section className="py-20 sm:py-24 lg:py-32 bg-background flex-shrink-0 flex flex-col gap-20 sm:gap-24 lg:gap-32">
         {/* Maçaroca */}
         <div className="container">
-          <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
+          <div className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
             <Reveal className="order-1 aspect-[4/5] lg:aspect-[3/4] overflow-hidden bg-muted">
               <img
                 src={macarocaBg}
                 alt="Maçaroca"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover object-[center_15%] md:object-center transition-transform duration-1000 hover:scale-105"
               />
             </Reveal>
             <Reveal delay={100} className="order-2 flex flex-col justify-center items-start">
               <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-6">Maçaroca</h2>
-              <p className="text-muted-foreground font-light mb-8 max-w-md leading-relaxed text-lg">
-                Vestidos, macacões, conjuntos e peças exclusivas com estilo, leveza e presença.
+              <p className="text-muted-foreground font-light mb-8 max-w-md leading-relaxed text-base sm:text-lg">
+                {t.home.macarocaText}
               </p>
               <Button
                 asChild
                 size="lg"
-                className="rounded-none uppercase tracking-widest px-8 h-14 text-xs"
+                className="w-full sm:w-auto rounded-none uppercase tracking-widest px-8 h-14 text-xs"
               >
-                <Link to="/colecoes">Ver Coleção</Link>
+                <Link to="/colecoes?brand=macaroca">{t.home.consultPieces}</Link>
               </Button>
             </Reveal>
           </div>
@@ -102,14 +124,13 @@ export default function Index() {
 
         {/* Schön Medical */}
         <div className="container">
-          <div className="grid md:grid-cols-2 gap-10 lg:gap-16 items-center">
+          <div className="grid md:grid-cols-2 gap-8 sm:gap-10 lg:gap-16 items-center">
             <Reveal className="order-2 md:order-1 flex flex-col justify-center items-start">
               <h2 className="text-4xl md:text-5xl font-serif text-foreground mb-6">
                 Schön Medical
               </h2>
-              <p className="text-muted-foreground font-light mb-8 max-w-md leading-relaxed text-lg">
-                Scrubs e roupas profissionais para mulheres da saúde que buscam conforto, elegância
-                e confiança.
+              <p className="text-muted-foreground font-light mb-8 max-w-md leading-relaxed text-base sm:text-lg">
+                {t.home.schonText}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                 <Button
@@ -117,22 +138,11 @@ export default function Index() {
                   size="lg"
                   className="rounded-none uppercase tracking-widest px-8 h-14 text-xs bg-[#2c3e50] hover:bg-[#1a252f] text-white w-full sm:w-auto"
                 >
-                  <Link to="/schon-medical">Conhecer a Linha</Link>
+                  <Link to="/schon-medical">{t.home.knowLine}</Link>
                 </Button>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="outline"
-                  className="rounded-none border-[#2c3e50] text-[#2c3e50] hover:bg-[#2c3e50] hover:text-white uppercase tracking-widest px-8 h-14 text-xs w-full sm:w-auto"
-                >
-                  <a
-                    href={contactInfo.whatsapp.brasil.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Solicitar Orçamento
-                  </a>
-                </Button>
+                <WhatsAppChoice className="inline-flex items-center justify-center rounded-none border border-[#2c3e50] text-[#2c3e50] hover:bg-[#2c3e50] hover:text-white uppercase tracking-widest px-8 h-14 text-xs w-full sm:w-auto transition-colors">
+                  {t.home.requestBudget}
+                </WhatsAppChoice>
               </div>
             </Reveal>
             <Reveal
@@ -142,56 +152,11 @@ export default function Index() {
               <img
                 src={schonBg}
                 alt="Schön Medical"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-1000 hover:scale-105"
               />
             </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* Business Hours & Contact Quick Info */}
-      <section className="py-16 bg-foreground text-background flex-shrink-0">
-        <div className="container max-w-5xl text-center">
-          <div className="grid md:grid-cols-3 gap-8 md:gap-12">
-            <div className="flex flex-col items-center">
-              <h3 className="text-xs uppercase tracking-[0.2em] text-background/60 mb-3">
-                Horário
-              </h3>
-              <p className="text-sm font-light">{contactInfo.businessHours}</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <h3 className="text-xs uppercase tracking-[0.2em] text-background/60 mb-3">E-mail</h3>
-              <a
-                href={contactInfo.email.link}
-                className="text-sm font-light hover:text-background/80 transition-colors"
-              >
-                {contactInfo.email.display}
-              </a>
-            </div>
-            <div className="flex flex-col items-center">
-              <h3 className="text-xs uppercase tracking-[0.2em] text-background/60 mb-3">
-                WhatsApp
-              </h3>
-              <div className="flex flex-col gap-1">
-                <a
-                  href={contactInfo.whatsapp.brasil.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-light hover:text-background/80 transition-colors"
-                >
-                  {contactInfo.whatsapp.brasil.label}: {contactInfo.whatsapp.brasil.displayNumber}
-                </a>
-                <a
-                  href={contactInfo.whatsapp.paraguai.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-light hover:text-background/80 transition-colors"
-                >
-                  {contactInfo.whatsapp.paraguai.label}:{' '}
-                  {contactInfo.whatsapp.paraguai.displayNumber}
-                </a>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -201,35 +166,18 @@ export default function Index() {
         <div className="container max-w-5xl text-center">
           <Reveal>
             <span className="text-foreground/60 uppercase tracking-[0.2em] text-xs font-medium block mb-6">
-              Manifesto
+              {t.home.manifestoLabel}
             </span>
             <h2 className="text-3xl md:text-5xl font-serif mb-8 text-foreground leading-tight">
-              A Roupa como
-              <br className="md:hidden" /> Expressão
+              {t.home.manifestoTitle}
             </h2>
             <p className="text-base md:text-lg text-muted-foreground font-light max-w-3xl mx-auto leading-relaxed mb-20">
-              A Maçaroca nasce para mulheres que enxergam a roupa como uma extensão da própria
-              identidade. Nossa curadoria e criação buscam valorizar o corpo feminino através de
-              cortes impecáveis, tecidos fluidos e um design que transita perfeitamente entre o
-              conforto absoluto e a elegância inquestionável.
+              {t.home.manifestoText}
             </p>
           </Reveal>
 
           <div className="grid md:grid-cols-3 gap-12 md:gap-8 text-left">
-            {[
-              {
-                title: 'Peças autorais',
-                desc: 'Design exclusivo que valoriza sua singularidade e estilo próprio com autenticidade.',
-              },
-              {
-                title: 'Estilo com movimento',
-                desc: 'Modelagens fluidas pensadas para acompanhar você com leveza em todos os momentos.',
-              },
-              {
-                title: 'Atendimento premium',
-                desc: 'Consultoria dedicada para ajudar você a encontrar a peça perfeita para o seu biotipo.',
-              },
-            ].map((feature, i) => (
+            {t.home.features.map((feature, i) => (
               <Reveal
                 key={i}
                 delay={i * 150}

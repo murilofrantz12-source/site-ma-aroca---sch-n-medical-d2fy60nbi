@@ -1,127 +1,160 @@
 import { Link } from 'react-router-dom'
 import { Reveal } from '@/components/Reveal'
-import { Button } from '@/components/ui/button'
-import { HeartPulse, Shirt, Users, Highlighter } from 'lucide-react'
+import { HeartPulse, Shirt, Users, Highlighter, MessageCircle, Ruler, Scissors } from 'lucide-react'
+import { WhatsAppChoice } from '@/components/WhatsAppChoice'
+import { ScrubConfigurator } from '@/components/ScrubConfigurator'
+import { useLanguage } from '@/lib/i18n'
 import schonIcon from '@/assets/s-correto-4afa7.png'
 import schonWordmark from '@/assets/so-by-macaroca-logo-peq-editado-4f9ae.png'
-import schonImage from '@/assets/1ac556d2-00cd-49ab-86f8-bdd7aa54daec-fe795.jpg'
-
-const WHATSAPP_URL =
-  'https://wa.me/5544999881151?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Ma%C3%A7aroca%20e%20gostaria%20de%20receber%20um%20atendimento%20personalizado.'
+import schonImage from '@/assets/optimized/schon-hero.jpg'
 
 export default function SchonMedical() {
-  const handleWhatsApp = () => {
-    window.open(WHATSAPP_URL, '_blank')
-  }
+  const { t } = useLanguage()
+  const valueIcons = [HeartPulse, Shirt, Users, Highlighter]
+  const stepIcons = [MessageCircle, Ruler, Scissors]
 
   return (
     <div className="w-full flex-1">
       {/* Full-width Hero */}
-      <section className="relative w-full min-h-[70vh] lg:min-h-[85vh] bg-[#2c3e50] flex items-center justify-center overflow-hidden pt-20">
+      <section className="relative w-full min-h-[100svh] lg:min-h-[88vh] bg-[#fbfcf7] flex items-center justify-center overflow-hidden pt-20">
         <div className="absolute inset-0">
+          <div className="absolute inset-x-0 top-0 h-[3px] bg-[#b8f24a]" />
           <img
             src={schonImage}
             alt=""
-            className="w-full h-full object-cover object-[center_20%] opacity-25"
+            fetchPriority="high"
+            className="absolute inset-0 h-full w-full object-cover object-[center_30%] opacity-48 mix-blend-multiply"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#2c3e50]/70 via-[#2c3e50]/50 to-[#2c3e50]/90" />
+          <div className="absolute inset-0 bg-white/58" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.42)_0%,rgba(251,252,247,0.76)_62%,rgba(251,252,247,0.9)_100%)]" />
+          <div className="absolute bottom-0 left-0 right-0 h-[24%] bg-[linear-gradient(to_top,#fbfcf7_0%,rgba(251,252,247,0.7)_50%,transparent_100%)]" />
         </div>
-        <div className="container relative z-10 text-center py-20 flex flex-col items-center">
-          <Reveal className="flex flex-col items-center w-full">
-            <Link to="/" className="inline-block mb-8 hover:opacity-80 transition-opacity">
-              <img
-                src={schonIcon}
-                alt="Schön Medical"
-                className="w-20 h-20 md:w-24 md:h-24 mx-auto object-contain"
-              />
-            </Link>
+        <Link
+          to="/"
+          className="absolute left-5 top-24 z-20 inline-flex items-center gap-3 hover:opacity-80 transition-opacity md:left-10 md:top-28"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#11130f]/10 bg-white/85 shadow-sm md:h-12 md:w-12">
+            <img src={schonIcon} alt="Schön Medical" className="h-7 w-7 object-contain md:h-8 md:w-8" />
+          </span>
+          <span className="hidden text-[10px] font-medium uppercase tracking-[0.2em] text-[#11130f]/55 sm:inline">
+            {t.schon.sideLabel}
+          </span>
+        </Link>
+        <div className="container relative z-10 py-20 sm:py-24 flex justify-center">
+          <Reveal className="max-w-3xl text-center flex flex-col items-center">
             <Link
               to="/"
-              className="inline-block mb-10 w-full max-w-4xl md:max-w-5xl lg:max-w-6xl hover:opacity-80 transition-opacity"
+              className="mb-6 sm:mb-10 w-full max-w-md sm:max-w-2xl md:max-w-3xl hover:opacity-80 transition-opacity"
             >
               <img
                 src={schonWordmark}
-                alt="Schön Medical by Maçaroca"
-                className="w-full h-auto object-contain drop-shadow-2xl"
+                alt={t.schon.title}
+                decoding="async"
+                className="w-full h-auto object-contain opacity-95"
               />
             </Link>
-            <h1 className="sr-only">Schön Medical by Maçaroca</h1>
-            <p className="text-2xl md:text-4xl font-serif text-white mb-6 leading-tight">
-              Vista conforto.
-              <br /> Transmita confiança.
+            <h1 className="sr-only">{t.schon.title}</h1>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#11130f] mb-5 sm:mb-6 leading-tight">
+              {t.schon.tagline.split('\n').map((line, index) => (
+                <span key={line}>
+                  {index > 0 && <br />}
+                  {line}
+                </span>
+              ))}
             </p>
-            <p className="text-base md:text-lg text-white/80 font-light mb-10 leading-relaxed max-w-xl">
-              Scrubs e roupas profissionais para mulheres da saúde que buscam conforto, elegância e
-              presença no dia a dia.
+            <p className="text-sm sm:text-base md:text-lg text-[#11130f]/65 font-light mb-8 sm:mb-10 leading-relaxed max-w-xl mx-auto">
+              {t.schon.intro}
             </p>
-            <Button
-              size="lg"
-              onClick={handleWhatsApp}
-              className="rounded-none uppercase tracking-widest bg-white text-[#2c3e50] hover:bg-white/90 px-8 h-14 text-xs"
+            <WhatsAppChoice
+              message={t.whatsapp.schonMessage}
+              className="inline-flex w-full max-w-xs sm:w-auto sm:max-w-none items-center justify-center rounded-none uppercase tracking-widest bg-[#11130f] text-white hover:bg-[#2a2d25] px-8 h-14 text-xs transition-colors"
             >
-              Solicitar orçamento
-            </Button>
+              {t.schon.requestBudget}
+            </WhatsAppChoice>
           </Reveal>
         </div>
       </section>
 
       {/* Value Proposition */}
-      <section className="py-32 lg:py-40 bg-background">
+      <section className="py-20 sm:py-28 lg:py-36 bg-white">
         <div className="container">
           <Reveal>
-            <div className="text-center mb-20 flex flex-col items-center">
-              <h2 className="text-3xl md:text-5xl font-serif mb-6 text-foreground">
-                Por que escolher a Schön?
+            <div className="text-center mb-12 sm:mb-20 flex flex-col items-center">
+              <span className="mb-5 border-l-2 border-[#b8f24a] bg-[#fbfcf7] px-4 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-[#11130f]/70">
+                {t.schon.valueLabel}
+              </span>
+              <h2 className="text-3xl md:text-5xl font-serif mb-5 sm:mb-6 text-foreground">
+                {t.schon.whyTitle}
               </h2>
-              <p className="text-muted-foreground font-light max-w-2xl mx-auto text-lg">
-                Desenhamos cada detalhe pensando na sua rotina, unindo tecidos tecnológicos,
-                modelagem impecável e personalização exclusiva.
+              <p className="text-muted-foreground font-light max-w-2xl mx-auto text-base sm:text-lg">
+                {t.schon.whyText}
               </p>
             </div>
           </Reveal>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: HeartPulse,
-                title: 'Conforto para longas jornadas',
-                desc: 'Tecidos com elastano e toque macio que acompanham perfeitamente seus movimentos.',
-              },
-              {
-                icon: Shirt,
-                title: 'Imagem profissional',
-                desc: 'Cortes inspirados na alfaiataria que elevam sua autoridade sem perder a feminilidade.',
-              },
-              {
-                icon: Users,
-                title: 'Pedidos individuais ou para equipes',
-                desc: 'Atendemos desde peças únicas até a padronização completa de clínicas e hospitais.',
-              },
-              {
-                icon: Highlighter,
-                title: 'Personalização (bordados)',
-                desc: 'Seu nome e especialidade bordados com extrema perfeição, cuidado e requinte.',
-              },
-            ].map((prop, i) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-8">
+            {t.schon.values.map((prop, i) => {
+              const Icon = valueIcons[i]
+              return (
               <Reveal
                 key={i}
                 delay={i * 100}
-                className="text-center p-8 bg-secondary/5 border border-border/50 hover:border-[#2c3e50]/30 transition-colors group"
+                className="text-center p-6 sm:p-8 bg-[#fbfcf7] border border-[#11130f]/10 hover:border-[#b8f24a]/70 transition-colors group"
               >
-                <div className="w-16 h-16 mx-auto bg-secondary rounded-full flex items-center justify-center mb-8 shadow-sm text-[#2c3e50] group-hover:scale-110 transition-transform duration-300">
-                  <prop.icon className="w-8 h-8" strokeWidth={1.5} />
+                <div className="w-16 h-16 mx-auto bg-white border border-[#11130f]/10 rounded-full flex items-center justify-center mb-8 shadow-sm text-[#11130f] group-hover:border-[#b8f24a] transition-colors duration-300">
+                  <Icon className="w-8 h-8" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-lg font-serif mb-4 text-foreground">{prop.title}</h3>
                 <p className="text-muted-foreground text-sm font-light leading-relaxed">
                   {prop.desc}
                 </p>
               </Reveal>
-            ))}
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      <ScrubConfigurator />
+
+      {/* Ordering Process */}
+      <section className="py-20 sm:py-24 lg:py-32 bg-[#f4f7ee] text-[#11130f]">
+        <div className="container">
+          <Reveal>
+            <div className="text-center mb-16 flex flex-col items-center">
+              <h2 className="text-3xl md:text-5xl font-serif mb-6 text-[#11130f]">
+                {t.schon.processTitle}
+              </h2>
+              <p className="text-[#11130f]/65 font-light max-w-2xl mx-auto text-base sm:text-lg">
+                {t.schon.processText}
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="grid md:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
+            {t.schon.steps.map((step, i) => {
+              const Icon = stepIcons[i]
+              return (
+              <Reveal
+                key={step.title}
+                delay={i * 120}
+                className="bg-white p-6 sm:p-8 border border-[#11130f]/10 text-center"
+              >
+                <div className="w-14 h-14 mx-auto rounded-full border border-[#b8f24a] bg-[#fbfcf7] text-[#11130f] flex items-center justify-center mb-7">
+                  <Icon className="w-6 h-6" strokeWidth={1.5} />
+                </div>
+                <h3 className="font-serif text-xl mb-4 text-[#11130f]">{step.title}</h3>
+                <p className="text-[#11130f]/60 font-light text-sm leading-relaxed">
+                  {step.desc}
+                </p>
+              </Reveal>
+              )
+            })}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 lg:py-40 bg-[#2c3e50] text-white text-center">
+      <section className="py-20 sm:py-28 lg:py-36 bg-[#11130f] text-white text-center">
         <div className="container relative z-10">
           <Reveal className="max-w-3xl mx-auto flex flex-col items-center">
             <Link to="/" className="mb-10 hover:opacity-80 transition-opacity">
@@ -129,21 +162,18 @@ export default function SchonMedical() {
                 <img src={schonIcon} alt="Schön Medical" className="w-12 h-12 object-contain" />
               </div>
             </Link>
-            <h2 className="text-3xl md:text-5xl font-serif mb-8 leading-tight">
-              Pronta para transformar sua imagem profissional?
+            <h2 className="text-3xl md:text-5xl font-serif mb-6 sm:mb-8 leading-tight">
+              {t.schon.ctaTitle}
             </h2>
-            <p className="text-white/80 font-light mb-12 text-lg leading-relaxed">
-              Entre em contato conosco pelo WhatsApp para consultar nosso catálogo completo, tabela
-              de medidas e opções exclusivas de personalização.
+            <p className="text-white/70 font-light mb-10 sm:mb-12 text-base sm:text-lg leading-relaxed">
+              {t.schon.ctaText}
             </p>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={handleWhatsApp}
-              className="rounded-none border-white text-white hover:bg-white hover:text-[#2c3e50] uppercase tracking-widest bg-transparent h-14 px-10 text-xs"
+            <WhatsAppChoice
+              message={t.whatsapp.schonMessage}
+              className="inline-flex w-full max-w-xs sm:w-auto sm:max-w-none items-center justify-center rounded-none border border-[#b8f24a] text-[#b8f24a] hover:bg-[#b8f24a] hover:text-[#11130f] uppercase tracking-widest bg-transparent h-14 px-10 text-xs transition-colors"
             >
-              Falar com Consultora
-            </Button>
+              {t.schon.talkToConsultant}
+            </WhatsAppChoice>
           </Reveal>
         </div>
       </section>
