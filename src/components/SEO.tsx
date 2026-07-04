@@ -9,7 +9,7 @@ type SEOPage = {
   keywords: string
 }
 
-const baseTitle = 'Maçaroca + Schön Medical'
+const baseTitle = 'Maçaroca'
 const imagePath = '/og-image.png'
 
 const organizationDescription: Record<Language, string> = {
@@ -21,21 +21,21 @@ const organizationDescription: Record<Language, string> = {
 const pages: Record<string, Record<Language, SEOPage>> = {
   '/': {
     pt: {
-      title: 'Maçaroca + Schön Medical | Moda autoral e scrubs sob demanda',
+      title: 'Maçaroca',
       description:
         'Moda feminina autoral, peças sob demanda e scrubs Schön Medical para profissionais que buscam conforto, presença e identidade.',
       keywords:
         'Maçaroca, Schön Medical, moda autoral, scrubs, roupas sob demanda, moda feminina',
     },
     es: {
-      title: 'Maçaroca + Schön Medical | Moda de autor y scrubs a pedido',
+      title: 'Maçaroca',
       description:
         'Moda femenina de autor, piezas a pedido y scrubs Schön Medical para profesionales que buscan comodidad, presencia e identidad.',
       keywords:
         'Maçaroca, Schön Medical, moda de autor, scrubs, ropa a pedido, moda femenina',
     },
     en: {
-      title: 'Maçaroca + Schön Medical | Authorial fashion and made-to-order scrubs',
+      title: 'Maçaroca',
       description:
         'Authorial womenswear, made-to-order pieces and Schön Medical scrubs for professionals seeking comfort, presence and identity.',
       keywords:
@@ -44,19 +44,19 @@ const pages: Record<string, Record<Language, SEOPage>> = {
   },
   '/colecoes': {
     pt: {
-      title: 'Catálogo | Maçaroca + Schön Medical',
+      title: 'Catálogo | Maçaroca',
       description:
         'Conheça a seleção Maçaroca e Schön Medical: peças autorais, scrubs completos e pedidos sob medida.',
       keywords: 'catálogo Maçaroca, catálogo Schön Medical, scrubs sob demanda, peças autorais',
     },
     es: {
-      title: 'Catálogo | Maçaroca + Schön Medical',
+      title: 'Catálogo | Maçaroca',
       description:
         'Conoce la selección Maçaroca y Schön Medical: piezas de autor, scrubs completos y pedidos a medida.',
       keywords: 'catálogo Maçaroca, catálogo Schön Medical, scrubs a pedido, piezas de autor',
     },
     en: {
-      title: 'Catalog | Maçaroca + Schön Medical',
+      title: 'Catalog | Maçaroca',
       description:
         'Explore the Maçaroca and Schön Medical selection: authorial pieces, complete scrubs and made-to-order requests.',
       keywords: 'Maçaroca catalog, Schön Medical catalog, made-to-order scrubs, authorial pieces',
@@ -84,19 +84,19 @@ const pages: Record<string, Record<Language, SEOPage>> = {
   },
   '/sobre': {
     pt: {
-      title: 'Sobre a marca | Maçaroca + Schön Medical',
+      title: 'Sobre a marca | Maçaroca',
       description:
         'Conheça a história da Maçaroca e da Schön Medical: criação autoral, produção sob demanda e presença no vestir.',
       keywords: 'sobre Maçaroca, história Maçaroca, Schön Medical, moda autoral, produção sob demanda',
     },
     es: {
-      title: 'Sobre la marca | Maçaroca + Schön Medical',
+      title: 'Sobre la marca | Maçaroca',
       description:
         'Conoce la historia de Maçaroca y Schön Medical: creación de autor, producción a pedido y presencia al vestir.',
       keywords: 'sobre Maçaroca, historia Maçaroca, Schön Medical, moda de autor, producción a pedido',
     },
     en: {
-      title: 'About the brand | Maçaroca + Schön Medical',
+      title: 'About the brand | Maçaroca',
       description:
         'Learn about Maçaroca and Schön Medical: authorial creation, made-to-order production and presence in dressing.',
       keywords: 'about Maçaroca, Maçaroca story, Schön Medical, authorial fashion, made-to-order production',
@@ -104,19 +104,19 @@ const pages: Record<string, Record<Language, SEOPage>> = {
   },
   '/contato': {
     pt: {
-      title: 'Contato | Atendimento Maçaroca + Schön Medical',
+      title: 'Contato | Maçaroca',
       description:
         'Fale com a Maçaroca para pedidos sob demanda, orientação de medidas, scrubs Schön Medical e atendimento Brasil ou Paraguai.',
       keywords: 'contato Maçaroca, atendimento Schön Medical, WhatsApp Maçaroca, pedidos sob demanda',
     },
     es: {
-      title: 'Contacto | Atención Maçaroca + Schön Medical',
+      title: 'Contacto | Maçaroca',
       description:
         'Habla con Maçaroca para pedidos a medida, orientación de medidas, scrubs Schön Medical y atención Brasil o Paraguay.',
       keywords: 'contacto Maçaroca, atención Schön Medical, WhatsApp Maçaroca, pedidos a medida',
     },
     en: {
-      title: 'Contact | Maçaroca + Schön Medical service',
+      title: 'Contact | Maçaroca',
       description:
         'Contact Maçaroca for made-to-order requests, measurement guidance, Schön Medical scrubs and Brazil or Paraguay service.',
       keywords: 'Maçaroca contact, Schön Medical service, Maçaroca WhatsApp, made-to-order requests',
