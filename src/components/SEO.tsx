@@ -10,7 +10,7 @@ type SEOPage = {
 }
 
 const baseTitle = 'Maçaroca'
-const imagePath = '/og-image.png'
+const imagePath = '/og-image.png?v=2'
 
 const organizationDescription: Record<Language, string> = {
   pt: 'Moda autoral Maçaroca e scrubs Schön Medical sob demanda, com atendimento online, orientação de medidas e produção por demanda.',
