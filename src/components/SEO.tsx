@@ -211,7 +211,10 @@ export function SEO() {
           image: imageUrl,
           description: organizationDescription[language],
           email: contactInfo.email.display,
-          sameAs: [contactInfo.socialMedia.instagram.link],
+          sameAs: [
+            contactInfo.socialMedia.instagram.link,
+            contactInfo.socialMedia.instagramSchon.link,
+          ],
           areaServed: [
             { '@type': 'Country', name: 'Brasil' },
             { '@type': 'Country', name: 'Paraguai' },

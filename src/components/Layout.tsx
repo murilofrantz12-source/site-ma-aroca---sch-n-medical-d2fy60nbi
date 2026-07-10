@@ -87,7 +87,18 @@ export default function Layout() {
                     >
                       <Instagram className="w-5 h-5" />
                       <span className="text-sm uppercase tracking-widest">
-                        {t.common.instagram}
+                        {contactInfo.socialMedia.instagram.username}
+                      </span>
+                    </a>
+                    <a
+                      href={contactInfo.socialMedia.instagramSchon.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-2 text-foreground/80"
+                    >
+                      <Instagram className="w-5 h-5" />
+                      <span className="text-sm uppercase tracking-widest">
+                        {contactInfo.socialMedia.instagramSchon.username}
                       </span>
                     </a>
                     <WhatsAppChoice
@@ -158,19 +169,37 @@ export default function Layout() {
                 isTransparentAndDarkBg ? 'bg-white' : 'bg-foreground',
               )}
             />
-            <a
-              href={INSTAGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <div
               className={cn(
-                'transition-colors',
-                isTransparentAndDarkBg
-                  ? 'text-white/90 hover:text-white'
-                  : 'text-foreground/80 hover:text-foreground',
+                'flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.16em]',
+                isTransparentAndDarkBg ? 'text-white/85' : 'text-foreground/70',
               )}
             >
-              <Instagram className="w-4 h-4" />
-            </a>
+              <Instagram className="h-4 w-4" />
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  'transition-colors',
+                  isTransparentAndDarkBg ? 'hover:text-white' : 'hover:text-foreground',
+                )}
+              >
+                Maçaroca
+              </a>
+              <span className="opacity-35">/</span>
+              <a
+                href={contactInfo.socialMedia.instagramSchon.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  'transition-colors',
+                  isTransparentAndDarkBg ? 'hover:text-white' : 'hover:text-foreground',
+                )}
+              >
+                Schön
+              </a>
+            </div>
           </div>
 
           <div className="lg:hidden flex justify-end">
@@ -255,15 +284,29 @@ export default function Layout() {
                   <Mail className="w-4 h-4 text-background/40" strokeWidth={1.5} />
                   {contactInfo.email.display}
                 </a>
-                <div className="flex items-center gap-5 pt-1">
+                <div className="flex flex-wrap items-center gap-3 pt-1">
                   <p className="text-xs text-background/45">{t.contactInfo.businessHours}</p>
                   <a
                     href={INSTAGRAM_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-9 w-9 items-center justify-center border border-background/12 transition-colors hover:border-background/35 hover:text-background"
+                    className="inline-flex h-9 items-center gap-2 border border-background/12 px-3 transition-colors hover:border-background/35 hover:text-background"
                   >
                     <Instagram className="w-4 h-4" />
+                    <span className="text-[10px] uppercase tracking-[0.16em]">
+                      Maçaroca
+                    </span>
+                  </a>
+                  <a
+                    href={contactInfo.socialMedia.instagramSchon.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 items-center gap-2 border border-background/12 px-3 transition-colors hover:border-background/35 hover:text-background"
+                  >
+                    <Instagram className="w-4 h-4" />
+                    <span className="text-[10px] uppercase tracking-[0.16em]">
+                      Schön
+                    </span>
                   </a>
                 </div>
               </div>

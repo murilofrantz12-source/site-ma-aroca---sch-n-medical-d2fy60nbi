@@ -279,23 +279,44 @@ export default function Contato() {
                 <h3 className="mb-5 text-xs font-medium uppercase tracking-[0.18em]">
                   {t.contact.social}
                 </h3>
-                <div className="flex items-center gap-4">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <a
                     href={contactInfo.socialMedia.instagram.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-11 w-11 items-center justify-center rounded-full border border-border transition-colors hover:bg-foreground hover:text-background"
-                    aria-label="Instagram"
+                    className="group flex items-center gap-3 border border-border px-4 py-3 transition-colors hover:border-foreground"
+                    aria-label="Instagram Maçaroca"
                   >
-                    <Instagram className="h-5 w-5" strokeWidth={1.5} />
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors group-hover:bg-foreground group-hover:text-background">
+                      <Instagram className="h-5 w-5" strokeWidth={1.5} />
+                    </span>
+                    <span>
+                      <span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        Maçaroca
+                      </span>
+                      <span className="text-sm font-light text-foreground">
+                        {contactInfo.socialMedia.instagram.username}
+                      </span>
+                    </span>
                   </a>
                   <a
-                    href={contactInfo.socialMedia.instagram.link}
+                    href={contactInfo.socialMedia.instagramSchon.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-light text-muted-foreground transition-colors hover:text-foreground"
+                    className="group flex items-center gap-3 border border-border px-4 py-3 transition-colors hover:border-foreground"
+                    aria-label="Instagram Schön Medical"
                   >
-                    Instagram: {contactInfo.socialMedia.instagram.username}
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border transition-colors group-hover:bg-foreground group-hover:text-background">
+                      <Instagram className="h-5 w-5" strokeWidth={1.5} />
+                    </span>
+                    <span>
+                      <span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        Schön Medical
+                      </span>
+                      <span className="text-sm font-light text-foreground">
+                        {contactInfo.socialMedia.instagramSchon.username}
+                      </span>
+                    </span>
                   </a>
                 </div>
               </div>

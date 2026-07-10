@@ -32,8 +32,13 @@ export const contactInfo = {
       username: '@mmacaroca',
       link: 'https://www.instagram.com/mmacaroca/',
     },
+    instagramSchon: {
+      username: '@schonmedical',
+      link: 'https://www.instagram.com/schonmedical/',
+    },
   },
 } as const
 
 export const WHATSAPP_URL = contactInfo.whatsapp.brasil.link
 export const INSTAGRAM_URL = contactInfo.socialMedia.instagram.link
+export const SCHON_INSTAGRAM_URL = contactInfo.socialMedia.instagramSchon.link
