@@ -18,7 +18,6 @@ type QuoteCardItem = {
 type QuoteCardData = {
   bottomColor: ColorOption
   downloadNote: string
-  fabric: { name: string }
   finalTitle: string
   items: QuoteCardItem[]
   labelColor: ColorOption
@@ -31,8 +30,9 @@ type StepId =
   | 'bottomColor'
   | 'ribbonColor'
   | 'labelColor'
-  | 'size'
-  | 'fabric'
+  | 'topSize'
+  | 'bottomSize'
+  | 'model'
   | 'embroidery'
 
 function OptionButton({
@@ -191,7 +191,7 @@ function drawQuoteScrub(
 function downloadQuoteCard(data: QuoteCardData) {
   const canvas = document.createElement('canvas')
   canvas.width = 1080
-  canvas.height = 1420
+  canvas.height = 1700
   const ctx = canvas.getContext('2d')
 
   if (!ctx) return
@@ -199,10 +199,10 @@ function downloadQuoteCard(data: QuoteCardData) {
   ctx.fillStyle = '#fbfcf7'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.fillStyle = '#ffffff'
-  ctx.fillRect(48, 48, 984, 1324)
+  ctx.fillRect(48, 48, 984, 1604)
   ctx.strokeStyle = 'rgba(17,19,15,0.12)'
   ctx.lineWidth = 2
-  ctx.strokeRect(48, 48, 984, 1324)
+  ctx.strokeRect(48, 48, 984, 1604)
 
   ctx.textAlign = 'center'
   ctx.fillStyle = '#11130f'
@@ -226,9 +226,9 @@ function downloadQuoteCard(data: QuoteCardData) {
     const column = index % 2
     const row = Math.floor(index / 2)
     const x = isLastSingleItem ? 94 : 94 + column * 456
-    const y = 830 + row * 122
+    const y = 830 + row * 112
     const width = isLastSingleItem ? 860 : 404
-    drawCardBox(ctx, x, y, width, 92)
+    drawCardBox(ctx, x, y, width, 84)
     ctx.fillStyle = 'rgba(17,19,15,0.52)'
     ctx.font = '700 18px Arial'
     ctx.fillText(item.label.toUpperCase(), x + 28, y + 34)
@@ -253,7 +253,7 @@ function downloadQuoteCard(data: QuoteCardData) {
   ctx.textAlign = 'center'
   ctx.fillStyle = 'rgba(17,19,15,0.54)'
   ctx.font = '24px Arial'
-  ctx.fillText(data.downloadNote, 540, 1320)
+  ctx.fillText(data.downloadNote, 540, 1604)
 
   const link = document.createElement('a')
   link.href = canvas.toDataURL('image/png')
@@ -589,8 +589,9 @@ export function ScrubConfigurator() {
   const [bottomColor, setBottomColor] = useState<ColorOption>(config.bottomColors[0])
   const [ribbonColor, setRibbonColor] = useState<ColorOption>(config.ribbonColors[0])
   const [labelColor, setLabelColor] = useState<ColorOption>(config.labelColors[0])
-  const [size, setSize] = useState(config.sizes[3])
-  const [fabric, setFabric] = useState(config.fabrics[1])
+  const [topSize, setTopSize] = useState(config.sizes[2])
+  const [bottomSize, setBottomSize] = useState(config.sizes[2])
+  const [model, setModel] = useState(config.models[0])
   const [embroidery, setEmbroidery] = useState(config.embroideryOptions[0])
   const [activeStep, setActiveStep] = useState<StepId | null>('topColor')
   const [hasDownloadedPreview, setHasDownloadedPreview] = useState(false)
@@ -601,8 +602,12 @@ export function ScrubConfigurator() {
       { color: bottomColor.value, label: config.labels.bottomColor, value: bottomColor.name },
       { color: ribbonColor.value, label: config.labels.ribbonColor, value: ribbonColor.name },
       { color: labelColor.value, label: config.labels.labelColor, value: labelColor.name },
-      { label: config.labels.size, value: size },
-      { label: config.labels.fabric, value: fabric.name },
+      { label: config.labels.model, value: model.name },
+      { label: config.labels.topSize, value: topSize },
+      { label: config.labels.bottomSize, value: bottomSize },
+      { label: config.labels.topPrice, value: model.topPrice },
+      { label: config.labels.bottomPrice, value: model.bottomPrice },
+      { label: config.labels.totalPrice, value: model.setPrice },
       { label: config.labels.embroidery, value: embroidery },
     ],
     [
@@ -610,12 +615,16 @@ export function ScrubConfigurator() {
       bottomColor.value,
       config.labels,
       embroidery,
-      fabric.name,
       labelColor.name,
       labelColor.value,
+      model.bottomPrice,
+      model.name,
+      model.setPrice,
+      model.topPrice,
+      bottomSize,
       ribbonColor.name,
       ribbonColor.value,
-      size,
+      topSize,
       topColor.name,
       topColor.value,
     ],
@@ -630,8 +639,12 @@ export function ScrubConfigurator() {
         `${config.labels.bottomColor}: ${bottomColor.name}`,
         `${config.labels.ribbonColor}: ${ribbonColor.name}`,
         `${config.labels.labelColor}: ${labelColor.name}`,
-        `${config.labels.size}: ${size}`,
-        `${config.labels.fabric}: ${fabric.name}`,
+        `${config.labels.model}: ${model.name} (${model.pockets})`,
+        `${config.labels.topSize}: ${topSize}`,
+        `${config.labels.bottomSize}: ${bottomSize}`,
+        `${config.labels.topPrice}: ${model.topPrice}`,
+        `${config.labels.bottomPrice}: ${model.bottomPrice}`,
+        `${config.labels.totalPrice}: ${model.setPrice}`,
         `${config.labels.embroidery}: ${embroidery}`,
         '',
         config.messageFooter,
@@ -640,10 +653,11 @@ export function ScrubConfigurator() {
       bottomColor.name,
       config,
       embroidery,
-      fabric.name,
       labelColor.name,
+      model,
+      bottomSize,
       ribbonColor.name,
-      size,
+      topSize,
       topColor.name,
     ],
   )
@@ -652,7 +666,6 @@ export function ScrubConfigurator() {
     downloadQuoteCard({
       bottomColor,
       downloadNote: config.downloadNote,
-      fabric,
       finalTitle: config.finalTitle,
       items: quoteItems,
       labelColor,
@@ -676,7 +689,7 @@ export function ScrubConfigurator() {
                 <h3 className="font-serif text-3xl text-[#11130f]">{config.previewTitle}</h3>
               </div>
               <span className="border border-[#b8f24a] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-[#11130f]/70">
-                {fabric.name}
+                {model.name}
               </span>
             </div>
 
@@ -718,7 +731,7 @@ export function ScrubConfigurator() {
                   {config.summaryLabel}
                 </span>
                 <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#11130f]/70">
-                  {size} / {fabric.name}
+                  {topSize} / {bottomSize} / {model.name}
                 </span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -742,8 +755,10 @@ export function ScrubConfigurator() {
                   label={config.labels.labelColor}
                   value={labelColor.name}
                 />
-                <SummaryLine label={config.labels.size} value={size} />
-                <SummaryLine label={config.labels.fabric} value={fabric.name} />
+                <SummaryLine label={config.labels.model} value={model.name} />
+                <SummaryLine label={config.labels.topSize} value={topSize} />
+                <SummaryLine label={config.labels.bottomSize} value={bottomSize} />
+                <SummaryLine label={config.labels.totalPrice} value={model.setPrice} />
                 <SummaryLine label={config.labels.embroidery} value={embroidery} />
               </div>
             </div>
@@ -831,7 +846,7 @@ export function ScrubConfigurator() {
                     color={color}
                     onClick={() => {
                       setLabelColor(color)
-                      setActiveStep('size')
+                      setActiveStep('topSize')
                     }}
                   />
                 ))}
@@ -839,20 +854,20 @@ export function ScrubConfigurator() {
             </OptionGroup>
 
             <OptionGroup
-              isOpen={activeStep === 'size'}
-              onToggle={() => setActiveStep(activeStep === 'size' ? null : 'size')}
-              summary={size}
-              title={config.steps.size}
+              isOpen={activeStep === 'topSize'}
+              onToggle={() => setActiveStep(activeStep === 'topSize' ? null : 'topSize')}
+              summary={topSize}
+              title={config.steps.topSize}
               step="05"
             >
               <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
                 {config.sizes.map((item) => (
                   <OptionButton
                     key={item}
-                    active={size === item}
+                    active={topSize === item}
                     onClick={() => {
-                      setSize(item)
-                      setActiveStep('fabric')
+                      setTopSize(item)
+                      setActiveStep('bottomSize')
                     }}
                   >
                     {item}
@@ -862,24 +877,47 @@ export function ScrubConfigurator() {
             </OptionGroup>
 
             <OptionGroup
-              isOpen={activeStep === 'fabric'}
-              onToggle={() => setActiveStep(activeStep === 'fabric' ? null : 'fabric')}
-              summary={fabric.name}
-              title={config.steps.fabric}
+              isOpen={activeStep === 'bottomSize'}
+              onToggle={() => setActiveStep(activeStep === 'bottomSize' ? null : 'bottomSize')}
+              summary={bottomSize}
+              title={config.steps.bottomSize}
               step="06"
             >
+              <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
+                {config.sizes.map((item) => (
+                  <OptionButton
+                    key={item}
+                    active={bottomSize === item}
+                    onClick={() => {
+                      setBottomSize(item)
+                      setActiveStep('model')
+                    }}
+                  >
+                    {item}
+                  </OptionButton>
+                ))}
+              </div>
+            </OptionGroup>
+
+            <OptionGroup
+              isOpen={activeStep === 'model'}
+              onToggle={() => setActiveStep(activeStep === 'model' ? null : 'model')}
+              summary={`${model.name} · ${model.setPrice}`}
+              title={config.steps.model}
+              step="07"
+            >
               <div className="grid gap-3 md:grid-cols-3">
-                {config.fabrics.map((item) => (
+                {config.models.map((item) => (
                   <button
                     type="button"
                     key={item.name}
                     onClick={() => {
-                      setFabric(item)
+                      setModel(item)
                       setActiveStep('embroidery')
                     }}
                     className={cn(
                       'border p-5 text-left transition-colors',
-                      fabric.name === item.name
+                      model.name === item.name
                         ? 'border-[#11130f] bg-[#11130f] text-white'
                         : 'border-[#11130f]/15 bg-white text-[#11130f] hover:border-[#11130f]/45',
                     )}
@@ -888,16 +926,28 @@ export function ScrubConfigurator() {
                       <span className="text-xs font-medium uppercase tracking-[0.16em]">
                         {item.name}
                       </span>
-                      {fabric.name === item.name && <Check className="h-4 w-4" />}
+                      {model.name === item.name && <Check className="h-4 w-4" />}
                     </div>
                     <p
                       className={cn(
-                        'text-sm font-light leading-relaxed',
-                        fabric.name === item.name ? 'text-white/65' : 'text-[#11130f]/60',
+                        'mb-4 text-sm font-light leading-relaxed',
+                        model.name === item.name ? 'text-white/65' : 'text-[#11130f]/60',
                       )}
                     >
                       {item.desc}
                     </p>
+                    <div
+                      className={cn(
+                        'space-y-1 border-t pt-4 text-xs',
+                        model.name === item.name
+                          ? 'border-white/15 text-white/78'
+                          : 'border-[#11130f]/10 text-[#11130f]/62',
+                      )}
+                    >
+                      <p>{config.labels.topPrice}: {item.topPrice}</p>
+                      <p>{config.labels.bottomPrice}: {item.bottomPrice}</p>
+                      <p className="font-medium text-current">{config.labels.totalPrice}: {item.setPrice}</p>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -908,7 +958,7 @@ export function ScrubConfigurator() {
               onToggle={() => setActiveStep(activeStep === 'embroidery' ? null : 'embroidery')}
               summary={embroidery}
               title={config.steps.embroidery}
-              step="07"
+              step="08"
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 {config.embroideryOptions.map((item) => (

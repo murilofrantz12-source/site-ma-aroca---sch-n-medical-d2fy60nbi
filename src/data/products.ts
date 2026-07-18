@@ -18,7 +18,7 @@ export const PRODUCTS = [
     name: 'Scrub completo',
     category: 'Schön Medical',
     brand: 'Schön Medical',
-    price: 'A partir de R$ 180,00',
+    price: 'A partir de R$ 187',
     visual: 'schon',
     image: schonSilhueta,
     colors: ['#8c124b', '#d80b8c', '#07066f', '#a9efe2', '#ff520d', '#ffffff'],
