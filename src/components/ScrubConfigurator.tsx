@@ -261,6 +261,27 @@ function downloadQuoteCard(data: QuoteCardData) {
   link.click()
 }
 
+function isLightHexColor(hex: string) {
+  const normalized = hex.replace('#', '')
+  if (normalized.length !== 3 && normalized.length !== 6) return false
+
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => `${char}${char}`)
+          .join('')
+      : normalized
+
+  const red = Number.parseInt(expanded.slice(0, 2), 16)
+  const green = Number.parseInt(expanded.slice(2, 4), 16)
+  const blue = Number.parseInt(expanded.slice(4, 6), 16)
+
+  if ([red, green, blue].some(Number.isNaN)) return false
+
+  return (red * 299 + green * 587 + blue * 114) / 1000 > 210
+}
+
 function ColorButton({
   active,
   color,
@@ -270,17 +291,23 @@ function ColorButton({
   color: ColorOption
   onClick: () => void
 }) {
+  const isLightColor = isLightHexColor(color.value)
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'flex items-center gap-3 border px-3 py-3 text-left transition-colors',
+        'flex min-h-14 items-center gap-3 border px-3 py-3 text-left transition-colors',
         active ? 'border-[#11130f] bg-[#11130f] text-white' : 'border-[#11130f]/15 bg-white',
       )}
     >
       <span
-        className="h-6 w-6 shrink-0 rounded-full border border-[#11130f]/15"
+        className={cn(
+          'h-7 w-7 shrink-0 rounded-full border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]',
+          active ? 'border-white/40' : 'border-[#11130f]/18',
+          isLightColor && 'bg-[linear-gradient(135deg,#fff_0%,#fff_48%,#ece8dc_49%,#f7f5ef_100%)]',
+        )}
         style={{ backgroundColor: color.value }}
       />
       <span className="text-[10px] font-medium uppercase tracking-[0.14em]">{color.name}</span>

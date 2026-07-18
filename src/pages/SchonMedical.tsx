@@ -65,6 +65,9 @@ export default function SchonMedical() {
             <p className="text-sm sm:text-base md:text-lg text-[#11130f]/65 font-light mb-8 sm:mb-10 leading-relaxed max-w-xl mx-auto">
               {t.schon.intro}
             </p>
+            <span className="mb-8 inline-flex border border-[#11130f]/12 bg-white/72 px-5 py-3 text-[10px] font-medium uppercase tracking-[0.2em] text-[#11130f]/72 backdrop-blur-sm sm:mb-10">
+              {t.schon.priceText}
+            </span>
             <WhatsAppChoice
               message={t.whatsapp.schonMessage}
               className="inline-flex w-full max-w-xs sm:w-auto sm:max-w-none items-center justify-center rounded-none uppercase tracking-widest bg-[#11130f] text-white hover:bg-[#2a2d25] px-8 h-14 text-xs transition-colors"
