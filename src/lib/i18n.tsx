@@ -122,7 +122,7 @@ export const translations = {
           category: 'Scrubs sob demanda',
           price: 'A partir de R$ 187',
           description:
-            'Scrubs completos para rotina profissional, com orientação de medidas, cores e personalização.',
+            'Scrubs completos para rotina profissional, com orientação de medidas, cores e modelos.',
           details: ['Cores personalizáveis', 'Pedidos individuais e equipes', 'Prévia visual'],
         },
       },
@@ -153,13 +153,13 @@ export const translations = {
           desc: 'Atendimento para profissionais, duplas, equipes, clínicas e consultórios.',
         },
         {
-          title: 'Personalização',
-          desc: 'Possibilidade de bordar nome, especialidade ou identidade da clínica com acabamento discreto.',
+          title: 'Acabamento funcional',
+          desc: 'Modelos com bolsos, recortes e detalhes pensados para acompanhar a rotina com praticidade.',
         },
       ],
       processTitle: 'Como funciona o pedido',
       processText:
-        'O atendimento acontece pelo WhatsApp para alinhar medidas, tecidos, cores, personalização e prazo.',
+        'O atendimento acontece pelo WhatsApp para alinhar medidas, modelos, cores e prazo.',
       steps: [
         {
           title: '1. Conversa inicial',
@@ -167,7 +167,7 @@ export const translations = {
         },
         {
           title: '2. Medidas e detalhes',
-          desc: 'Alinhamos medidas, bordado, caimento e detalhes importantes para o uso diário.',
+          desc: 'Alinhamos medidas, caimento, modelo e detalhes importantes para o uso diário.',
         },
         {
           title: '3. Produção sob demanda',
@@ -176,13 +176,13 @@ export const translations = {
       ],
       ctaTitle: 'Sua rotina também merece vestir presença.',
       ctaText:
-        'Fale pelo WhatsApp para consultar valores, medidas, cores disponíveis e opções de bordado.',
+        'Fale pelo WhatsApp para consultar valores, medidas, cores disponíveis e modelos.',
       talkToConsultant: 'Falar com Consultora',
       customizer: {
         eyebrow: 'Monte seu Schön',
-        title: 'Personalize seu scrub antes do orçamento',
+        title: 'Monte seu scrub antes do orçamento',
         intro:
-          'Escolha cores, tamanhos da blusa e da calça, modelo de bolsos, fitas e etiqueta. No final, envie a composição pronta para receber um orçamento personalizado.',
+          'Escolha cores, tamanhos da blusa e da calça, modelo de bolsos, fitas e etiqueta. No final, envie a composição pronta para receber um orçamento.',
         previewLabel: 'Prévia visual',
         previewTitle: 'Sua composição',
         previewDisclaimer: 'Prévia ilustrativa',
@@ -209,7 +209,6 @@ export const translations = {
           topPrice: 'Blusa',
           bottomPrice: 'Calça',
           totalPrice: 'Conjunto',
-          embroidery: 'Bordado',
         },
         steps: {
           topColor: 'Cor da parte de cima',
@@ -219,7 +218,6 @@ export const translations = {
           topSize: 'Tamanho da blusa',
           bottomSize: 'Tamanho da calça',
           model: 'Modelo e bolsos',
-          embroidery: 'Personalização',
         },
         topColors: [
           { name: 'Bordô', value: '#8c124b' },
@@ -304,7 +302,6 @@ export const translations = {
             setPrice: 'R$ 254',
           },
         ],
-        embroideryOptions: ['Sem bordado', 'Com bordado'],
       },
     },
     about: {
@@ -526,7 +523,7 @@ export const translations = {
           category: 'Scrubs a pedido',
           price: 'Desde Gs. 180.000',
           description:
-            'Scrubs completos para la rutina profesional, con orientación de medidas, colores y personalización.',
+            'Scrubs completos para la rutina profesional, con orientación de medidas, colores y modelos.',
           details: ['Colores personalizables', 'Pedidos individuales y equipos', 'Vista previa'],
         },
       },
@@ -557,13 +554,13 @@ export const translations = {
           desc: 'Atención para profesionales, duplas, equipos, clínicas y consultorios.',
         },
         {
-          title: 'Personalización',
-          desc: 'Posibilidad de bordar nombre, especialidad o identidad de la clínica con terminación discreta.',
+          title: 'Terminación funcional',
+          desc: 'Modelos con bolsillos, cortes y detalles pensados para acompañar la rutina con practicidad.',
         },
       ],
       processTitle: 'Cómo funciona el pedido',
       processText:
-        'La atención ocurre por WhatsApp para alinear medidas, telas, colores, personalización y plazo.',
+        'La atención ocurre por WhatsApp para alinear medidas, modelos, colores y plazo.',
       steps: [
         {
           title: '1. Conversa inicial',
@@ -571,7 +568,7 @@ export const translations = {
         },
         {
           title: '2. Medidas y detalles',
-          desc: 'Alineamos medidas, bordado, calce y detalles importantes para el uso diario.',
+          desc: 'Alineamos medidas, calce, modelo y detalles importantes para el uso diario.',
         },
         {
           title: '3. Producción a pedido',
@@ -580,13 +577,13 @@ export const translations = {
       ],
       ctaTitle: 'Tu rutina también merece vestir presencia.',
       ctaText:
-        'Habla por WhatsApp para consultar valores, medidas, colores disponibles y opciones de bordado.',
+        'Habla por WhatsApp para consultar valores, medidas, colores disponibles y modelos.',
       talkToConsultant: 'Hablar con una Consultora',
       customizer: {
         eyebrow: 'Arma tu Schön',
-        title: 'Personaliza tu scrub antes del presupuesto',
+        title: 'Arma tu scrub antes del presupuesto',
         intro:
-          'Elige colores, talles de blusa y pantalón, modelo de bolsillos, cintas y etiqueta. Al final, envía la composición lista para recibir un presupuesto personalizado.',
+          'Elige colores, talles de blusa y pantalón, modelo de bolsillos, cintas y etiqueta. Al final, envía la composición lista para recibir un presupuesto.',
         previewLabel: 'Vista previa',
         previewTitle: 'Tu composición',
         previewDisclaimer: 'Vista ilustrativa',
@@ -613,7 +610,6 @@ export const translations = {
           topPrice: 'Blusa',
           bottomPrice: 'Pantalón',
           totalPrice: 'Conjunto',
-          embroidery: 'Bordado',
         },
         steps: {
           topColor: 'Color de la parte superior',
@@ -623,7 +619,6 @@ export const translations = {
           topSize: 'Talle de blusa',
           bottomSize: 'Talle de pantalón',
           model: 'Modelo y bolsillos',
-          embroidery: 'Personalización',
         },
         topColors: [
           { name: 'Bordó', value: '#8c124b' },
@@ -708,7 +703,6 @@ export const translations = {
             setPrice: 'Gs. 260.000',
           },
         ],
-        embroideryOptions: ['Sin bordado', 'Con bordado'],
       },
     },
     about: {
@@ -930,7 +924,7 @@ export const translations = {
           category: 'Made-to-order scrubs',
           price: 'From US$ 37',
           description:
-            'Complete scrubs for professional routines, with measurement, color and personalization guidance.',
+            'Complete scrubs for professional routines, with measurement, color and model guidance.',
           details: ['Customizable colors', 'Individual and team orders', 'Visual preview'],
         },
       },
@@ -961,13 +955,13 @@ export const translations = {
           desc: 'Service for professionals, pairs, teams, clinics and offices.',
         },
         {
-          title: 'Personalization',
-          desc: 'Option to embroider name, specialty or clinic identity with discreet finishing.',
+          title: 'Functional finishing',
+          desc: 'Models with pockets, cuts and details designed to support routine with practicality.',
         },
       ],
       processTitle: 'How ordering works',
       processText:
-        'Service happens through WhatsApp to align measurements, fabrics, colors, personalization and timing.',
+        'Service happens through WhatsApp to align measurements, models, colors and timing.',
       steps: [
         {
           title: '1. Initial conversation',
@@ -975,7 +969,7 @@ export const translations = {
         },
         {
           title: '2. Measurements and details',
-          desc: 'We align measurements, embroidery, fit and the details that matter for daily use.',
+          desc: 'We align measurements, fit, model and the details that matter for daily use.',
         },
         {
           title: '3. Made-to-order production',
@@ -984,13 +978,13 @@ export const translations = {
       ],
       ctaTitle: 'Your routine deserves to dress with presence too.',
       ctaText:
-        'Chat on WhatsApp to check prices, measurements, available colors and embroidery options.',
+        'Chat on WhatsApp to check prices, measurements, available colors and models.',
       talkToConsultant: 'Talk to a Consultant',
       customizer: {
         eyebrow: 'Build your Schön',
-        title: 'Personalize your scrub before the quote',
+        title: 'Build your scrub before the quote',
         intro:
-          'Choose colors, top and pants sizes, pocket model, ribbons and label. At the end, send the complete composition to receive a personalized quote.',
+          'Choose colors, top and pants sizes, pocket model, ribbons and label. At the end, send the complete composition to receive a quote.',
         previewLabel: 'Visual preview',
         previewTitle: 'Your composition',
         previewDisclaimer: 'Illustrative preview',
@@ -1017,7 +1011,6 @@ export const translations = {
           topPrice: 'Top/shirt',
           bottomPrice: 'Pants',
           totalPrice: 'Set',
-          embroidery: 'Embroidery',
         },
         steps: {
           topColor: 'Top color',
@@ -1027,7 +1020,6 @@ export const translations = {
           topSize: 'Top size',
           bottomSize: 'Pants size',
           model: 'Model and pockets',
-          embroidery: 'Personalization',
         },
         topColors: [
           { name: 'Burgundy', value: '#8c124b' },
@@ -1112,7 +1104,6 @@ export const translations = {
             setPrice: 'US$ 50',
           },
         ],
-        embroideryOptions: ['No embroidery', 'With embroidery'],
       },
     },
     about: {

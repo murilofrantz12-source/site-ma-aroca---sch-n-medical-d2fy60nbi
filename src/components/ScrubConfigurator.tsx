@@ -33,7 +33,6 @@ type StepId =
   | 'topSize'
   | 'bottomSize'
   | 'model'
-  | 'embroidery'
 
 function OptionButton({
   active,
@@ -365,7 +364,7 @@ function ScrubPreview({
     <svg
       viewBox="0 0 260 430"
       role="img"
-      aria-label="Prévia do scrub personalizado"
+      aria-label="Prévia do scrub montado"
       className="relative h-[410px] w-full max-w-[280px] drop-shadow-[0_24px_55px_rgba(17,19,15,0.16)]"
     >
       <defs>
@@ -592,7 +591,6 @@ export function ScrubConfigurator() {
   const [topSize, setTopSize] = useState(config.sizes[2])
   const [bottomSize, setBottomSize] = useState(config.sizes[2])
   const [model, setModel] = useState(config.models[0])
-  const [embroidery, setEmbroidery] = useState(config.embroideryOptions[0])
   const [activeStep, setActiveStep] = useState<StepId | null>('topColor')
   const [hasDownloadedPreview, setHasDownloadedPreview] = useState(false)
 
@@ -608,13 +606,11 @@ export function ScrubConfigurator() {
       { label: config.labels.topPrice, value: model.topPrice },
       { label: config.labels.bottomPrice, value: model.bottomPrice },
       { label: config.labels.totalPrice, value: model.setPrice },
-      { label: config.labels.embroidery, value: embroidery },
     ],
     [
       bottomColor.name,
       bottomColor.value,
       config.labels,
-      embroidery,
       labelColor.name,
       labelColor.value,
       model.bottomPrice,
@@ -645,14 +641,12 @@ export function ScrubConfigurator() {
         `${config.labels.topPrice}: ${model.topPrice}`,
         `${config.labels.bottomPrice}: ${model.bottomPrice}`,
         `${config.labels.totalPrice}: ${model.setPrice}`,
-        `${config.labels.embroidery}: ${embroidery}`,
         '',
         config.messageFooter,
       ].join('\n'),
     [
       bottomColor.name,
       config,
-      embroidery,
       labelColor.name,
       model,
       bottomSize,
@@ -759,7 +753,6 @@ export function ScrubConfigurator() {
                 <SummaryLine label={config.labels.topSize} value={topSize} />
                 <SummaryLine label={config.labels.bottomSize} value={bottomSize} />
                 <SummaryLine label={config.labels.totalPrice} value={model.setPrice} />
-                <SummaryLine label={config.labels.embroidery} value={embroidery} />
               </div>
             </div>
           </div>
@@ -913,7 +906,7 @@ export function ScrubConfigurator() {
                     key={item.name}
                     onClick={() => {
                       setModel(item)
-                      setActiveStep('embroidery')
+                      setActiveStep(null)
                     }}
                     className={cn(
                       'border p-5 text-left transition-colors',
@@ -944,34 +937,17 @@ export function ScrubConfigurator() {
                           : 'border-[#11130f]/10 text-[#11130f]/62',
                       )}
                     >
-                      <p>{config.labels.topPrice}: {item.topPrice}</p>
-                      <p>{config.labels.bottomPrice}: {item.bottomPrice}</p>
-                      <p className="font-medium text-current">{config.labels.totalPrice}: {item.setPrice}</p>
+                      <p>
+                        {config.labels.topPrice}: {item.topPrice}
+                      </p>
+                      <p>
+                        {config.labels.bottomPrice}: {item.bottomPrice}
+                      </p>
+                      <p className="font-medium text-current">
+                        {config.labels.totalPrice}: {item.setPrice}
+                      </p>
                     </div>
                   </button>
-                ))}
-              </div>
-            </OptionGroup>
-
-            <OptionGroup
-              isOpen={activeStep === 'embroidery'}
-              onToggle={() => setActiveStep(activeStep === 'embroidery' ? null : 'embroidery')}
-              summary={embroidery}
-              title={config.steps.embroidery}
-              step="08"
-            >
-              <div className="grid gap-3 sm:grid-cols-2">
-                {config.embroideryOptions.map((item) => (
-                  <OptionButton
-                    key={item}
-                    active={embroidery === item}
-                    onClick={() => {
-                      setEmbroidery(item)
-                      setActiveStep(null)
-                    }}
-                  >
-                    {item}
-                  </OptionButton>
                 ))}
               </div>
             </OptionGroup>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageCircle } from 'lucide-react'
 import { WhatsAppChoice } from '@/components/WhatsAppChoice'
@@ -11,6 +12,7 @@ interface Product {
   price: string
   visual: string
   image?: string
+  gallery?: string[]
   colors: string[]
   sizes: string[]
 }
@@ -22,6 +24,8 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const { t } = useLanguage()
   const isSchon = product.visual === 'schon'
+  const carouselImages = product.gallery?.length ? product.gallery : product.image ? [product.image] : []
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
   const productText =
     product.id === 'macaroca-curadoria' ? t.catalog.products.macaroca : t.catalog.products.scrub
   const productName = productText.name
@@ -37,6 +41,20 @@ export function ProductCard({ product }: ProductCardProps) {
     .replace('{{product}}', productName)
     .replace('{{brand}}', product.brand)
 
+  useEffect(() => {
+    setActiveImageIndex(0)
+  }, [product.id])
+
+  useEffect(() => {
+    if (!isSchon || carouselImages.length <= 1) return
+
+    const interval = window.setInterval(() => {
+      setActiveImageIndex((current) => (current + 1) % carouselImages.length)
+    }, 3600)
+
+    return () => window.clearInterval(interval)
+  }, [carouselImages.length, isSchon])
+
   return (
     <article className="group flex h-full flex-col border border-[#11130f]/10 bg-[#f8f8f4] p-3 transition-colors duration-300 hover:border-[#11130f]/35">
       <div className="relative aspect-[4/5] overflow-hidden border border-[#11130f]/10 bg-white">
@@ -48,18 +66,23 @@ export function ProductCard({ product }: ProductCardProps) {
           }`}
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.96),transparent_34%),linear-gradient(to_top,rgba(17,19,15,0.2),transparent_58%)] opacity-80" />
-          {product.image ? (
-            <img
-              src={product.image}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className={`absolute inset-0 h-full w-full object-cover opacity-95 transition-transform duration-700 group-hover:scale-[1.035] ${
-                isSchon
-                  ? 'object-[center_42%]'
-                  : 'object-[center_32%] sm:object-[center_40%]'
-              }`}
-            />
+          {carouselImages.length ? (
+            carouselImages.map((image, index) => (
+              <img
+                key={image}
+                src={image}
+                alt=""
+                loading={index === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035] ${
+                  activeImageIndex === index ? 'opacity-95' : 'opacity-0'
+                } ${
+                  isSchon
+                    ? 'object-[center_48%]'
+                    : 'object-[center_32%] sm:object-[center_40%]'
+                }`}
+              />
+            ))
           ) : isSchon ? (
             <div className="absolute inset-x-0 bottom-[14%] mx-auto w-[54%] h-[62%]">
               <div className="absolute left-1/2 top-0 h-[24%] w-[28%] -translate-x-1/2 rounded-t-full bg-white/75 shadow-sm" />
@@ -86,6 +109,32 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
         <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/8 via-transparent to-white/14 opacity-80 transition-opacity duration-500 group-hover:opacity-40" />
+
+        {isSchon && (
+          <div className="absolute inset-x-4 bottom-4 z-30 grid gap-2 opacity-100 transition-all duration-300 md:translate-y-3 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-within:translate-y-0 md:group-focus-within:opacity-100">
+            <div className="border border-white/50 bg-white/95 p-3 shadow-[0_18px_50px_rgba(17,19,15,0.18)] backdrop-blur-sm">
+              <p className="mb-3 text-[9px] font-medium uppercase tracking-[0.2em] text-[#11130f]/50">
+                Schön Medical
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <WhatsAppChoice
+                  message={whatsappMessage}
+                  menuPlacement="top"
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 border border-[#11130f] bg-white px-3 text-[9px] font-medium uppercase tracking-[0.14em] text-[#11130f] transition-colors hover:bg-[#11130f] hover:text-white"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  {t.common.consult}
+                </WhatsAppChoice>
+                <Link
+                  to="/schon-medical#monte-seu-schon"
+                  className="inline-flex h-10 items-center justify-center border border-[#11130f] bg-[#11130f] px-3 text-center text-[9px] font-medium uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#b8f24a] hover:text-[#11130f]"
+                >
+                  {t.catalog.buildSchon}
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         <span className="pointer-events-none absolute left-4 top-4 z-20 border border-[#11130f]/10 bg-white/95 px-3 py-1 text-[9px] uppercase tracking-[0.2em] text-[#11130f] shadow-sm backdrop-blur-sm">
           {product.brand}
