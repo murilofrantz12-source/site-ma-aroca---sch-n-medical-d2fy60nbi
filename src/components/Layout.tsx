@@ -315,6 +315,7 @@ export default function Layout() {
 
           <div className="mt-14 flex flex-col gap-4 border-t border-background/12 pt-6 text-xs text-background/42 font-light md:flex-row md:items-center md:justify-between">
             <p>© {new Date().getFullYear()} Maçaroca + Schön Medical.</p>
+            <p>{t.footer.origin}</p>
             <p>{t.footer.rights}</p>
           </div>
         </div>

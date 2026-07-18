@@ -606,6 +606,7 @@ export function ScrubConfigurator() {
       { label: config.labels.topPrice, value: model.topPrice },
       { label: config.labels.bottomPrice, value: model.bottomPrice },
       { label: config.labels.totalPrice, value: model.setPrice },
+      { label: config.labels.deliveryFee, value: model.deliveryFee },
     ],
     [
       bottomColor.name,
@@ -643,6 +644,8 @@ export function ScrubConfigurator() {
         `${config.labels.topPrice}: ${model.topPrice}`,
         `${config.labels.bottomPrice}: ${model.bottomPrice}`,
         `${config.labels.totalPrice}: ${model.setPrice}`,
+        `${config.labels.deliveryFee}: ${model.deliveryFee}`,
+        config.originNote,
         '',
         config.messageFooter,
       ].join('\n'),
@@ -694,6 +697,9 @@ export function ScrubConfigurator() {
               <div className="absolute inset-x-10 bottom-14 h-24 rounded-[999px] bg-[#11130f]/10 blur-2xl" />
               <div className="absolute left-5 top-5 border border-[#11130f]/10 bg-white/80 px-3 py-2 text-[9px] font-medium uppercase tracking-[0.18em] text-[#11130f]/55 backdrop-blur">
                 {config.previewDisclaimer}
+              </div>
+              <div className="absolute right-5 top-5 border border-[#b8f24a]/70 bg-white/85 px-3 py-2 text-[9px] font-medium uppercase tracking-[0.16em] text-[#11130f]/62 backdrop-blur">
+                {config.originNote}
               </div>
               <div className="absolute bottom-5 right-5 flex items-center gap-2 border border-[#11130f]/10 bg-white/80 px-3 py-2 backdrop-blur">
                 <span
@@ -755,6 +761,7 @@ export function ScrubConfigurator() {
                 <SummaryLine label={config.labels.topSize} value={topSize} />
                 <SummaryLine label={config.labels.bottomSize} value={bottomSize} />
                 <SummaryLine label={config.labels.totalPrice} value={model.setPrice} />
+                <SummaryLine label={config.labels.deliveryFee} value={model.deliveryFee} />
               </div>
             </div>
           </div>
@@ -990,6 +997,10 @@ export function ScrubConfigurator() {
               <p className="mt-3 max-w-2xl text-sm font-light leading-relaxed text-white/65">
                 {config.finalText}
               </p>
+              <div className="mt-5 grid gap-3 text-xs font-light text-white/68 sm:grid-cols-2">
+                <p className="border border-white/12 px-4 py-3">{config.deliveryNote}</p>
+                <p className="border border-white/12 px-4 py-3">{config.originNote}</p>
+              </div>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"

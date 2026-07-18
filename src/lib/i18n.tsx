@@ -40,6 +40,7 @@ export const translations = {
       talkToUs: 'Fale Conosco',
       contact: 'Contato',
       rights: 'Todos os direitos reservados.',
+      origin: 'Fabricado no Paraguai.',
     },
     contactInfo: {
       businessHours: 'Segunda a sexta, das 7h às 18h',
@@ -192,6 +193,8 @@ export const translations = {
         finalTitle: 'Composição pronta',
         finalText:
           'Ao enviar, nossa equipe recebe suas escolhas e continua o atendimento pelo WhatsApp para confirmar medidas, prazo e valor.',
+        originNote: 'Fabricado no Paraguai',
+        deliveryNote: 'Taxa de entrega estimada: R$ 65',
         submit: 'Enviar para orçamento',
         submitWithPreview: 'Enviar composição pelo WhatsApp',
         messageTitle: 'Olá, gostaria de um orçamento Schön Medical com esta composição:',
@@ -211,6 +214,7 @@ export const translations = {
           topPrice: 'Blusa',
           bottomPrice: 'Calça',
           totalPrice: 'Conjunto',
+          deliveryFee: 'Entrega',
         },
         steps: {
           topColor: 'Cor da parte de cima',
@@ -287,7 +291,8 @@ export const translations = {
             bottomDetails: 'Bolso superior lateral simples em ambos os lados, corte reto.',
             topPrice: 'R$ 83',
             bottomPrice: 'R$ 104',
-            setPrice: 'R$ 187',
+            setPrice: 'R$ 190',
+            deliveryFee: 'R$ 65',
           },
           {
             name: 'Max',
@@ -299,6 +304,7 @@ export const translations = {
             topPrice: 'R$ 100',
             bottomPrice: 'R$ 120',
             setPrice: 'R$ 220',
+            deliveryFee: 'R$ 65',
           },
           {
             name: 'Premier',
@@ -310,7 +316,8 @@ export const translations = {
               'Bolso superior lateral simples do lado direito, bolso superior lateral com zíper do lado esquerdo, bolso inferior lateral simples do lado esquerdo, bolso inferior lateral duplo do lado direito e corte reto.',
             topPrice: 'R$ 117',
             bottomPrice: 'R$ 137',
-            setPrice: 'R$ 254',
+            setPrice: 'R$ 260',
+            deliveryFee: 'R$ 65',
           },
         ],
       },
@@ -452,6 +459,7 @@ export const translations = {
       talkToUs: 'Habla con Nosotros',
       contact: 'Contacto',
       rights: 'Todos los derechos reservados.',
+      origin: 'Fabricado en Paraguay.',
     },
     contactInfo: {
       businessHours: 'Lunes a viernes, de 7h a 18h',
@@ -604,6 +612,8 @@ export const translations = {
         finalTitle: 'Composición lista',
         finalText:
           'Al enviar, nuestro equipo recibe tus elecciones y continúa la atención por WhatsApp para confirmar medidas, plazo y valor.',
+        originNote: 'Fabricado en Paraguay',
+        deliveryNote: 'Entrega: a confirmar según destino',
         submit: 'Enviar para presupuesto',
         submitWithPreview: 'Enviar composición por WhatsApp',
         messageTitle: 'Hola, me gustaría un presupuesto Schön Medical con esta composición:',
@@ -623,6 +633,7 @@ export const translations = {
           topPrice: 'Blusa',
           bottomPrice: 'Pantalón',
           totalPrice: 'Conjunto',
+          deliveryFee: 'Entrega',
         },
         steps: {
           topColor: 'Color de la parte superior',
@@ -700,6 +711,7 @@ export const translations = {
             topPrice: 'Gs. 80.000',
             bottomPrice: 'Gs. 100.000',
             setPrice: 'Gs. 180.000',
+            deliveryFee: 'A confirmar',
           },
           {
             name: 'Max',
@@ -711,6 +723,7 @@ export const translations = {
             topPrice: 'Gs. 100.000',
             bottomPrice: 'Gs. 120.000',
             setPrice: 'Gs. 220.000',
+            deliveryFee: 'A confirmar',
           },
           {
             name: 'Premier',
@@ -723,6 +736,7 @@ export const translations = {
             topPrice: 'Gs. 120.000',
             bottomPrice: 'Gs. 140.000',
             setPrice: 'Gs. 260.000',
+            deliveryFee: 'A confirmar',
           },
         ],
       },
@@ -864,6 +878,7 @@ export const translations = {
       talkToUs: 'Contact Us',
       contact: 'Contact',
       rights: 'All rights reserved.',
+      origin: 'Made in Paraguay.',
     },
     contactInfo: {
       businessHours: 'Monday to Friday, 7 AM to 6 PM',
@@ -1016,6 +1031,8 @@ export const translations = {
         finalTitle: 'Composition ready',
         finalText:
           'When you send it, our team receives your choices and continues the service on WhatsApp to confirm measurements, timing and price.',
+        originNote: 'Made in Paraguay',
+        deliveryNote: 'Estimated delivery fee: US$ 12',
         submit: 'Send for quote',
         submitWithPreview: 'Send composition on WhatsApp',
         messageTitle: 'Hello, I would like a Schön Medical quote with this composition:',
@@ -1035,6 +1052,7 @@ export const translations = {
           topPrice: 'Top/shirt',
           bottomPrice: 'Pants',
           totalPrice: 'Set',
+          deliveryFee: 'Delivery',
         },
         steps: {
           topColor: 'Top color',
@@ -1112,6 +1130,7 @@ export const translations = {
             topPrice: 'US$ 16',
             bottomPrice: 'US$ 21',
             setPrice: 'US$ 37',
+            deliveryFee: 'US$ 12',
           },
           {
             name: 'Max',
@@ -1123,6 +1142,7 @@ export const translations = {
             topPrice: 'US$ 20',
             bottomPrice: 'US$ 24',
             setPrice: 'US$ 44',
+            deliveryFee: 'US$ 12',
           },
           {
             name: 'Premier',
@@ -1135,6 +1155,7 @@ export const translations = {
             topPrice: 'US$ 23',
             bottomPrice: 'US$ 27',
             setPrice: 'US$ 50',
+            deliveryFee: 'US$ 12',
           },
         ],
       },
