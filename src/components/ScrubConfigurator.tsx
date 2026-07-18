@@ -600,7 +600,7 @@ export function ScrubConfigurator() {
       { color: bottomColor.value, label: config.labels.bottomColor, value: bottomColor.name },
       { color: ribbonColor.value, label: config.labels.ribbonColor, value: ribbonColor.name },
       { color: labelColor.value, label: config.labels.labelColor, value: labelColor.name },
-      { label: config.labels.model, value: model.name },
+      { label: config.labels.model, value: `${model.name} · ${model.pockets}` },
       { label: config.labels.topSize, value: topSize },
       { label: config.labels.bottomSize, value: bottomSize },
       { label: config.labels.topPrice, value: model.topPrice },
@@ -636,6 +636,8 @@ export function ScrubConfigurator() {
         `${config.labels.ribbonColor}: ${ribbonColor.name}`,
         `${config.labels.labelColor}: ${labelColor.name}`,
         `${config.labels.model}: ${model.name} (${model.pockets})`,
+        `${config.labels.topDetails}: ${model.topDetails}`,
+        `${config.labels.bottomDetails}: ${model.bottomDetails}`,
         `${config.labels.topSize}: ${topSize}`,
         `${config.labels.bottomSize}: ${bottomSize}`,
         `${config.labels.topPrice}: ${model.topPrice}`,
@@ -899,7 +901,7 @@ export function ScrubConfigurator() {
               title={config.steps.model}
               step="07"
             >
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 xl:grid-cols-3">
                 {config.models.map((item) => (
                   <button
                     type="button"
@@ -915,9 +917,19 @@ export function ScrubConfigurator() {
                         : 'border-[#11130f]/15 bg-white text-[#11130f] hover:border-[#11130f]/45',
                     )}
                   >
-                    <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="mb-4 flex items-start justify-between gap-3">
                       <span className="text-xs font-medium uppercase tracking-[0.16em]">
                         {item.name}
+                      </span>
+                      <span
+                        className={cn(
+                          'shrink-0 border px-2 py-1 text-[9px] font-medium uppercase tracking-[0.12em]',
+                          model.name === item.name
+                            ? 'border-white/20 text-white/72'
+                            : 'border-[#11130f]/10 text-[#11130f]/55',
+                        )}
+                      >
+                        {item.pockets}
                       </span>
                       {model.name === item.name && <Check className="h-4 w-4" />}
                     </div>
@@ -929,6 +941,27 @@ export function ScrubConfigurator() {
                     >
                       {item.desc}
                     </p>
+                    <div
+                      className={cn(
+                        'mb-4 space-y-3 text-xs leading-relaxed',
+                        model.name === item.name ? 'text-white/72' : 'text-[#11130f]/62',
+                      )}
+                    >
+                      <p>
+                        <span className="font-medium uppercase tracking-[0.12em]">
+                          {config.labels.topDetails}
+                        </span>
+                        <br />
+                        {item.topDetails}
+                      </p>
+                      <p>
+                        <span className="font-medium uppercase tracking-[0.12em]">
+                          {config.labels.bottomDetails}
+                        </span>
+                        <br />
+                        {item.bottomDetails}
+                      </p>
+                    </div>
                     <div
                       className={cn(
                         'space-y-1 border-t pt-4 text-xs',
