@@ -304,11 +304,15 @@ function ColorButton({
     >
       <span
         className={cn(
-          'h-7 w-7 shrink-0 rounded-full border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]',
-          active ? 'border-white/40' : 'border-[#11130f]/18',
-          isLightColor && 'bg-[linear-gradient(135deg,#fff_0%,#fff_48%,#ece8dc_49%,#f7f5ef_100%)]',
+          'h-7 w-7 shrink-0 rounded-full border',
+          active ? 'border-white/55' : isLightColor ? 'border-[#11130f]/28' : 'border-[#11130f]/18',
         )}
-        style={{ backgroundColor: color.value }}
+        style={{
+          backgroundColor: color.value,
+          boxShadow: isLightColor
+            ? 'inset 0 0 0 1px rgba(17,19,15,0.12), 0 0 0 3px rgba(17,19,15,0.04)'
+            : 'inset 0 0 0 1px rgba(255,255,255,0.42), 0 0 0 3px rgba(17,19,15,0.04)',
+        }}
       />
       <span className="text-[10px] font-medium uppercase tracking-[0.14em]">{color.name}</span>
     </button>
