@@ -918,7 +918,7 @@ export function ScrubConfigurator() {
                       setActiveStep(null)
                     }}
                     className={cn(
-                      'border p-5 text-left transition-colors',
+                      'flex h-full flex-col items-stretch justify-start border p-5 text-left transition-colors',
                       model.name === item.name
                         ? 'border-[#11130f] bg-[#11130f] text-white'
                         : 'border-[#11130f]/15 bg-white text-[#11130f] hover:border-[#11130f]/45',
