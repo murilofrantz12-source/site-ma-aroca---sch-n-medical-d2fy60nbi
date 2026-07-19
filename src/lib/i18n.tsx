@@ -187,7 +187,7 @@ export const translations = {
         scrub: {
           name: 'Schön Medical',
           category: 'Scrubs sob demanda',
-          price: 'A partir de R$ 187',
+          price: 'A partir de R$ 190',
           description:
             'Scrubs completos para rotina profissional, com orientação de medidas, cores e modelos.',
           details: ['Cores personalizáveis', 'Pedidos individuais e equipes', 'Prévia visual'],
@@ -200,7 +200,7 @@ export const translations = {
       tagline: 'Vista conforto.\nTransmita confiança.',
       intro:
         'Scrubs sob demanda para profissionais que precisam de conforto, movimento e uma imagem à altura da própria rotina.',
-      priceText: 'A partir de R$ 187',
+      priceText: 'A partir de R$ 190',
       requestBudget: 'Solicitar orçamento',
       valueLabel: 'Precisão, conforto e presença',
       whyTitle: 'Por que escolher a Schön?',
@@ -326,8 +326,8 @@ export const translations = {
             desc: 'Linha objetiva, com corte limpo e bolsos essenciais para uma rotina mais leve.',
             topDetails: 'Corte reto.',
             bottomDetails: 'Bolso superior lateral simples em ambos os lados, corte reto.',
-            topPrice: 'R$ 83',
-            bottomPrice: 'R$ 104',
+            topPrice: 'R$ 85',
+            bottomPrice: 'R$ 105',
             setPrice: 'R$ 190',
             deliveryFee: 'R$ 65',
           },
@@ -351,8 +351,8 @@ export const translations = {
               'Bolso inferior lateral simples do lado esquerdo, bolso inferior lateral duplo do lado direito, bolso superior do lado esquerdo e abertura lateral de 4 cm.',
             bottomDetails:
               'Bolso superior lateral simples do lado direito, bolso superior lateral com zíper do lado esquerdo, bolso inferior lateral simples do lado esquerdo, bolso inferior lateral duplo do lado direito e corte reto.',
-            topPrice: 'R$ 117',
-            bottomPrice: 'R$ 137',
+            topPrice: 'R$ 120',
+            bottomPrice: 'R$ 140',
             setPrice: 'R$ 260',
             deliveryFee: 'R$ 65',
           },
