@@ -39,6 +39,7 @@ type Area =
   | 'fornecedores'
   | 'clientes'
   | 'marcas'
+  | 'precos'
   | 'usuarios'
   | 'configuracoes'
   | 'pedido-guiado'
@@ -99,6 +100,7 @@ type Product = {
   name: string
   category: string
   description: string
+  salePrice?: number
   materials: MaterialLine[]
   variations: ProductVariation[]
 }
@@ -112,6 +114,7 @@ type ProductVariation = {
   measurements: string
   technicalNotes: string
   referenceImage: string
+  salePrice?: number
   materials: MaterialLine[]
 }
 
@@ -901,6 +904,7 @@ const normalizeState = (state: AppState): AppState => {
         ...product,
         code: product.code || makeProductCode(product.brand, counters[product.brand]),
         description: product.description || 'Descrição técnica da peça.',
+        salePrice: typeof product.salePrice === 'number' ? product.salePrice : undefined,
         materials: product.materials.map(normalizeMaterialLine),
         variations: (product.variations?.length
           ? product.variations
@@ -926,6 +930,7 @@ const normalizeState = (state: AppState): AppState => {
           measurements: variation.measurements ?? '',
           technicalNotes: variation.technicalNotes ?? '',
           referenceImage: variation.referenceImage ?? '',
+          salePrice: typeof variation.salePrice === 'number' ? variation.salePrice : undefined,
           materials: (variation.materials?.length ? variation.materials : product.materials).map(normalizeMaterialLine),
         })),
       }
@@ -1187,10 +1192,18 @@ const idealPrice = (cost: number, tax: number, commission: number, fixedCost: nu
   return divider > 0 ? cost / divider : 0
 }
 
+const productSalePrice = (product?: Product, variationId?: string) => {
+  if (!product) return undefined
+  const variation = productVariation(product, variationId)
+  if (typeof variation?.salePrice === 'number' && Number.isFinite(variation.salePrice)) return variation.salePrice
+  if (typeof product.salePrice === 'number' && Number.isFinite(product.salePrice)) return product.salePrice
+  return undefined
+}
+
 const orderUnitPrice = (state: AppState, order: Order) => {
   if (typeof order.unitPrice === 'number' && Number.isFinite(order.unitPrice)) return order.unitPrice
   const product = state.products.find((item) => item.id === order.productId)
-  return product ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit) : 0
+  return productSalePrice(product, order.variationId) ?? (product ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit) : 0)
 }
 
 const documentBrand = (brand?: BrandName, company?: CompanySettings) => {
@@ -1236,6 +1249,7 @@ const allAreas: Area[] = [
   'fornecedores',
   'clientes',
   'marcas',
+  'precos',
   'usuarios',
   'configuracoes',
   'pedido-guiado',
@@ -1277,6 +1291,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'movimentacoes',
     'notas',
     'fornecedores',
+    'precos',
     'financeiro',
     'configuracoes',
   ],
@@ -1574,7 +1589,9 @@ export default function SistemaMacaroca() {
   const newMaterialSimulationCost = newMaterialSimulationQty * newMaterialStockCost
   const selectedCost = selectedProduct ? productCost(selectedProduct, activeVariationId) : 0
   const selectedPrice = idealPrice(selectedCost, state.tax, state.commission, state.fixedCost, state.profit)
-  const finalOrderUnitPrice = orderUnitPriceInput > 0 ? orderUnitPriceInput : selectedPrice
+  const selectedSalePrice = productSalePrice(selectedProduct, activeVariationId)
+  const selectedOrderPrice = selectedSalePrice ?? selectedPrice
+  const finalOrderUnitPrice = orderUnitPriceInput > 0 ? orderUnitPriceInput : selectedOrderPrice
   const selectedVariationMaterials = selectedVariation ? productMaterials(selectedProduct, selectedVariation.id) : []
   const openProductionOrders = state.productionOrders.filter((op) => op.status !== 'Finalizada')
   const guidedOp = openProductionOrders.find((op) => op.id === guidedOpId) ?? openProductionOrders[0]
@@ -1584,8 +1601,8 @@ export default function SistemaMacaroca() {
   const guidedLaunchQty = Math.min(Math.max(0, guidedProductionQty), Math.max(1, guidedRemainingQty))
 
   useEffect(() => {
-    setOrderUnitPriceInput(Math.round(selectedPrice))
-  }, [activeVariationId, selectedProductId])
+    setOrderUnitPriceInput(Math.round(selectedOrderPrice))
+  }, [activeVariationId, selectedProductId, selectedOrderPrice])
 
   const totals = useMemo(() => {
     const income = state.cashEntries
@@ -2474,6 +2491,32 @@ export default function SistemaMacaroca() {
     setMessage(`Preço do ${order.documentType.toLowerCase()} ${order.id} atualizado.`)
   }
 
+  const updateProductSalePrice = (productId: string, variationId: string | undefined, salePrice: number) => {
+    const safePrice = Math.max(0, Math.round(salePrice))
+    const product = state.products.find((item) => item.id === productId)
+    if (!product) return
+
+    const nextState = {
+      ...state,
+      products: state.products.map((item) => {
+        if (item.id !== productId) return item
+        if (!variationId) return { ...item, salePrice: safePrice }
+
+        return {
+          ...item,
+          variations: item.variations.map((variation) =>
+            variation.id === variationId ? { ...variation, salePrice: safePrice } : variation,
+          ),
+        }
+      }),
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `Preço de venda de ${product.name} sincronizado.`)
+    setOrderUnitPriceInput(safePrice)
+    setMessage(`Preço de venda de ${product.name} atualizado.`)
+  }
+
   const deleteProductionOrder = (op: ProductionOrder) => {
     if (!window.confirm(`Excluir ordem de produção ${op.id}? Os lançamentos de matéria-prima e produto acabado dessa OP serão removidos.`)) {
       return
@@ -3330,6 +3373,7 @@ export default function SistemaMacaroca() {
     {
       title: 'Gestão',
       items: [
+        { key: 'precos', label: 'Preços de venda', icon: <Calculator /> },
         { key: 'financeiro', label: 'Financeiro', icon: <WalletCards /> },
         { key: 'usuarios', label: 'Usuários', icon: <ShieldCheck /> },
         { key: 'configuracoes', label: 'Conta e documentos', icon: <ShieldCheck /> },
@@ -3400,20 +3444,12 @@ export default function SistemaMacaroca() {
       tone: canSeeMoney && totals.balance >= 0 ? 'green' : 'amber',
     },
     {
-      key: 'financeiro',
-      title: 'Financeiro',
-      detail: 'Despesas fixas, compras, recebimentos e lucro estimado.',
-      badge: canSeeMoney ? money(financeSummary.receivedSalesMonthTotal) : 'restrito',
-      icon: <Banknote />,
+      key: 'precos',
+      title: 'Preços',
+      detail: 'Tabela oficial de valores para orçamento e pedido.',
+      badge: `${state.products.length} produto(s)`,
+      icon: <Calculator />,
       tone: 'amber',
-    },
-    {
-      key: 'pedidos',
-      title: 'Recepção / O.S.',
-      detail: 'Entrada rápida de orçamento, pedido e ordem de serviço.',
-      badge: `${state.orders.length} doc(s)`,
-      icon: <FileText />,
-      tone: 'neutral',
     },
     {
       key: 'estoque',
@@ -3496,6 +3532,10 @@ export default function SistemaMacaroca() {
     marcas: {
       title: 'Marcas',
       description: 'Configure prefixos e marcas para novos produtos.',
+    },
+    precos: {
+      title: 'Preços de venda',
+      description: 'Defina o valor oficial das peças e variações antes de registrar pedidos.',
     },
     financeiro: {
       title: 'Financeiro',
@@ -4907,15 +4947,16 @@ export default function SistemaMacaroca() {
                           <SoftInput label="Prazo" value={orderDueDate} onChange={setOrderDueDate} />
                         </div>
                         {canSeeMoney && (
-                          <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-white p-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                          <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
                             <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
+                            <ReadOnlyField label="Preço da tabela" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
                             <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
                             <button
                               type="button"
-                              onClick={() => setOrderUnitPriceInput(Math.round(selectedPrice))}
+                              onClick={() => setOrderUnitPriceInput(Math.round(selectedOrderPrice))}
                               className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
                             >
-                              Usar sugerido
+                              {selectedSalePrice ? 'Usar tabela' : 'Usar sugerido'}
                             </button>
                           </div>
                         )}
@@ -5430,9 +5471,10 @@ export default function SistemaMacaroca() {
                               Use materiais específicos quando tamanho, tecido ou cor mudarem o consumo.
                             </p>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 md:min-w-[280px]">
+                          <div className="grid grid-cols-3 gap-2 md:min-w-[360px]">
                             <MiniStat label="Custo da ficha" value={money(selectedCost)} />
                             <MiniStat label="Preço sugerido" value={money(selectedPrice)} tone="green" />
+                            <MiniStat label="Preço definido" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} tone={selectedSalePrice ? 'blue' : 'amber'} />
                           </div>
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
@@ -5566,6 +5608,100 @@ export default function SistemaMacaroca() {
                     setMessage('Preço recalculado.')
                   }}
                 />
+              </section>
+            )}
+
+            {activeArea === 'precos' && (
+              <section className="grid gap-5">
+                <Panel title="Como o preço funciona">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <ProcessStep title="1. Custo da ficha" detail="Vem da matéria-prima cadastrada na peça ou variação." />
+                    <ProcessStep title="2. Preço sugerido" detail="Calculado com imposto, comissão, custo fixo e lucro desejado." />
+                    <ProcessStep title="3. Preço definido" detail="É o valor oficial usado em orçamento e pedido." />
+                  </div>
+                </Panel>
+
+                <div className="grid gap-4">
+                  {state.products.map((product) => {
+                    const baseCost = productCost(product)
+                    const baseSuggestedPrice = idealPrice(baseCost, state.tax, state.commission, state.fixedCost, state.profit)
+                    const baseSalePrice = productSalePrice(product)
+
+                    return (
+                      <Panel key={product.id} title={`${product.code} · ${product.name}`}>
+                        <div className="grid gap-4">
+                          <div className="grid gap-3 rounded-md border border-[#eadfd6] bg-[#fffaf5] p-4 lg:grid-cols-[1fr_130px_150px_170px_auto] lg:items-end">
+                            <div>
+                              <FieldLabel>Preço padrão do produto</FieldLabel>
+                              <p className="mt-1 text-sm leading-5 text-black/56">
+                                Use quando todas as variações tiverem o mesmo preço de venda.
+                              </p>
+                              <p className="mt-2 text-xs text-black/40">{product.brand} · {product.category}</p>
+                            </div>
+                            <ReadOnlyField label="Custo" value={money(baseCost)} />
+                            <ReadOnlyField label="Sugerido" value={money(baseSuggestedPrice)} />
+                            <SoftNumber
+                              label="Preço definido"
+                              value={baseSalePrice ?? 0}
+                              onChange={(value) => updateProductSalePrice(product.id, undefined, value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateProductSalePrice(product.id, undefined, baseSuggestedPrice)}
+                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-white px-3 text-sm font-medium"
+                            >
+                              Usar sugerido
+                            </button>
+                          </div>
+
+                          <div className="grid gap-3">
+                            {product.variations.map((variation) => {
+                              const cost = productCost(product, variation.id)
+                              const suggested = idealPrice(cost, state.tax, state.commission, state.fixedCost, state.profit)
+                              const salePrice = productSalePrice(product, variation.id)
+                              const margin = salePrice ? salePrice - cost : 0
+                              const marginPercent = salePrice ? (margin / salePrice) * 100 : 0
+
+                              return (
+                                <div
+                                  key={variation.id}
+                                  className="grid gap-3 rounded-md border border-[#e8ddd5] bg-white p-4 lg:grid-cols-[1.3fr_120px_140px_160px_130px_auto] lg:items-end"
+                                >
+                                  <div>
+                                    <FieldLabel>Variação</FieldLabel>
+                                    <strong className="mt-1 block text-sm">{variation.name}</strong>
+                                    <span className="mt-1 block text-xs leading-5 text-black/45">
+                                      {variation.fabric || 'Tecido não informado'} · {variation.measurements || 'Medida não informada'}
+                                    </span>
+                                  </div>
+                                  <ReadOnlyField label="Custo" value={money(cost)} />
+                                  <ReadOnlyField label="Sugerido" value={money(suggested)} />
+                                  <SoftNumber
+                                    label="Preço definido"
+                                    value={salePrice ?? 0}
+                                    onChange={(value) => updateProductSalePrice(product.id, variation.id, value)}
+                                  />
+                                  <MiniStat
+                                    label="Margem"
+                                    value={salePrice ? `${money(margin)} · ${marginPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : 'Sem preço'}
+                                    tone={salePrice && margin > 0 ? 'green' : 'amber'}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => updateProductSalePrice(product.id, variation.id, suggested)}
+                                    className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
+                                  >
+                                    Usar sugerido
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </Panel>
+                    )
+                  })}
+                </div>
               </section>
             )}
 
@@ -6084,13 +6220,14 @@ export default function SistemaMacaroca() {
                     {canSeeMoney && (
                       <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-white p-3">
                         <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
+                        <ReadOnlyField label="Preço da tabela" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
                         <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
                         <button
                           type="button"
-                          onClick={() => setOrderUnitPriceInput(Math.round(selectedPrice))}
+                          onClick={() => setOrderUnitPriceInput(Math.round(selectedOrderPrice))}
                           className="inline-flex h-10 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
                         >
-                          Usar preço sugerido
+                          {selectedSalePrice ? 'Usar preço da tabela' : 'Usar preço sugerido'}
                         </button>
                       </div>
                     )}
