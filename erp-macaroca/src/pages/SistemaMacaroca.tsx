@@ -653,47 +653,8 @@ const initialState: AppState = {
       unitCost: 18500,
     },
   ],
-  orders: [
-    {
-      id: 'PED-001',
-      documentType: 'Pedido',
-      customerId: 'cli-san-rafael',
-      client: 'Clínica San Rafael',
-      phone: 'WhatsApp / telefone',
-      city: 'Cidade do cliente',
-      orderDate: '2026-07-20',
-      productId: 'produto-schon-scrub',
-      qty: 24,
-      dueDate: '2026-08-05',
-      notes: 'Azul marinho, tamanhos variados',
-      status: 'Em produção',
-      billed: true,
-    },
-  ],
-  productionOrders: [
-    {
-      id: 'OP-001',
-      orderId: 'PED-001',
-      productId: 'produto-schon-scrub',
-      qty: 24,
-      produced: 8,
-      status: 'Em produção',
-      priority: 'Alta',
-      origin: 'Pedido',
-      notes: 'Separar tamanhos antes do corte.',
-      responsible: 'Equipe Maçaroca',
-      startedAt: '2026-07-20',
-      finishedAt: '',
-      launches: [
-        {
-          id: 'LAN-001',
-          date: '2026-07-20',
-          qty: 8,
-          responsible: 'Equipe Maçaroca',
-        },
-      ],
-    },
-  ],
+  orders: [],
+  productionOrders: [],
   inventoryEntries: [
     {
       id: 'EST-VALORA-FIT-GORG-M',
@@ -723,15 +684,6 @@ const initialState: AppState = {
       value: 54000,
       source: 'Compra inicial',
     },
-    {
-      id: 'EST-003',
-      kind: 'Entrada PA',
-      item: 'Scrub completo',
-      qty: 8,
-      unit: 'un',
-      value: 600000,
-      source: 'OP-001',
-    },
   ],
   cashEntries: [
     {
@@ -755,15 +707,6 @@ const initialState: AppState = {
       dueDate: '2026-06-23',
       paid: true,
       createdBy: 'Base Valora',
-    },
-    {
-      id: 'CX-001',
-      kind: 'Entrada',
-      category: 'Venda recebida',
-      description: 'Venda Clínica San Rafael',
-      value: 24 * 155000,
-      source: 'PED-001',
-      paid: true,
     },
     {
       id: 'CX-002',
@@ -1425,6 +1368,42 @@ export default function SistemaMacaroca() {
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(state))
   }, [state])
+
+  const saveStateImmediately = async (nextState: AppState, successDetail = 'Dados sincronizados para todas as usuárias.') => {
+    const serialized = JSON.stringify(nextState)
+    window.localStorage.setItem(storageKey, serialized)
+
+    if (!cloudLoadedRef.current) {
+      lastSavedStateRef.current = serialized
+      return
+    }
+
+    try {
+      setSyncStatus('Salvando')
+      const { error } = await (supabase as any)
+        .from(cloudStateTable)
+        .upsert({
+          id: cloudStateId,
+          data: nextState,
+          updated_by: currentUserName,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error) {
+        setSyncStatus('Local')
+        setSyncDetail('Não foi possível salvar no banco compartilhado. A alteração ficou neste navegador.')
+        return
+      }
+
+      lastSavedStateRef.current = serialized
+      setLastCloudSync(new Date().toISOString())
+      setSyncStatus('Compartilhado')
+      setSyncDetail(successDetail)
+    } catch {
+      setSyncStatus('Local')
+      setSyncDetail('Sem conexão com o banco compartilhado. A alteração ficou neste navegador.')
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -2376,15 +2355,18 @@ export default function SistemaMacaroca() {
 
     const relatedOpIds = relatedOps.map((op) => op.id)
 
-    setState((current) => ({
-      ...current,
-      orders: current.orders.filter((item) => item.id !== order.id),
-      productionOrders: current.productionOrders.filter((op) => op.orderId !== order.id),
-      cashEntries: current.cashEntries.filter((entry) => entry.source !== order.id),
-      inventoryEntries: current.inventoryEntries.filter(
+    const nextState = {
+      ...state,
+      orders: state.orders.filter((item) => item.id !== order.id),
+      productionOrders: state.productionOrders.filter((op) => op.orderId !== order.id),
+      cashEntries: state.cashEntries.filter((entry) => entry.source !== order.id),
+      inventoryEntries: state.inventoryEntries.filter(
         (entry) => entry.source !== `Entrega ${order.id}` && !relatedOpIds.includes(entry.source),
       ),
-    }))
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `${order.documentType} ${order.id} excluído e sincronizado.`)
     setPreviewOrderId((current) => (current === order.id ? null : current))
     setPrintOrderId((current) => (current === order.id ? null : current))
     setPreviewOpId((current) => (current && relatedOpIds.includes(current) ? null : current))
@@ -2392,7 +2374,7 @@ export default function SistemaMacaroca() {
     setProductionLaunches((current) =>
       Object.fromEntries(Object.entries(current).filter(([opId]) => !relatedOpIds.includes(opId))),
     )
-    setMessage(`${order.documentType} ${order.id} excluído.`)
+    setMessage(`${order.documentType} ${order.id} excluído. Estou sincronizando a alteração para os outros dispositivos.`)
   }
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
@@ -2455,22 +2437,23 @@ export default function SistemaMacaroca() {
       return
     }
 
-    setState((current) => {
-      const hasAnotherOpForOrder = current.productionOrders.some(
+    const hasAnotherOpForOrder = state.productionOrders.some(
         (item) => item.id !== op.id && item.orderId && item.orderId === op.orderId,
       )
 
-      return {
-        ...current,
-        productionOrders: current.productionOrders.filter((item) => item.id !== op.id),
-        inventoryEntries: current.inventoryEntries.filter((entry) => entry.source !== op.id),
-        orders: current.orders.map((order) => {
+    const nextState = {
+        ...state,
+        productionOrders: state.productionOrders.filter((item) => item.id !== op.id),
+        inventoryEntries: state.inventoryEntries.filter((entry) => entry.source !== op.id),
+        orders: state.orders.map((order) => {
           if (!op.orderId || order.id !== op.orderId || hasAnotherOpForOrder) return order
           if (order.status === 'Entregue' || order.status === 'Cancelado') return order
           return { ...order, status: 'Aberto' }
         }),
       }
-    })
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `Ordem de produção ${op.id} excluída e sincronizada.`)
     setPreviewOpId((current) => (current === op.id ? null : current))
     setPrintOpId((current) => (current === op.id ? null : current))
     setProductionLaunches((current) => {
@@ -2478,7 +2461,7 @@ export default function SistemaMacaroca() {
       delete next[op.id]
       return next
     })
-    setMessage(`Ordem de produção ${op.id} excluída.`)
+    setMessage(`Ordem de produção ${op.id} excluída. Estou sincronizando a alteração para os outros dispositivos.`)
   }
 
   const createStockProductionOrder = () => {
@@ -3695,16 +3678,28 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'plano-geral' && (
               <section className="grid gap-5">
-                <section className="grid gap-4 md:hidden">
-                  <div className="rounded-lg border border-[#2f2b27] bg-[#211f1c] p-4 text-white shadow-[0_14px_34px_rgba(33,31,28,0.14)]">
-                    <span className="text-xs font-medium uppercase tracking-[0.12em] text-white/52">Administrativo</span>
-                    <h2 className="mt-2 font-serif text-[2rem] leading-none">Cenário geral</h2>
-                    <p className="mt-2 text-sm leading-5 text-white/62">
-                      O resumo rápido para acompanhar pedidos, produção, estoque e mês financeiro.
-                    </p>
+                <section className="grid gap-3 md:hidden">
+                  <div className="rounded-md border border-[#d8c8bd] bg-white p-3 shadow-[0_8px_18px_rgba(49,35,30,0.04)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-black/42">
+                          Administrativo
+                        </span>
+                        <h2 className="mt-1 text-xl font-semibold leading-tight">Visão rápida</h2>
+                      </div>
+                      {canAccessArea('pedido-guiado') && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveArea('pedido-guiado')}
+                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white"
+                        >
+                          Nova venda
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <PocketMetric
                       label="Pedidos pendentes"
                       value={generalPlan.pendingOrders.length.toString()}
@@ -3731,14 +3726,18 @@ export default function SistemaMacaroca() {
                     />
                   </div>
 
-                  <MobileSummaryPanel title="Pedidos pendentes">
+                  <MobileSummaryPanel
+                    title="Pedidos pendentes"
+                    actionLabel="Ver todos"
+                    onAction={() => setActiveArea('vendas')}
+                  >
                     {oldestPendingOrder && (
                       <button
                         type="button"
                         onClick={() => setActiveArea('vendas')}
-                        className="rounded-md border border-rose-100 bg-rose-50 px-3 py-3 text-left"
+                        className="rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 py-2.5 text-left"
                       >
-                        <span className="block text-xs font-semibold uppercase text-rose-700">Mais atrasado / mais próximo</span>
+                        <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#7f3442]">Mais atrasado / mais próximo</span>
                         <strong className="mt-1 block text-sm text-[#211f1c]">
                           {oldestPendingOrder.id} · {oldestPendingOrder.client}
                         </strong>
@@ -3754,7 +3753,7 @@ export default function SistemaMacaroca() {
                           key={order.id}
                           type="button"
                           onClick={() => setActiveArea('vendas')}
-                          className="rounded-md border border-[#eee3dc] bg-[#fffaf5] px-3 py-3 text-left"
+                          className="rounded-md border border-[#e2d5cc] bg-white px-3 py-2.5 text-left"
                         >
                           <strong className="block text-sm">{order.id} · {order.client}</strong>
                           <span className="mt-1 block text-sm leading-5 text-black/52">
@@ -3763,20 +3762,15 @@ export default function SistemaMacaroca() {
                         </button>
                       )
                     })}
-                    {!!generalPlan.pendingOrders.length && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveArea('vendas')}
-                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white"
-                      >
-                        Ver todos os pedidos
-                      </button>
-                    )}
                     {!generalPlan.pendingOrders.length && <EmptyLine text="Nenhum pedido pendente." />}
                   </MobileSummaryPanel>
 
-                  <MobileSummaryPanel title="Produções abertas">
-                    {generalPlan.nextOps.slice(0, 3).map((op) => {
+                  <MobileSummaryPanel
+                    title="Produções abertas"
+                    actionLabel="Abrir OPs"
+                    onAction={() => setActiveArea('producao')}
+                  >
+                    {generalPlan.nextOps.slice(0, 2).map((op) => {
                       const product = state.products.find((item) => item.id === op.productId)
                       const remaining = Math.max(0, op.qty - op.produced)
                       return (
@@ -3790,8 +3784,12 @@ export default function SistemaMacaroca() {
                     {!generalPlan.nextOps.length && <EmptyLine text="Nenhuma produção aberta." />}
                   </MobileSummaryPanel>
 
-                  <MobileSummaryPanel title="Estoque crítico">
-                    {generalPlan.attentionStock.slice(0, 4).map((item) => (
+                  <MobileSummaryPanel
+                    title="Estoque crítico"
+                    actionLabel="Ver estoque"
+                    onAction={() => setActiveArea('estoque')}
+                  >
+                    {generalPlan.attentionStock.slice(0, 3).map((item) => (
                       <MiniRow
                         key={item.item}
                         title={item.item}
@@ -4061,6 +4059,16 @@ export default function SistemaMacaroca() {
                                 >
                                   Nova venda
                                 </button>
+                                {canDeleteRecords && (
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteOrder(order)}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-rose-200 bg-white px-3 text-sm font-medium text-rose-800"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Excluir
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -6612,10 +6620,31 @@ export default function SistemaMacaroca() {
   )
 }
 
-function MobileSummaryPanel({ title, children }: { title: string; children: ReactNode }) {
+function MobileSummaryPanel({
+  title,
+  actionLabel,
+  onAction,
+  children,
+}: {
+  title: string
+  actionLabel?: string
+  onAction?: () => void
+  children: ReactNode
+}) {
   return (
-    <section className="grid gap-3 rounded-lg border border-[#e8ddd5] bg-[#fffdfa] p-4 shadow-[0_8px_24px_rgba(49,35,30,0.035)]">
-      <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-black/48">{title}</h3>
+    <section className="grid gap-2.5 rounded-md border border-[#d8c8bd] bg-white p-3 shadow-[0_8px_18px_rgba(49,35,30,0.035)]">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-black/48">{title}</h3>
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            className="text-xs font-semibold text-[#7f3442]"
+          >
+            {actionLabel}
+          </button>
+        )}
+      </div>
       <div className="grid gap-2">{children}</div>
     </section>
   )
@@ -6654,18 +6683,18 @@ function PocketMetric({
   tone?: 'neutral' | 'green' | 'blue' | 'amber' | 'rose'
 }) {
   const toneClass = {
-    neutral: 'border-[#e8ddd5] bg-[#fffdfa]',
-    green: 'border-emerald-100 bg-emerald-50/70',
-    blue: 'border-sky-100 bg-sky-50/70',
-    amber: 'border-amber-100 bg-amber-50/75',
-    rose: 'border-rose-100 bg-rose-50/75',
+    neutral: 'border-[#d8c8bd] border-l-[#8d7b70] bg-white',
+    green: 'border-[#d8c8bd] border-l-emerald-600 bg-white',
+    blue: 'border-[#d8c8bd] border-l-sky-700 bg-white',
+    amber: 'border-[#d8c8bd] border-l-amber-600 bg-white',
+    rose: 'border-[#d8c8bd] border-l-[#8f3f4c] bg-white',
   }[tone]
 
   return (
-    <div className={`min-w-0 rounded-lg border p-4 shadow-[0_8px_24px_rgba(49,35,30,0.035)] ${toneClass}`}>
-      <span className="block text-xs font-medium uppercase text-black/45">{label}</span>
-      <strong className="mt-2 block break-words text-2xl font-semibold leading-tight text-[#211f1c]">{value}</strong>
-      <span className="mt-2 block text-sm leading-5 text-black/52">{detail}</span>
+    <div className={`min-w-0 rounded-md border border-l-4 p-3 shadow-[0_6px_16px_rgba(49,35,30,0.03)] ${toneClass}`}>
+      <span className="block text-[11px] font-semibold uppercase leading-tight text-black/45">{label}</span>
+      <strong className="mt-1.5 block break-words text-xl font-semibold leading-tight text-[#211f1c]">{value}</strong>
+      <span className="mt-1.5 block text-xs leading-4 text-black/52">{detail}</span>
     </div>
   )
 }
@@ -6687,11 +6716,11 @@ function ModuleTile({
 }) {
   const toneClass = {
     dark: 'border-[#211f1c] bg-[#211f1c] text-white shadow-[0_16px_34px_rgba(33,31,28,0.18)]',
-    rose: 'border-[#e4c9c5] bg-[#fff4f2] text-[#3a2528]',
-    green: 'border-emerald-100 bg-emerald-50 text-emerald-950',
-    blue: 'border-sky-100 bg-sky-50 text-sky-950',
-    amber: 'border-amber-100 bg-amber-50 text-amber-950',
-    neutral: 'border-[#eadfd6] bg-[#fffdfa] text-[#211f1c]',
+    rose: 'border-[#d8c8bd] bg-white text-[#3a2528]',
+    green: 'border-[#d8c8bd] bg-white text-[#211f1c]',
+    blue: 'border-[#d8c8bd] bg-white text-[#211f1c]',
+    amber: 'border-[#d8c8bd] bg-white text-[#211f1c]',
+    neutral: 'border-[#d8c8bd] bg-white text-[#211f1c]',
   }[tone]
   const mutedClass = tone === 'dark' ? 'text-white/62' : 'text-black/52'
   const iconClass = tone === 'dark' ? 'bg-white/12 text-white' : 'bg-white text-[#7f3442]'
