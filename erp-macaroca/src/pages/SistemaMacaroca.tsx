@@ -188,6 +188,18 @@ type Order = {
   createdBy?: string
 }
 
+type OrderStockPosition = {
+  product?: Product
+  physical: number
+  pending: number
+  producing: number
+  otherPending: number
+  freeForThisOrder: number
+  availableAfterReservations: number
+  toProduce: number
+  suggestedQty: number
+}
+
 type ProductionOrder = {
   id: string
   orderId?: string
@@ -1342,6 +1354,8 @@ export default function SistemaMacaroca() {
   const [orderUnitPriceInput, setOrderUnitPriceInput] = useState(0)
   const [orderDueDate, setOrderDueDate] = useState('2026-08-15')
   const [orderNotes, setOrderNotes] = useState('Observações do pedido')
+  const [productionDecisionOrderId, setProductionDecisionOrderId] = useState<string | null>(null)
+  const [productionDecisionQty, setProductionDecisionQty] = useState(1)
   const [stockOpQty, setStockOpQty] = useState(12)
   const [stockOpResponsible, setStockOpResponsible] = useState('')
   const [stockOpStartDate, setStockOpStartDate] = useState(currentDateValue())
@@ -2201,12 +2215,11 @@ export default function SistemaMacaroca() {
     )
   }
 
-  const createGuidedOrderWithOp = () => {
+  const createGuidedOrder = () => {
     if (!selectedProduct || !selectedCustomer) return
     const price = finalOrderUnitPrice
     const documentType = orderDocumentType
     const orderId = nextDocumentId(state.orders, documentType)
-    const opId = nextProductionOrderId(state.productionOrders)
     const order: Order = {
       id: orderId,
       documentType,
@@ -2221,7 +2234,7 @@ export default function SistemaMacaroca() {
       unitPrice: price,
       dueDate: orderDueDate,
       notes: orderNotes,
-      status: documentType === 'Pedido' ? 'Em produção' : 'Aberto',
+      status: 'Aberto',
       billed: documentType === 'Pedido',
       createdBy: currentUserName,
     }
@@ -2237,35 +2250,17 @@ export default function SistemaMacaroca() {
       return
     }
 
-    const op: ProductionOrder = {
-      id: opId,
-      orderId,
-      productId: selectedProduct.id,
-      variationId: activeVariationId,
-      qty: orderQty,
-      produced: 0,
-      status: 'Não iniciada',
-      priority: 'Normal',
-      origin: 'Pedido',
-      notes: orderNotes,
-      responsible: currentUserName,
-      startedAt: '',
-      finishedAt: '',
-      launches: [],
-    }
-
     setState((current) => ({
       ...current,
       orders: [order, ...current.orders],
-      productionOrders: [op, ...current.productionOrders],
       cashEntries: [
-              {
-                id: `CX-${Date.now()}`,
-                kind: 'Entrada',
-                category: 'Venda recebida',
-                description: `Pedido ${order.client}`,
-                value: order.qty * price,
-                source: order.id,
+        {
+          id: `CX-${Date.now()}`,
+          kind: 'Entrada',
+          category: 'Venda recebida',
+          description: `Pedido ${order.client}`,
+          value: order.qty * price,
+          source: order.id,
           dueDate: order.orderDate,
           paid: true,
           createdBy: currentUserName,
@@ -2274,13 +2269,11 @@ export default function SistemaMacaroca() {
       ],
     }))
     setGuidedOrderStep(1)
-    setGuidedOpId(op.id)
-    setGuidedProductionStep(1)
-    setActiveArea('producao-guiada')
-    setMessage(`Pedido ${order.id} registrado e produção ${op.id} criada.`)
+    setActiveArea('producao-necessidades')
+    setMessage(`Pedido ${order.id} registrado. Agora o PCP confere estoque e decide a quantidade para produção.`)
   }
 
-  const generateProductionOrder = (order: Order) => {
+  const generateProductionOrder = (order: Order, requestedQty?: number) => {
     if (order.documentType === 'Orçamento') {
       setMessage('Transforme o orçamento em pedido antes de criar produção.')
       return
@@ -2291,12 +2284,18 @@ export default function SistemaMacaroca() {
       return
     }
 
+    const qty = Math.max(0, Math.floor(requestedQty ?? order.qty))
+    if (qty <= 0) {
+      setMessage('Informe uma quantidade maior que zero para gerar a produção.')
+      return
+    }
+
     const op: ProductionOrder = {
       id: nextProductionOrderId(state.productionOrders),
       orderId: order.id,
       productId: order.productId,
       variationId: order.variationId,
-      qty: order.qty,
+      qty,
       produced: 0,
       status: 'Não iniciada',
       priority: 'Normal',
@@ -2308,15 +2307,20 @@ export default function SistemaMacaroca() {
       launches: [],
     }
 
-    setState((current) => ({
-      ...current,
-      orders: current.orders.map((item) =>
+    const nextState = {
+      ...state,
+      orders: state.orders.map((item) =>
         item.id === order.id ? { ...item, status: 'Em produção' } : item,
       ),
-      productionOrders: [op, ...current.productionOrders],
-    }))
+      productionOrders: [op, ...state.productionOrders],
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `Produção ${op.id} criada e sincronizada.`)
+    setProductionDecisionOrderId(null)
+    setProductionDecisionQty(1)
     setActiveArea('producao')
-    setMessage('Produção criada a partir do pedido.')
+    setMessage(`Produção ${op.id} criada para ${order.id} com ${qty} peça(s).`)
   }
 
   const convertBudgetToOrder = (order: Order) => {
@@ -3109,6 +3113,71 @@ export default function SistemaMacaroca() {
   const oldestPendingOrder = pendingOrdersByDueDate[0]
   const hasProductionOrder = (orderId: string) =>
     state.productionOrders.some((op) => op.orderId === orderId)
+  const sameProductDemand = (order: Order, productId: string, variationId?: string) =>
+    order.productId === productId && (order.variationId ?? '') === (variationId ?? '')
+  const sameProductProduction = (op: ProductionOrder, productId: string, variationId?: string) =>
+    op.productId === productId && (op.variationId ?? '') === (variationId ?? '')
+  const orderStockPosition = (order: Order) => {
+    const product = state.products.find((item) => item.id === order.productId)
+    const finishedName = product ? productFinishedItemName(product, order.variationId) : ''
+    const physical = finishedName
+      ? stock.finishedItems.find((item) => item.item === finishedName)?.qty ?? 0
+      : 0
+    const pending = state.orders
+      .filter(
+        (item) =>
+          item.documentType === 'Pedido' &&
+          sameProductDemand(item, order.productId, order.variationId) &&
+          item.status !== 'Entregue' &&
+          item.status !== 'Cancelado',
+      )
+      .reduce((sum, item) => sum + item.qty, 0)
+    const producing = state.productionOrders
+      .filter((op) => sameProductProduction(op, order.productId, order.variationId) && op.status !== 'Finalizada')
+      .reduce((sum, op) => sum + Math.max(0, op.qty - op.produced), 0)
+    const otherPending = Math.max(0, pending - order.qty)
+    const freeForThisOrder = Math.max(0, physical - otherPending)
+    const toProduce = Math.max(0, pending - physical - producing)
+    const suggestedQty = Math.min(order.qty, toProduce)
+
+    return {
+      product,
+      physical,
+      pending,
+      producing,
+      otherPending,
+      freeForThisOrder,
+      availableAfterReservations: physical - pending,
+      toProduce,
+      suggestedQty,
+    }
+  }
+  const productionDecisionOrder = productionDecisionOrderId
+    ? state.orders.find((order) => order.id === productionDecisionOrderId)
+    : undefined
+  const productionDecisionPosition = productionDecisionOrder
+    ? orderStockPosition(productionDecisionOrder)
+    : undefined
+  const openProductionDecision = (order: Order) => {
+    if (order.documentType === 'Orçamento') {
+      setMessage('Transforme o orçamento em pedido antes de enviar para produção.')
+      return
+    }
+
+    if (hasProductionOrder(order.id)) {
+      setMessage('Esse pedido já possui produção criada.')
+      return
+    }
+
+    const position = orderStockPosition(order)
+    if (position.suggestedQty <= 0) {
+      setMessage('Esse pedido parece coberto pelo estoque pronto. Separe do estoque antes de criar produção.')
+      return
+    }
+
+    setProductionDecisionOrderId(order.id)
+    setProductionDecisionQty(Math.max(1, position.suggestedQty))
+  }
   const salesFlow = {
     open: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Aberto'),
     inProduction: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Em produção'),
@@ -3185,7 +3254,7 @@ export default function SistemaMacaroca() {
         },
       }
     }),
-    ...ordersWaitingProductionOrder.map((order) => {
+    ...ordersWaitingProductionOrder.filter((order) => orderStockPosition(order).toProduce > 0).map((order) => {
       const product = state.products.find((item) => item.id === order.productId)
       return {
         id: `sem-op-${order.id}`,
@@ -3194,7 +3263,7 @@ export default function SistemaMacaroca() {
         detail: `${productDisplayName(product, order.variationId)} ainda não tem ordem de produção vinculada.`,
         tone: 'amber' as const,
         actionLabel: 'Gerar produção',
-        onClick: () => generateProductionOrder(order),
+        onClick: () => openProductionDecision(order),
       }
     }),
     ...nearDueOrders.map((order) => ({
@@ -3534,6 +3603,17 @@ export default function SistemaMacaroca() {
           onClose={() => setPreviewOpId(null)}
           onPrint={() => printProductionOrder(previewOp.id)}
           onDownloadPdf={() => downloadProductionOrderPdf(previewOp.id)}
+        />
+      )}
+      {productionDecisionOrder && productionDecisionPosition && (
+        <ProductionDecisionPreview
+          order={productionDecisionOrder}
+          product={productionDecisionPosition.product}
+          position={productionDecisionPosition}
+          qty={productionDecisionQty}
+          onQtyChange={setProductionDecisionQty}
+          onClose={() => setProductionDecisionOrderId(null)}
+          onConfirm={() => generateProductionOrder(productionDecisionOrder, productionDecisionQty)}
         />
       )}
       <div className={`macaroca-system grid min-h-screen transition-[grid-template-columns] duration-300 ${sidebarCompact ? 'lg:grid-cols-[88px_minmax(0,_1fr)]' : 'lg:grid-cols-[292px_minmax(0,_1fr)]'}`}>
@@ -3997,12 +4077,12 @@ export default function SistemaMacaroca() {
                     <div className="grid gap-3">
                       {salesFlow.active.map((order) => {
                         const product = state.products.find((item) => item.id === order.productId)
-                        const stockRow = productStock.find((item) => item.product.id === order.productId)
+                        const stockPosition = orderStockPosition(order)
                         const unitPrice = orderUnitPrice(state, order)
                         const relatedOp = state.productionOrders.find((op) => op.orderId === order.id)
                         const timeline = orderTimeline(state, order)
                         const hasOp = hasProductionOrder(order.id)
-                        const missingQty = Math.max(0, order.qty - (stockRow?.physical ?? 0))
+                        const missingQty = stockPosition.toProduce
                         const remainingOpQty = relatedOp ? Math.max(0, relatedOp.qty - relatedOp.produced) : 0
                         const openProductionAction = () => {
                           if (relatedOp) setGuidedOpId(relatedOp.id)
@@ -4013,8 +4093,8 @@ export default function SistemaMacaroca() {
                           order.status === 'Aberto' && missingQty > 0 && !hasOp
                             ? {
                                 label: 'Gerar produção',
-                                detail: `Faltam ${missingQty} un em estoque para atender essa venda.`,
-                                onClick: () => generateProductionOrder(order),
+                                detail: `PCP sugere produzir ${missingQty} un depois de conferir estoque e reservas.`,
+                                onClick: () => openProductionDecision(order),
                               }
                             : order.status === 'Aberto' && missingQty > 0 && hasOp
                               ? {
@@ -4062,8 +4142,8 @@ export default function SistemaMacaroca() {
                                   {productDisplayName(product, order.variationId)} · {order.qty} un · prazo {formatDate(order.dueDate)}
                                 </p>
                                 <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                                  <MiniStat label="Disponível" value={`${stockRow?.physical ?? 0} un`} />
-                                  <MiniStat label="Reservado" value={`${stockRow?.pending ?? 0} un`} />
+                                  <MiniStat label="Pronto" value={`${stockPosition.physical} un`} />
+                                  <MiniStat label="Reservado" value={`${stockPosition.pending} un`} />
                                   <MiniStat label="Falta" value={`${missingQty} un`} tone={missingQty > 0 ? 'rose' : 'green'} />
                                   {canSeeMoney && <MiniStat label="Venda" value={money(unitPrice * order.qty)} tone="green" />}
                                 </div>
@@ -4301,28 +4381,48 @@ export default function SistemaMacaroca() {
                     <div className="grid gap-3">
                       {ordersWaitingProductionOrder.map((order) => {
                         const product = state.products.find((item) => item.id === order.productId)
-                        const stockRow = productStock.find((item) => item.product.id === order.productId)
-                        const missingQty = Math.max(0, order.qty - (stockRow?.physical ?? 0))
+                        const stockPosition = orderStockPosition(order)
+                        const missingQty = stockPosition.toProduce
 
                         return (
                           <div key={order.id} className="rounded-md border border-[#e8ddd5] bg-[#fffaf5] p-4">
-                            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                               <div>
                                 <div className="flex flex-wrap items-center gap-2">
                                   <strong>{order.id} · {order.client}</strong>
-                                  <StatusBadge tone="amber">Precisa decidir</StatusBadge>
+                                  <StatusBadge tone={missingQty > 0 ? 'amber' : 'green'}>
+                                    {missingQty > 0 ? 'PCP precisa decidir' : 'Pode separar do estoque'}
+                                  </StatusBadge>
                                 </div>
                                 <p className="mt-2 text-sm text-black/60">
-                                  {productDisplayName(product, order.variationId)} · vendido {order.qty} un · disponível {stockRow?.physical ?? 0} un · falta {missingQty} un
+                                  {productDisplayName(product, order.variationId)} · vendido {order.qty} un · pronto {stockPosition.physical} un · reservado {stockPosition.pending} un · em produção {stockPosition.producing} un
                                 </p>
+                                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                  <MiniStat label="Livre para este pedido" value={`${stockPosition.freeForThisOrder} un`} tone={stockPosition.freeForThisOrder >= order.qty ? 'green' : 'neutral'} />
+                                  <MiniStat label="Faltante geral" value={`${missingQty} un`} tone={missingQty > 0 ? 'rose' : 'green'} />
+                                  <MiniStat label="Sugestão da OP" value={`${stockPosition.suggestedQty} un`} tone={stockPosition.suggestedQty > 0 ? 'amber' : 'green'} />
+                                </div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => generateProductionOrder(order)}
-                                className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
-                              >
-                                Criar produção
-                              </button>
+                              {missingQty > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openProductionDecision(order)}
+                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                                >
+                                  Analisar produção
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateOrderStatus(order.id, 'Pronto')
+                                    setActiveArea('entregas')
+                                  }}
+                                  className="inline-flex h-10 items-center justify-center rounded-md border border-[#b9d8c6] bg-[#f0fbf4] px-4 text-sm font-medium text-[#255437]"
+                                >
+                                  Separar do estoque
+                                </button>
+                              )}
                             </div>
                           </div>
                         )
@@ -4867,7 +4967,7 @@ export default function SistemaMacaroca() {
                         {orderNotes && <MiniRow title="Observação" detail={orderNotes} />}
                         <div className="rounded-md border border-[#8f3f4c]/20 bg-[#f6ecec] p-4 text-sm text-[#3a2528]">
                           {orderDocumentType === 'Pedido'
-                            ? 'Ao confirmar, o sistema registra o pedido, lança a entrada financeira e cria uma ordem de produção vinculada.'
+                            ? 'Ao confirmar, o sistema registra o pedido e leva para o PCP conferir estoque antes de criar produção.'
                             : 'Ao confirmar, o sistema salva apenas o orçamento. Ele não mexe no financeiro nem cria produção até virar pedido.'}
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -4880,10 +4980,10 @@ export default function SistemaMacaroca() {
                           </button>
                           <button
                             type="button"
-                            onClick={createGuidedOrderWithOp}
+                            onClick={createGuidedOrder}
                             className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
                           >
-                            {orderDocumentType === 'Pedido' ? 'Registrar pedido e criar produção' : 'Salvar orçamento'}
+                            {orderDocumentType === 'Pedido' ? 'Registrar pedido e ir para PCP' : 'Salvar orçamento'}
                             <ArrowRight className="h-4 w-4" />
                           </button>
                         </div>
@@ -6064,11 +6164,11 @@ export default function SistemaMacaroca() {
                             </select>
                             <button
                               type="button"
-                              onClick={() => generateProductionOrder(order)}
+                              onClick={() => openProductionDecision(order)}
                               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white disabled:opacity-40"
                               disabled={order.documentType !== 'Pedido' || order.status !== 'Aberto'}
                             >
-                              Criar produção
+                              Analisar produção
                             </button>
                             {order.documentType === 'Orçamento' && (
                               <button
@@ -7296,6 +7396,111 @@ function SoftNumber({
         className="h-11 min-w-0 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 text-sm outline-none transition focus:border-[#b88f82] focus:bg-white"
       />
     </label>
+  )
+}
+
+function ProductionDecisionPreview({
+  order,
+  product,
+  position,
+  qty,
+  onQtyChange,
+  onClose,
+  onConfirm,
+}: {
+  order: Order
+  product?: Product
+  position: OrderStockPosition
+  qty: number
+  onQtyChange: (qty: number) => void
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/45 p-4 backdrop-blur-sm print:hidden">
+      <div className="mx-auto flex max-h-[calc(100vh-2rem)] max-w-3xl flex-col overflow-hidden rounded-lg bg-[#fffdfa] shadow-2xl">
+        <header className="flex flex-col gap-3 border-b border-[#eadfd6] px-5 py-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <span className="text-sm text-black/50">Conferência do PCP</span>
+            <h2 className="font-serif text-2xl">Enviar pedido para produção</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-black/10 bg-white"
+            aria-label="Fechar conferência de produção"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="grid gap-5 overflow-auto p-5">
+          <div className="rounded-md border border-[#eadfd6] bg-white p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <strong>{order.id} · {order.client}</strong>
+              <StatusBadge tone="amber">Pedido em análise</StatusBadge>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-black/58">
+              {productDisplayName(product, order.variationId)} · pedido de {order.qty} un · prazo {formatDate(order.dueDate)}
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MiniStat label="Pedido" value={`${order.qty} un`} />
+            <MiniStat label="Pronto no estoque" value={`${position.physical} un`} tone={position.physical > 0 ? 'green' : 'neutral'} />
+            <MiniStat label="Reservado em pedidos" value={`${position.pending} un`} />
+            <MiniStat label="Em produção" value={`${position.producing} un`} tone={position.producing > 0 ? 'blue' : 'neutral'} />
+          </div>
+
+          <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-[#fffaf5] p-4 md:grid-cols-[1fr_220px] md:items-end">
+            <div>
+              <FieldLabel>Quantidade que o PCP recomenda produzir</FieldLabel>
+              <p className="mt-2 text-sm leading-6 text-black/58">
+                Depois de descontar o estoque pronto, os pedidos pendentes e as produções abertas, o sistema sugere produzir{' '}
+                <strong>{position.suggestedQty} un</strong>. Você pode ajustar a quantidade antes de gerar a OP.
+              </p>
+              <p className="mt-2 text-xs leading-5 text-black/42">
+                Estoque livre para este pedido: {position.freeForThisOrder} un · saldo após reservas: {position.availableAfterReservations} un.
+              </p>
+            </div>
+            <label className="grid gap-2">
+              <FieldLabel>Quantidade da OP</FieldLabel>
+              <input
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(event) => onQtyChange(Math.max(1, Number(event.target.value)))}
+                className="h-11 rounded-md border border-[#d8c8bd] bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+              />
+            </label>
+          </div>
+
+          {qty > order.qty && (
+            <div className="rounded-md border border-[#f0c36a] bg-[#fff8e5] p-3 text-sm text-[#6d4b13]">
+              A quantidade da OP está maior que o pedido. Use isso apenas se a intenção for produzir sobra para estoque.
+            </div>
+          )}
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-white px-4 text-sm font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+            >
+              Gerar OP com {qty} un
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
