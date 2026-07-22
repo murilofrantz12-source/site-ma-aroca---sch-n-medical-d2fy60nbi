@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   ArrowRight,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 import logoSchon from '@/assets/so-by-macaroca-logo-peq-editado-4f9ae.png'
+import { supabase } from '@/lib/supabase/client'
 
 type Area =
   | 'plano-geral'
@@ -57,6 +58,7 @@ type FinanceCategory =
   | 'Despesa fixa'
   | 'Outro'
 type TimelineStatus = 'done' | 'current' | 'pending'
+type SyncStatus = 'Carregando' | 'Compartilhado' | 'Salvando' | 'Local' | 'Erro'
 
 type OrderTimelineItem = {
   label: string
@@ -262,6 +264,8 @@ type AppState = {
 }
 
 const storageKey = 'macaroca-erp-prototype-v2'
+const cloudStateTable = 'macaroca_app_state'
+const cloudStateId = 'main'
 
 const defaultProducts: Product[] = [
   {
@@ -1295,6 +1299,9 @@ const areaAllowedForRole = (role: UserRole, area: Area) =>
 
 export default function SistemaMacaroca() {
   const [state, setState] = useState<AppState>(readInitialState)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('Carregando')
+  const [syncDetail, setSyncDetail] = useState('Conectando ao banco compartilhado...')
+  const [lastCloudSync, setLastCloudSync] = useState('')
   const [loggedUserId, setLoggedUserId] = useState('')
   const [loginName, setLoginName] = useState('Murilo')
   const [loginPassword, setLoginPassword] = useState('1')
@@ -1376,10 +1383,135 @@ export default function SistemaMacaroca() {
   const canManagePurchases = userRole === 'Admin' || userRole === 'Financeiro'
   const canAccessArea = (area: Area) => areaAllowedForRole(userRole, area)
   const companyLogo = state.company.logoUrl || logoMacaroca
+  const cloudLoadedRef = useRef(false)
+  const applyingCloudStateRef = useRef(false)
+  const lastSavedStateRef = useRef('')
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(state))
   }, [state])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadCloudState = async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from(cloudStateTable)
+          .select('data, updated_at')
+          .eq('id', cloudStateId)
+          .maybeSingle()
+
+        if (cancelled) return
+
+        if (error) {
+          setSyncStatus('Local')
+          setSyncDetail('Banco compartilhado ainda não configurado. O sistema está salvando neste navegador.')
+          cloudLoadedRef.current = true
+          return
+        }
+
+        if (data?.data) {
+          const nextState = normalizeState({ ...initialState, ...data.data } as AppState)
+          const serialized = JSON.stringify(nextState)
+          applyingCloudStateRef.current = true
+          lastSavedStateRef.current = serialized
+          setState(nextState)
+          window.localStorage.setItem(storageKey, serialized)
+          setLastCloudSync(data.updated_at ?? '')
+        }
+
+        setSyncStatus('Compartilhado')
+        setSyncDetail(data?.data ? 'Dados carregados do banco compartilhado.' : 'Banco conectado. Este navegador vai criar o primeiro backup compartilhado.')
+        cloudLoadedRef.current = true
+      } catch {
+        if (cancelled) return
+        setSyncStatus('Local')
+        setSyncDetail('Sem conexão com o banco compartilhado. Alterações ficam salvas neste navegador.')
+        cloudLoadedRef.current = true
+      }
+    }
+
+    loadCloudState()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!cloudLoadedRef.current) return
+
+    const serialized = JSON.stringify(state)
+
+    if (applyingCloudStateRef.current) {
+      applyingCloudStateRef.current = false
+      lastSavedStateRef.current = serialized
+      return
+    }
+
+    if (serialized === lastSavedStateRef.current) return
+
+    const timeout = window.setTimeout(async () => {
+      try {
+        setSyncStatus('Salvando')
+        const { error } = await (supabase as any)
+          .from(cloudStateTable)
+          .upsert({
+            id: cloudStateId,
+            data: state,
+            updated_by: currentUserName,
+            updated_at: new Date().toISOString(),
+          })
+
+        if (error) {
+          setSyncStatus('Local')
+          setSyncDetail('Não foi possível salvar no banco compartilhado. Mantive uma cópia neste navegador.')
+          return
+        }
+
+        lastSavedStateRef.current = serialized
+        setLastCloudSync(new Date().toISOString())
+        setSyncStatus('Compartilhado')
+        setSyncDetail('Dados sincronizados para todas as usuárias.')
+      } catch {
+        setSyncStatus('Local')
+        setSyncDetail('Sem conexão com o banco compartilhado. Alterações ficam salvas neste navegador.')
+      }
+    }, 900)
+
+    return () => window.clearTimeout(timeout)
+  }, [currentUserName, state])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('macaroca-app-state')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: cloudStateTable, filter: `id=eq.${cloudStateId}` },
+        (payload: any) => {
+          const cloudData = payload.new?.data
+          const updatedAt = payload.new?.updated_at
+          if (!cloudData) return
+
+          const nextState = normalizeState({ ...initialState, ...cloudData } as AppState)
+          const serialized = JSON.stringify(nextState)
+          if (serialized === lastSavedStateRef.current) return
+
+          applyingCloudStateRef.current = true
+          lastSavedStateRef.current = serialized
+          setState(nextState)
+          setLastCloudSync(updatedAt ?? new Date().toISOString())
+          setSyncStatus('Compartilhado')
+          setSyncDetail('Atualização recebida do banco compartilhado.')
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   useEffect(() => {
     if (!areaAllowedForRole(userRole, activeArea)) {
@@ -3175,6 +3307,19 @@ export default function SistemaMacaroca() {
                   <span className="hidden text-black/55 xl:inline">{currentUserName}</span>
                   <strong>{userRole}</strong>
                 </div>
+                <div
+                  className={`flex h-9 items-center gap-2 rounded-md border px-2.5 text-sm ${
+                    syncStatus === 'Compartilhado'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : syncStatus === 'Salvando'
+                        ? 'border-sky-200 bg-sky-50 text-sky-800'
+                        : 'border-amber-200 bg-amber-50 text-amber-900'
+                  }`}
+                  title={syncDetail}
+                >
+                  <span className="h-2 w-2 rounded-full bg-current" />
+                  <strong>{syncStatus}</strong>
+                </div>
                 {canManagePurchases && (
                   <button
                     type="button"
@@ -4060,7 +4205,23 @@ export default function SistemaMacaroca() {
                     </Panel>
 
                     <Panel title="Backup e exportação">
-                      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                      <div className="grid gap-5">
+                        <div className="rounded-md border border-[#eadbd2] bg-[#fffaf5] p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StatusBadge tone={syncStatus === 'Compartilhado' ? 'green' : syncStatus === 'Salvando' ? 'blue' : 'amber'}>
+                              {syncStatus}
+                            </StatusBadge>
+                            <strong>Banco compartilhado</strong>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-black/58">{syncDetail}</p>
+                          {lastCloudSync && (
+                            <p className="mt-1 text-xs text-black/42">
+                              Última sincronização: {new Date(lastCloudSync).toLocaleString('pt-BR')}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                         <div>
                           <p className="text-sm leading-6 text-black/58">
                             Exporte os dados antes de começar a usar com informações reais ou antes de fazer mudanças grandes.
@@ -4087,6 +4248,7 @@ export default function SistemaMacaroca() {
                             Exportar CSV
                           </button>
                         </div>
+                      </div>
                       </div>
                     </Panel>
                   </>
