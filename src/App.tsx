@@ -9,7 +9,6 @@ const Colecoes = lazy(() => import('@/pages/Colecoes'))
 const SchonMedical = lazy(() => import('@/pages/SchonMedical'))
 const Sobre = lazy(() => import('@/pages/Sobre'))
 const Contato = lazy(() => import('@/pages/Contato'))
-const SistemaMacaroca = lazy(() => import('@/pages/SistemaMacaroca'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 function ScrollToHash() {
@@ -49,7 +48,6 @@ const App = () => (
       <ScrollToHash />
       <Suspense fallback={<PageFallback />}>
         <Routes>
-          <Route path="/sistema" element={<SistemaMacaroca />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/colecoes" element={<Colecoes />} />

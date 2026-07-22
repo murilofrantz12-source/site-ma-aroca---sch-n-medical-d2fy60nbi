@@ -122,26 +122,6 @@ const pages: Record<string, Record<Language, SEOPage>> = {
       keywords: 'Maçaroca contact, Schön Medical service, Maçaroca WhatsApp, made-to-order requests',
     },
   },
-  '/sistema': {
-    pt: {
-      title: 'Sistema Maçaroca | Rotina do ateliê',
-      description:
-        'Sistema interno Maçaroca para acompanhar vendas, produção, estoque, compras e financeiro do ateliê.',
-      keywords: 'sistema Maçaroca, produção, estoque, vendas, rotina do ateliê',
-    },
-    es: {
-      title: 'Sistema Maçaroca | Rutina del taller',
-      description:
-        'Sistema interno Maçaroca para acompañar ventas, producción, stock, compras y finanzas del taller.',
-      keywords: 'sistema Maçaroca, producción, stock, ventas, rutina del taller',
-    },
-    en: {
-      title: 'Maçaroca System | Studio routine',
-      description:
-        'Internal Maçaroca system for tracking sales, production, inventory, purchases and studio finances.',
-      keywords: 'Maçaroca system, production, inventory, sales, studio routine',
-    },
-  },
 }
 
 const fallback: Record<Language, SEOPage> = {

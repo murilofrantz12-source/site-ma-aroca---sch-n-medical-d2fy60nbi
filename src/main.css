@@ -100,50 +100,6 @@
     padding: 0 !important;
     margin: 0 !important;
   }
-
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    font-weight: 400;
-    letter-spacing: 0;
-    text-rendering: geometricPrecision;
-    -webkit-font-smoothing: antialiased;
-    background: #f7f3ee;
-  }
-
-  ::selection {
-    background: #ead2cb;
-    color: #211f1c;
-  }
-
-  .macaroca-system input,
-  .macaroca-system select,
-  .macaroca-system textarea {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-    border-color: #e5d7cd;
-    background-color: #fffdfa;
-  }
-
-  .macaroca-system label,
-  .macaroca-system section,
-  .macaroca-system article,
-  .macaroca-system table,
-  .macaroca-system div {
-    min-width: 0;
-  }
-
-  .macaroca-system input:focus,
-  .macaroca-system select:focus,
-  .macaroca-system textarea:focus {
-    border-color: #b88f82;
-    background-color: #ffffff;
-  }
-
-  .macaroca-system summary::marker {
-    color: #7f3442;
-  }
 }
 
 @layer utilities {
