@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Shirt,
   Store,
+  Trash2,
   WalletCards,
   X,
 } from 'lucide-react'
@@ -46,6 +47,7 @@ type Area =
   | 'financeiro'
 type BrandName = string
 type UserRole = 'Admin' | 'Sócia' | 'Comercial' | 'Produção' | 'Financeiro'
+type OrderDocumentType = 'Orçamento' | 'Pedido'
 type OrderStatus = 'Aberto' | 'Em produção' | 'Pronto' | 'Entregue' | 'Cancelado'
 type OpStatus = 'Não iniciada' | 'Em produção' | 'Pausada' | 'Finalizada'
 type ProductionPriority = 'Baixa' | 'Normal' | 'Alta' | 'Urgente'
@@ -163,6 +165,7 @@ type Brand = {
 
 type Order = {
   id: string
+  documentType: OrderDocumentType
   customerId?: string
   client: string
   phone: string
@@ -650,6 +653,7 @@ const initialState: AppState = {
   orders: [
     {
       id: 'PED-001',
+      documentType: 'Pedido',
       customerId: 'cli-san-rafael',
       client: 'Clínica San Rafael',
       phone: 'WhatsApp / telefone',
@@ -972,6 +976,7 @@ const normalizeState = (state: AppState): AppState => {
     })),
     orders: (state.orders ?? []).map((order) => ({
       ...order,
+      documentType: order.documentType === 'Orçamento' ? 'Orçamento' : 'Pedido',
       customerId: order.customerId ?? customers.find((customer) => customer.name === order.client)?.id,
       phone: order.phone ?? order.contact ?? customers.find((customer) => customer.name === order.client)?.phone ?? '',
       city: order.city ?? order.address ?? customers.find((customer) => customer.name === order.client)?.city ?? '',
@@ -1035,6 +1040,27 @@ const isCurrentMonth = (date?: string) => (date ?? '').startsWith(currentMonthVa
 const fileDateTime = () =>
   new Date().toISOString().slice(0, 16).replace(/-/g, '').replace(/:/g, '').replace('T', '')
 
+const nextDocumentId = (orders: Order[], type: OrderDocumentType) => {
+  const prefix = type === 'Orçamento' ? 'ORC' : 'PED'
+  const lastSequence = orders
+    .filter((order) => order.id.startsWith(`${prefix}-`))
+    .map((order) => Number(order.id.replace(/\D/g, '')))
+    .filter(Number.isFinite)
+    .reduce((max, value) => Math.max(max, value), 0)
+
+  return `${prefix}-${String(lastSequence + 1).padStart(3, '0')}`
+}
+
+const nextProductionOrderId = (orders: ProductionOrder[]) => {
+  const lastSequence = orders
+    .filter((order) => order.id.startsWith('OP-'))
+    .map((order) => Number(order.id.replace(/\D/g, '')))
+    .filter(Number.isFinite)
+    .reduce((max, value) => Math.max(max, value), 0)
+
+  return `OP-${String(lastSequence + 1).padStart(3, '0')}`
+}
+
 const downloadTextFile = (fileName: string, content: string, type: string) => {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
@@ -1081,7 +1107,7 @@ const orderTimeline = (state: AppState, order: Order): OrderTimelineItem[] => {
 
   return [
     {
-      label: 'Venda criada',
+      label: `${order.documentType} criado`,
       detail: `${order.client} · ${order.qty} un`,
       date: order.orderDate,
       status: 'done',
@@ -1112,7 +1138,7 @@ const orderTimeline = (state: AppState, order: Order): OrderTimelineItem[] => {
     },
     {
       label: 'Pedido entregue',
-      detail: delivered ? 'Produto saiu do estoque e venda foi concluída' : 'Aguardando separação/entrega',
+      detail: delivered ? 'Produto saiu do estoque e pedido foi concluído' : 'Aguardando separação/entrega',
       status: delivered ? 'done' : order.status === 'Pronto' ? 'current' : 'pending',
     },
   ]
@@ -1352,6 +1378,7 @@ export default function SistemaMacaroca() {
   const [noteUnit, setNoteUnit] = useState('kg')
   const [noteUnitCost, setNoteUnitCost] = useState(55500)
   const [selectedCustomerId, setSelectedCustomerId] = useState(state.customers[0]?.id ?? '')
+  const [orderDocumentType, setOrderDocumentType] = useState<OrderDocumentType>('Pedido')
   const [orderDate, setOrderDate] = useState('2026-07-20')
   const [orderQty, setOrderQty] = useState(10)
   const [orderDueDate, setOrderDueDate] = useState('2026-08-15')
@@ -1381,6 +1408,7 @@ export default function SistemaMacaroca() {
   const currentUserName = loggedUser?.name ?? 'Sistema'
   const canSeeMoney = userRole === 'Admin' || userRole === 'Financeiro'
   const canManagePurchases = userRole === 'Admin' || userRole === 'Financeiro'
+  const canDeleteRecords = userRole === 'Admin'
   const canAccessArea = (area: Area) => areaAllowedForRole(userRole, area)
   const companyLogo = state.company.logoUrl || logoMacaroca
   const cloudLoadedRef = useRef(false)
@@ -1561,7 +1589,7 @@ export default function SistemaMacaroca() {
     )
     const rawMaterialPurchases = byCategory('Compra de matéria-prima')
     const fixedExpenses = byCategory('Despesa fixa')
-    const estimatedProfitByOrder = state.orders.map((order) => {
+    const estimatedProfitByOrder = state.orders.filter((order) => order.documentType === 'Pedido').map((order) => {
       const product = state.products.find((item) => item.id === order.productId)
       const unitCost = product ? productCost(product, order.variationId) : 0
       const price = product ? idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit) : 0
@@ -1639,7 +1667,9 @@ export default function SistemaMacaroca() {
   }, [state.inventoryEntries])
   const dashboard = useMemo(() => {
     const ordersToProduce = state.orders.filter(
-      (order) => order.status === 'Aberto' || order.status === 'Em produção',
+      (order) =>
+        order.documentType === 'Pedido' &&
+        (order.status === 'Aberto' || order.status === 'Em produção'),
     )
     const activeOps = state.productionOrders.filter((op) => op.status === 'Em produção')
     const producedUnits = state.productionOrders.reduce((sum, op) => sum + op.produced, 0)
@@ -1667,6 +1697,7 @@ export default function SistemaMacaroca() {
         const pending = state.orders
           .filter(
             (order) =>
+              order.documentType === 'Pedido' &&
               order.productId === product.id &&
               order.status !== 'Entregue' &&
               order.status !== 'Cancelado',
@@ -2118,8 +2149,10 @@ export default function SistemaMacaroca() {
   const createOrder = () => {
     if (!selectedProduct || !selectedCustomer) return
     const price = idealPrice(productCost(selectedProduct, activeVariationId), state.tax, state.commission, state.fixedCost, state.profit)
+    const documentType = orderDocumentType
     const order: Order = {
-      id: `PED-${String(state.orders.length + 1).padStart(3, '0')}`,
+      id: nextDocumentId(state.orders, documentType),
+      documentType,
       customerId: selectedCustomer.id,
       client: selectedCustomer.name,
       phone: selectedCustomer.phone,
@@ -2131,39 +2164,48 @@ export default function SistemaMacaroca() {
       dueDate: orderDueDate,
       notes: orderNotes,
       status: 'Aberto',
-      billed: true,
+      billed: documentType === 'Pedido',
       createdBy: currentUserName,
     }
 
     setState((current) => ({
       ...current,
       orders: [order, ...current.orders],
-      cashEntries: [
-        {
-          id: `CX-${Date.now()}`,
-          kind: 'Entrada',
-          category: 'Venda recebida',
-          description: `Venda ${order.client}`,
-          value: order.qty * price,
-          source: order.id,
-          dueDate: order.orderDate,
-          paid: true,
-          createdBy: currentUserName,
-        },
-        ...current.cashEntries,
-      ],
+      cashEntries:
+        documentType === 'Pedido'
+          ? [
+              {
+                id: `CX-${Date.now()}`,
+                kind: 'Entrada',
+                category: 'Venda recebida',
+                description: `Pedido ${order.client}`,
+                value: order.qty * price,
+                source: order.id,
+                dueDate: order.orderDate,
+                paid: true,
+                createdBy: currentUserName,
+              },
+              ...current.cashEntries,
+            ]
+          : current.cashEntries,
     }))
     setActiveArea('vendas')
-    setMessage('Venda registrada. Confira o estoque e crie a produção se faltar peça pronta.')
+    setMessage(
+      documentType === 'Pedido'
+        ? 'Pedido registrado. Confira o estoque e crie a produção se faltar peça pronta.'
+        : 'Orçamento registrado. Você pode imprimir ou transformar em pedido quando for aprovado.',
+    )
   }
 
   const createGuidedOrderWithOp = () => {
     if (!selectedProduct || !selectedCustomer) return
     const price = idealPrice(productCost(selectedProduct, activeVariationId), state.tax, state.commission, state.fixedCost, state.profit)
-    const orderId = `PED-${String(state.orders.length + 1).padStart(3, '0')}`
-    const opId = `OP-${String(state.productionOrders.length + 1).padStart(3, '0')}`
+    const documentType = orderDocumentType
+    const orderId = nextDocumentId(state.orders, documentType)
+    const opId = nextProductionOrderId(state.productionOrders)
     const order: Order = {
       id: orderId,
+      documentType,
       customerId: selectedCustomer.id,
       client: selectedCustomer.name,
       phone: selectedCustomer.phone,
@@ -2174,10 +2216,22 @@ export default function SistemaMacaroca() {
       qty: orderQty,
       dueDate: orderDueDate,
       notes: orderNotes,
-      status: 'Em produção',
-      billed: true,
+      status: documentType === 'Pedido' ? 'Em produção' : 'Aberto',
+      billed: documentType === 'Pedido',
       createdBy: currentUserName,
     }
+
+    if (documentType === 'Orçamento') {
+      setState((current) => ({
+        ...current,
+        orders: [order, ...current.orders],
+      }))
+      setGuidedOrderStep(1)
+      setActiveArea('pedidos')
+      setMessage(`Orçamento ${order.id} registrado. Quando aprovado, transforme em pedido.`)
+      return
+    }
+
     const op: ProductionOrder = {
       id: opId,
       orderId,
@@ -2200,13 +2254,13 @@ export default function SistemaMacaroca() {
       orders: [order, ...current.orders],
       productionOrders: [op, ...current.productionOrders],
       cashEntries: [
-        {
-          id: `CX-${Date.now()}`,
-          kind: 'Entrada',
-          category: 'Venda recebida',
-          description: `Venda ${order.client}`,
-          value: order.qty * price,
-          source: order.id,
+              {
+                id: `CX-${Date.now()}`,
+                kind: 'Entrada',
+                category: 'Venda recebida',
+                description: `Pedido ${order.client}`,
+                value: order.qty * price,
+                source: order.id,
           dueDate: order.orderDate,
           paid: true,
           createdBy: currentUserName,
@@ -2222,13 +2276,18 @@ export default function SistemaMacaroca() {
   }
 
   const generateProductionOrder = (order: Order) => {
+    if (order.documentType === 'Orçamento') {
+      setMessage('Transforme o orçamento em pedido antes de criar produção.')
+      return
+    }
+
     if (state.productionOrders.some((op) => op.orderId === order.id)) {
-      setMessage('Essa venda já possui produção criada.')
+      setMessage('Esse pedido já possui produção criada.')
       return
     }
 
     const op: ProductionOrder = {
-      id: `OP-${String(state.productionOrders.length + 1).padStart(3, '0')}`,
+      id: nextProductionOrderId(state.productionOrders),
       orderId: order.id,
       productId: order.productId,
       variationId: order.variationId,
@@ -2252,7 +2311,81 @@ export default function SistemaMacaroca() {
       productionOrders: [op, ...current.productionOrders],
     }))
     setActiveArea('producao')
-    setMessage('Produção criada a partir da venda.')
+    setMessage('Produção criada a partir do pedido.')
+  }
+
+  const convertBudgetToOrder = (order: Order) => {
+    if (order.documentType !== 'Orçamento') return
+    const product = state.products.find((item) => item.id === order.productId)
+    const price = product
+      ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit)
+      : 0
+    const newOrderId = nextDocumentId(state.orders, 'Pedido')
+
+    setState((current) => ({
+      ...current,
+      orders: current.orders.map((item) =>
+        item.id === order.id
+          ? {
+              ...item,
+              id: newOrderId,
+              documentType: 'Pedido',
+              billed: true,
+              status: 'Aberto',
+            }
+          : item,
+      ),
+      productionOrders: current.productionOrders.map((op) =>
+        op.orderId === order.id ? { ...op, orderId: newOrderId } : op,
+      ),
+      cashEntries: [
+        {
+          id: `CX-${Date.now()}`,
+          kind: 'Entrada',
+          category: 'Venda recebida',
+          description: `Pedido ${order.client}`,
+          value: order.qty * price,
+          source: newOrderId,
+          dueDate: order.orderDate,
+          paid: true,
+          createdBy: currentUserName,
+        },
+        ...current.cashEntries.filter((entry) => entry.source !== order.id),
+      ],
+    }))
+    setPreviewOrderId((current) => (current === order.id ? newOrderId : current))
+    setPrintOrderId((current) => (current === order.id ? newOrderId : current))
+    setMessage(`Orçamento ${order.id} virou pedido ${newOrderId}.`)
+  }
+
+  const deleteOrder = (order: Order) => {
+    const relatedOps = state.productionOrders.filter((op) => op.orderId === order.id)
+    const opText = relatedOps.length ? ` Também serão excluídas ${relatedOps.length} OP(s) ligada(s).` : ''
+    const documentLabel = order.documentType.toLowerCase()
+
+    if (!window.confirm(`Excluir ${documentLabel} ${order.id}? Essa ação remove financeiro, entrega e estoque vinculados.${opText}`)) {
+      return
+    }
+
+    const relatedOpIds = relatedOps.map((op) => op.id)
+
+    setState((current) => ({
+      ...current,
+      orders: current.orders.filter((item) => item.id !== order.id),
+      productionOrders: current.productionOrders.filter((op) => op.orderId !== order.id),
+      cashEntries: current.cashEntries.filter((entry) => entry.source !== order.id),
+      inventoryEntries: current.inventoryEntries.filter(
+        (entry) => entry.source !== `Entrega ${order.id}` && !relatedOpIds.includes(entry.source),
+      ),
+    }))
+    setPreviewOrderId((current) => (current === order.id ? null : current))
+    setPrintOrderId((current) => (current === order.id ? null : current))
+    setPreviewOpId((current) => (current && relatedOpIds.includes(current) ? null : current))
+    setPrintOpId((current) => (current && relatedOpIds.includes(current) ? null : current))
+    setProductionLaunches((current) =>
+      Object.fromEntries(Object.entries(current).filter(([opId]) => !relatedOpIds.includes(opId))),
+    )
+    setMessage(`${order.documentType} ${order.id} excluído.`)
   }
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
@@ -2307,13 +2440,44 @@ export default function SistemaMacaroca() {
             })()
           : current.inventoryEntries,
     }))
-    setMessage(`Venda marcada como ${status}.`)
+    setMessage(`Pedido marcado como ${status}.`)
+  }
+
+  const deleteProductionOrder = (op: ProductionOrder) => {
+    if (!window.confirm(`Excluir ordem de produção ${op.id}? Os lançamentos de matéria-prima e produto acabado dessa OP serão removidos.`)) {
+      return
+    }
+
+    setState((current) => {
+      const hasAnotherOpForOrder = current.productionOrders.some(
+        (item) => item.id !== op.id && item.orderId && item.orderId === op.orderId,
+      )
+
+      return {
+        ...current,
+        productionOrders: current.productionOrders.filter((item) => item.id !== op.id),
+        inventoryEntries: current.inventoryEntries.filter((entry) => entry.source !== op.id),
+        orders: current.orders.map((order) => {
+          if (!op.orderId || order.id !== op.orderId || hasAnotherOpForOrder) return order
+          if (order.status === 'Entregue' || order.status === 'Cancelado') return order
+          return { ...order, status: 'Aberto' }
+        }),
+      }
+    })
+    setPreviewOpId((current) => (current === op.id ? null : current))
+    setPrintOpId((current) => (current === op.id ? null : current))
+    setProductionLaunches((current) => {
+      const next = { ...current }
+      delete next[op.id]
+      return next
+    })
+    setMessage(`Ordem de produção ${op.id} excluída.`)
   }
 
   const createStockProductionOrder = () => {
     if (!selectedProduct) return
     const op: ProductionOrder = {
-      id: `OP-${String(state.productionOrders.length + 1).padStart(3, '0')}`,
+      id: nextProductionOrderId(state.productionOrders),
       productId: selectedProduct.id,
       variationId: activeVariationId,
       qty: stockOpQty,
@@ -2525,7 +2689,8 @@ export default function SistemaMacaroca() {
   const printOrderBudget = (orderId: string) => {
     setPrintOpId(null)
     setPrintOrderId(orderId)
-    setMessage('Pedido/orçamento pronto para imprimir. Para PDF, escolha "Salvar como PDF" na janela.')
+    const order = state.orders.find((item) => item.id === orderId)
+    setMessage(`${order?.documentType ?? 'Documento'} pronto para imprimir. Para PDF, escolha "Salvar como PDF" na janela.`)
     window.setTimeout(() => window.print(), 80)
   }
 
@@ -2797,7 +2962,7 @@ export default function SistemaMacaroca() {
       extra: { custoUnitario: note.unitCost, estoque: `${note.stockQty ?? note.qty} ${note.stockUnit ?? note.unit}`, criadoPor: note.createdBy },
     })),
     ...state.orders.map((order) => ({
-      tabela: 'Pedidos',
+      tabela: order.documentType === 'Orçamento' ? 'Orçamentos' : 'Pedidos',
       id: order.id,
       nome: order.client,
       descricao: productDisplayName(state.products.find((product) => product.id === order.productId), order.variationId),
@@ -2806,7 +2971,7 @@ export default function SistemaMacaroca() {
       unidade: 'un',
       valor: '',
       data: order.orderDate,
-      extra: { prazo: order.dueDate, faturado: order.billed, criadoPor: order.createdBy, observacoes: order.notes },
+      extra: { tipo: order.documentType, prazo: order.dueDate, faturado: order.billed, criadoPor: order.createdBy, observacoes: order.notes },
     })),
     ...state.productionOrders.map((op) => ({
       tabela: 'Ordens de produção',
@@ -2891,11 +3056,14 @@ export default function SistemaMacaroca() {
       }))
     : []
   const generalPlan = {
-    pendingOrders: state.orders.filter((order) => order.status === 'Aberto' || order.status === 'Em produção'),
+    pendingOrders: state.orders.filter(
+      (order) => order.documentType === 'Pedido' && (order.status === 'Aberto' || order.status === 'Em produção'),
+    ),
     openOps: state.productionOrders.filter((op) => op.status !== 'Finalizada'),
-    readyOrders: state.orders.filter((order) => order.status === 'Pronto'),
+    readyOrders: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Pronto'),
     overdueOrders: state.orders.filter(
       (order) =>
+        order.documentType === 'Pedido' &&
         order.status !== 'Entregue' &&
         order.status !== 'Cancelado' &&
         order.dueDate &&
@@ -2910,11 +3078,11 @@ export default function SistemaMacaroca() {
   const hasProductionOrder = (orderId: string) =>
     state.productionOrders.some((op) => op.orderId === orderId)
   const salesFlow = {
-    open: state.orders.filter((order) => order.status === 'Aberto'),
-    inProduction: state.orders.filter((order) => order.status === 'Em produção'),
-    ready: state.orders.filter((order) => order.status === 'Pronto'),
-    delivered: state.orders.filter((order) => order.status === 'Entregue'),
-    active: state.orders.filter((order) => order.status !== 'Entregue' && order.status !== 'Cancelado'),
+    open: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Aberto'),
+    inProduction: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Em produção'),
+    ready: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Pronto'),
+    delivered: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Entregue'),
+    active: state.orders.filter((order) => order.documentType === 'Pedido' && order.status !== 'Entregue' && order.status !== 'Cancelado'),
   }
   const ordersWaitingProductionOrder = salesFlow.open.filter((order) => !hasProductionOrder(order.id))
   const productionNeedRows = productStock
@@ -2925,13 +3093,14 @@ export default function SistemaMacaroca() {
     .filter((row) => row.pending > 0 || row.producing > 0 || row.toProduce > 0)
   const overdueSmartOrders = state.orders.filter(
     (order) =>
+      order.documentType === 'Pedido' &&
       order.status !== 'Entregue' &&
       order.status !== 'Cancelado' &&
       daysUntil(order.dueDate) < 0,
   )
   const nearDueOrders = state.orders.filter((order) => {
     const days = daysUntil(order.dueDate)
-    return order.status !== 'Entregue' && order.status !== 'Cancelado' && days >= 0 && days <= 3
+    return order.documentType === 'Pedido' && order.status !== 'Entregue' && order.status !== 'Cancelado' && days >= 0 && days <= 3
   })
   const pausedProductionOrders = openProductionOrders.filter((op) => {
     const daysSinceStart = op.startedAt ? Math.abs(daysUntil(op.startedAt)) : 0
@@ -3695,7 +3864,7 @@ export default function SistemaMacaroca() {
                                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9b8b0] bg-[#fff2ef] px-3 text-sm font-medium text-[#3a2528]"
                                 >
                                   <ReceiptText className="h-4 w-4" />
-                                  Pedido/orçamento
+                                  Ver pedido
                                 </button>
                                 <button
                                   type="button"
@@ -3822,7 +3991,7 @@ export default function SistemaMacaroca() {
                                 className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9b8b0] bg-[#fff2ef] px-3 text-sm font-medium text-[#3a2528]"
                               >
                                 <ReceiptText className="h-4 w-4" />
-                                Pedido/orçamento
+                                Ver pedido
                               </button>
                             </div>
                           </div>
@@ -4260,12 +4429,12 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'pedido-guiado' && selectedProduct && (
               <section className="grid gap-5 xl:grid-cols-[minmax(300px,320px)_minmax(0,1fr)]">
-                <Panel title="Nova venda em passos">
+                <Panel title="Novo orçamento ou pedido">
                   <div className="grid gap-2">
                     <StepButton number={1} label="Cliente" active={guidedOrderStep === 1} done={guidedOrderStep > 1} onClick={() => setGuidedOrderStep(1)} />
                     <StepButton number={2} label="Peça" active={guidedOrderStep === 2} done={guidedOrderStep > 2} onClick={() => setGuidedOrderStep(2)} />
                     <StepButton number={3} label="Quantidade e prazo" active={guidedOrderStep === 3} done={guidedOrderStep > 3} onClick={() => setGuidedOrderStep(3)} />
-                    <StepButton number={4} label="Criar produção" active={guidedOrderStep === 4} done={false} onClick={() => setGuidedOrderStep(4)} />
+                    <StepButton number={4} label="Confirmar" active={guidedOrderStep === 4} done={false} onClick={() => setGuidedOrderStep(4)} />
                   </div>
                 </Panel>
 
@@ -4376,8 +4545,19 @@ export default function SistemaMacaroca() {
                           <SoftInput label="Data do pedido" value={orderDate} onChange={setOrderDate} />
                           <SoftInput label="Prazo" value={orderDueDate} onChange={setOrderDueDate} />
                         </div>
+                        <label className="grid gap-2">
+                          <FieldLabel>O que você quer criar?</FieldLabel>
+                          <select
+                            value={orderDocumentType}
+                            onChange={(event) => setOrderDocumentType(event.target.value as OrderDocumentType)}
+                            className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
+                          >
+                            <option value="Orçamento">Orçamento - não entra no financeiro</option>
+                            <option value="Pedido">Pedido - entra no financeiro e pode gerar produção</option>
+                          </select>
+                        </label>
                         <SoftInput label="Observação do pedido" value={orderNotes} onChange={setOrderNotes} />
-                        {canSeeMoney && <TotalLine label="Venda prevista" value={money(orderQty * selectedPrice)} />}
+                        {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * selectedPrice)} />}
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -4400,17 +4580,20 @@ export default function SistemaMacaroca() {
                   )}
 
                   {guidedOrderStep === 4 && (
-                    <Panel title="4. Criar produção">
+                    <Panel title="4. Confirmar">
                       <div className="grid gap-4">
                         <div className="grid gap-3 md:grid-cols-2">
                           <MiniRow title="Cliente" detail={selectedCustomer?.name ?? 'Sem cliente'} />
+                          <MiniRow title="Tipo" detail={orderDocumentType} />
                           <MiniRow title="Peça" detail={`${selectedProduct.code} · ${productDisplayName(selectedProduct, activeVariationId)}`} />
                           <MiniRow title="Quantidade" detail={`${orderQty} un`} />
                           <MiniRow title="Prazo" detail={formatDate(orderDueDate)} />
                         </div>
                         {orderNotes && <MiniRow title="Observação" detail={orderNotes} />}
                         <div className="rounded-md border border-[#8f3f4c]/20 bg-[#f6ecec] p-4 text-sm text-[#3a2528]">
-                          Ao confirmar, o sistema registra a venda e já cria uma ordem de produção vinculada a ela.
+                          {orderDocumentType === 'Pedido'
+                            ? 'Ao confirmar, o sistema registra o pedido, lança a entrada financeira e cria uma ordem de produção vinculada.'
+                            : 'Ao confirmar, o sistema salva apenas o orçamento. Ele não mexe no financeiro nem cria produção até virar pedido.'}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button
@@ -4425,7 +4608,7 @@ export default function SistemaMacaroca() {
                             onClick={createGuidedOrderWithOp}
                             className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
                           >
-                            Registrar venda e criar produção
+                            {orderDocumentType === 'Pedido' ? 'Registrar pedido e criar produção' : 'Salvar orçamento'}
                             <ArrowRight className="h-4 w-4" />
                           </button>
                         </div>
@@ -5425,8 +5608,19 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'pedidos' && selectedProduct && (
               <section className="grid gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
-                <Panel title="Novo pedido">
+                <Panel title="Novo orçamento ou pedido">
                   <div className="grid gap-4">
+                    <label className="grid gap-2">
+                      <FieldLabel>Tipo</FieldLabel>
+                      <select
+                        value={orderDocumentType}
+                        onChange={(event) => setOrderDocumentType(event.target.value as OrderDocumentType)}
+                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
+                      >
+                        <option value="Orçamento">Orçamento - para enviar ao cliente</option>
+                        <option value="Pedido">Pedido - venda aprovada</option>
+                      </select>
+                    </label>
                     <label className="grid gap-2">
                       <FieldLabel>Cliente cadastrado</FieldLabel>
                       <select
@@ -5513,19 +5707,19 @@ export default function SistemaMacaroca() {
                       <ReadOnlyField label="Status inicial" value="Aberto" />
                     </div>
                     <SoftInput label="Observações" value={orderNotes} onChange={setOrderNotes} />
-                    {canSeeMoney && <TotalLine label="Venda prevista" value={money(orderQty * selectedPrice)} />}
+                    {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * selectedPrice)} />}
                     <button
                       type="button"
                       onClick={createOrder}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
                     >
-                      Registrar pedido
+                      {orderDocumentType === 'Pedido' ? 'Registrar pedido' : 'Registrar orçamento'}
                       <ArrowRight className="h-4 w-4" />
                     </button>
                   </div>
                 </Panel>
 
-                <Panel title="Pedidos">
+                <Panel title="Orçamentos e pedidos">
                   <div className="grid gap-3">
                     {state.orders.map((order) => {
                       const product = state.products.find((item) => item.id === order.productId)
@@ -5541,8 +5735,11 @@ export default function SistemaMacaroca() {
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <strong>{order.client}</strong>
+                              <StatusBadge tone={order.documentType === 'Pedido' ? 'blue' : 'amber'}>
+                                {order.documentType}
+                              </StatusBadge>
                               <StatusBadge tone={orderStatusTone(order.status)}>{order.status}</StatusBadge>
-                              {order.billed && <StatusBadge tone="green">Faturado</StatusBadge>}
+                              {order.documentType === 'Pedido' && order.billed && <StatusBadge tone="green">Faturado</StatusBadge>}
                             </div>
                             <p className="mt-2 text-sm text-black/60">
                               {productDisplayName(product, order.variationId)} · {order.qty} un
@@ -5582,17 +5779,26 @@ export default function SistemaMacaroca() {
                               type="button"
                               onClick={() => generateProductionOrder(order)}
                               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white disabled:opacity-40"
-                              disabled={order.status !== 'Aberto'}
+                              disabled={order.documentType !== 'Pedido' || order.status !== 'Aberto'}
                             >
                               Criar produção
                             </button>
+                            {order.documentType === 'Orçamento' && (
+                              <button
+                                type="button"
+                                onClick={() => convertBudgetToOrder(order)}
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#7f3442] px-4 text-sm font-medium text-white"
+                              >
+                                Virar pedido
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => setPreviewOrderId(order.id)}
                               className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9b8b0] bg-[#fff2ef] px-4 text-sm font-medium text-[#3a2528]"
                             >
                               <ReceiptText className="h-4 w-4" />
-                              Pedido/orçamento
+                              {order.documentType}
                             </button>
                             <button
                               type="button"
@@ -5602,6 +5808,16 @@ export default function SistemaMacaroca() {
                             >
                               Marcar entregue
                             </button>
+                            {canDeleteRecords && (
+                              <button
+                                type="button"
+                                onClick={() => deleteOrder(order)}
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-800"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Excluir
+                              </button>
+                            )}
                           </div>
                         </div>
                       )
@@ -5892,6 +6108,16 @@ export default function SistemaMacaroca() {
                                       PDF
                                     </button>
                                   </div>
+                                  {canDeleteRecords && (
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteProductionOrder(op)}
+                                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 text-sm font-medium text-rose-800 transition hover:bg-white"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Excluir OP
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             )
@@ -7015,6 +7241,7 @@ function OrderBudgetPreview({
   const unitPrice = idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit)
   const total = unitPrice * order.qty
   const relatedOp = state.productionOrders.find((op) => op.orderId === order.id)
+  const documentTitle = order.documentType ?? 'Pedido'
   const productDescription = [
     productDisplayName(product, order.variationId),
     variation?.measurements,
@@ -7029,7 +7256,7 @@ function OrderBudgetPreview({
         <header className="flex flex-col gap-3 border-b border-black/10 px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <span className="text-sm text-black/55">Prévia para conferência</span>
-            <h2 className="font-serif text-2xl">Pedido / Orçamento {order.id}</h2>
+            <h2 className="font-serif text-2xl">{documentTitle} {order.id}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -7066,7 +7293,7 @@ function OrderBudgetPreview({
                 <img src={brandDoc.logo} alt={brandDoc.name} className="max-h-20 w-auto object-contain" />
               </div>
               <div className="text-center">
-                <span className="text-sm uppercase text-black/45">Pedido / Orçamento</span>
+                <span className="text-sm uppercase text-black/45">{documentTitle}</span>
                 <h1 className="mt-2 text-3xl font-semibold">{order.id}</h1>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <StatusBadge tone={orderStatusTone(order.status)}>{order.status}</StatusBadge>
@@ -7132,7 +7359,7 @@ function OrderBudgetPreview({
                   <strong>{order.qty} un</strong>
                 </div>
                 <div className="flex justify-between pt-3">
-                  <span>Total do pedido</span>
+                  <span>Total do {documentTitle.toLowerCase()}</span>
                   <strong className="text-xl">{money(total)}</strong>
                 </div>
               </div>
@@ -7157,6 +7384,7 @@ function OrderBudgetPrint({ order, state }: { order: Order; state: AppState }) {
   const unitCost = productCost(product, order.variationId)
   const unitPrice = idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit)
   const total = unitPrice * order.qty
+  const documentTitle = order.documentType ?? 'Pedido'
   const productDescription = [
     productDisplayName(product, order.variationId),
     variation?.measurements,
@@ -7172,7 +7400,7 @@ function OrderBudgetPrint({ order, state }: { order: Order; state: AppState }) {
           <img src={brandDoc.logo} alt={brandDoc.name} style={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 12, letterSpacing: 2, color: '#666' }}>PEDIDO / ORÇAMENTO</div>
+          <div style={{ fontSize: 12, letterSpacing: 2, color: '#666' }}>{documentTitle.toUpperCase()}</div>
           <h1 style={{ margin: '6px 0 8px', fontSize: 26, fontWeight: 700 }}>{order.id}</h1>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 6, fontSize: 11 }}>
             <span style={{ border: '1px solid #ccc', padding: '3px 7px', borderRadius: 4 }}>{order.status}</span>
@@ -7233,7 +7461,7 @@ function OrderBudgetPrint({ order, state }: { order: Order; state: AppState }) {
             <strong>{money(total)}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8 }}>
-            <span>Total do pedido</span>
+            <span>Total do {documentTitle.toLowerCase()}</span>
             <strong style={{ fontSize: 18 }}>{money(total)}</strong>
           </div>
         </div>
