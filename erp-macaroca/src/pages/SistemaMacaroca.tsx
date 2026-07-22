@@ -3241,6 +3241,79 @@ export default function SistemaMacaroca() {
       items: group.items.filter((item) => canAccessArea(item.key)),
     }))
     .filter((group) => group.items.length > 0)
+  const moduleTiles: {
+    key: Area
+    title: string
+    detail: string
+    badge: string
+    icon: ReactNode
+    tone: 'dark' | 'rose' | 'green' | 'blue' | 'amber' | 'neutral'
+  }[] = [
+    {
+      key: 'pedido-guiado',
+      title: 'Criar orçamento ou pedido',
+      detail: 'Comece por cliente, peça, quantidade e prazo.',
+      badge: `${state.orders.filter((order) => order.documentType === 'Orçamento').length} orçamento(s)`,
+      icon: <Plus />,
+      tone: 'dark',
+    },
+    {
+      key: 'vendas',
+      title: 'Acompanhar pedidos',
+      detail: 'Veja abertos, em produção, prontos e entregues.',
+      badge: `${salesFlow.active.length} ativo(s)`,
+      icon: <ClipboardList />,
+      tone: 'rose',
+    },
+    {
+      key: 'producao',
+      title: 'Produção',
+      detail: 'Ordens abertas, OP para estoque, impressão e baixa.',
+      badge: `${openProductionOrders.length} OP aberta(s)`,
+      icon: <Scissors />,
+      tone: 'blue',
+    },
+    {
+      key: 'estoque',
+      title: 'Estoque',
+      detail: 'Matéria-prima, produto acabado e compras sugeridas.',
+      badge: `${generalPlan.attentionStock.length} alerta(s)`,
+      icon: <Package />,
+      tone: generalPlan.attentionStock.length ? 'amber' : 'green',
+    },
+    {
+      key: 'notas',
+      title: 'Compras de matéria-prima',
+      detail: 'Lance notas e entradas para alimentar o estoque.',
+      badge: `${state.purchaseNotes.length} nota(s)`,
+      icon: <ReceiptText />,
+      tone: 'neutral',
+    },
+    {
+      key: 'clientes',
+      title: 'Clientes',
+      detail: 'Cadastros, contatos e histórico de pedidos.',
+      badge: `${state.customers.length} cliente(s)`,
+      icon: <Store />,
+      tone: 'neutral',
+    },
+    {
+      key: 'produtos',
+      title: 'Produtos e fichas',
+      detail: 'Peças, variações, medidas e matéria-prima.',
+      badge: `${state.products.length} produto(s)`,
+      icon: <Shirt />,
+      tone: 'neutral',
+    },
+    {
+      key: 'financeiro',
+      title: 'Financeiro',
+      detail: 'Entradas, saídas, compras, despesas e lucro.',
+      badge: canSeeMoney ? money(totals.balance) : 'restrito',
+      icon: <WalletCards />,
+      tone: canSeeMoney && totals.balance >= 0 ? 'green' : 'amber',
+    },
+  ].filter((item) => canAccessArea(item.key))
   const previewOp = state.productionOrders.find((op) => op.id === previewOpId)
   const previewOrder = state.orders.find((order) => order.id === previewOrderId)
   const printOp = state.productionOrders.find((op) => op.id === printOpId)
@@ -3537,6 +3610,53 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'plano-geral' && (
               <section className="grid gap-5">
+                <section className="overflow-hidden rounded-lg border border-[#e5d7cd] bg-[#fffdfa] shadow-[0_12px_34px_rgba(49,35,30,0.045)]">
+                  <div className="grid gap-4 border-b border-[#eadfd6] bg-[#fffaf5] p-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-stretch">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#211f1c] p-2">
+                        <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-black/38">
+                          Central de módulos
+                        </span>
+                        <h2 className="mt-1 font-serif text-3xl leading-tight">Maçaroca</h2>
+                        <p className="mt-1 text-sm leading-5 text-black/52">
+                          Escolha por onde começar. Cada bloco abre uma parte diferente da rotina.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-2 rounded-md border border-[#eadfd6] bg-white p-3 text-sm text-black/58 sm:grid-cols-3 lg:grid-cols-1">
+                      <div>
+                        <span className="block text-xs uppercase text-black/35">Usuário</span>
+                        <strong className="text-[#211f1c]">{currentUserName}</strong>
+                      </div>
+                      <div>
+                        <span className="block text-xs uppercase text-black/35">Hoje</span>
+                        <strong className="text-[#211f1c]">{new Date().toLocaleDateString('pt-BR')}</strong>
+                      </div>
+                      <div>
+                        <span className="block text-xs uppercase text-black/35">Sincronização</span>
+                        <strong className="text-[#211f1c]">{syncStatus}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {moduleTiles.map((item) => (
+                      <ModuleTile
+                        key={item.key}
+                        title={item.title}
+                        detail={item.detail}
+                        badge={item.badge}
+                        icon={item.icon}
+                        tone={item.tone}
+                        onClick={() => setActiveArea(item.key)}
+                      />
+                    ))}
+                  </div>
+                </section>
+
                 <section className="grid gap-4 md:hidden">
                   <div className="rounded-lg border border-[#2f2b27] bg-[#211f1c] p-4 text-white shadow-[0_14px_34px_rgba(33,31,28,0.14)]">
                     <span className="text-xs font-medium uppercase tracking-[0.12em] text-white/52">Modo celular</span>
@@ -6479,6 +6599,57 @@ function PocketMetric({
       <strong className="mt-2 block break-words text-2xl font-semibold leading-tight text-[#211f1c]">{value}</strong>
       <span className="mt-2 block text-sm leading-5 text-black/52">{detail}</span>
     </div>
+  )
+}
+
+function ModuleTile({
+  title,
+  detail,
+  badge,
+  icon,
+  tone,
+  onClick,
+}: {
+  title: string
+  detail: string
+  badge: string
+  icon: ReactNode
+  tone: 'dark' | 'rose' | 'green' | 'blue' | 'amber' | 'neutral'
+  onClick: () => void
+}) {
+  const toneClass = {
+    dark: 'border-[#211f1c] bg-[#211f1c] text-white shadow-[0_16px_34px_rgba(33,31,28,0.18)]',
+    rose: 'border-[#e4c9c5] bg-[#fff4f2] text-[#3a2528]',
+    green: 'border-emerald-100 bg-emerald-50 text-emerald-950',
+    blue: 'border-sky-100 bg-sky-50 text-sky-950',
+    amber: 'border-amber-100 bg-amber-50 text-amber-950',
+    neutral: 'border-[#eadfd6] bg-[#fffdfa] text-[#211f1c]',
+  }[tone]
+  const mutedClass = tone === 'dark' ? 'text-white/62' : 'text-black/52'
+  const iconClass = tone === 'dark' ? 'bg-white/12 text-white' : 'bg-white text-[#7f3442]'
+  const badgeClass = tone === 'dark' ? 'bg-white/12 text-white/82' : 'bg-[#211f1c]/[0.06] text-black/58'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group grid min-h-[168px] grid-rows-[auto_1fr_auto] rounded-md border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(49,35,30,0.10)] ${toneClass}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-md [&_svg]:h-5 [&_svg]:w-5 ${iconClass}`}>
+          {icon}
+        </span>
+        <span className={`rounded-full px-2 py-1 text-xs font-medium ${badgeClass}`}>{badge}</span>
+      </div>
+      <div className="mt-4 min-w-0">
+        <strong className="block text-lg leading-6">{title}</strong>
+        <span className={`mt-2 block text-sm leading-5 ${mutedClass}`}>{detail}</span>
+      </div>
+      <span className={`mt-4 inline-flex items-center gap-2 text-sm font-medium ${tone === 'dark' ? 'text-white' : 'text-[#7f3442]'}`}>
+        Abrir
+        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+      </span>
+    </button>
   )
 }
 
