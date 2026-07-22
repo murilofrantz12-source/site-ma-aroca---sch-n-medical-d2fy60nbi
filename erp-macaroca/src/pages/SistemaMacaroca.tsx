@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  Menu,
   Package,
   PackageCheck,
   Plus,
@@ -1281,7 +1282,7 @@ export default function SistemaMacaroca() {
   const [loginName, setLoginName] = useState('Murilo')
   const [loginPassword, setLoginPassword] = useState('1')
   const [loginError, setLoginError] = useState('')
-  const [activeArea, setActiveArea] = useState<Area>('inicio')
+  const [activeArea, setActiveArea] = useState<Area>('plano-geral')
   const [selectedProductId, setSelectedProductId] = useState(
     state.products.find((product) => product.id === 'produto-conj-base')?.id ?? state.products[0]?.id ?? '',
   )
@@ -1344,6 +1345,7 @@ export default function SistemaMacaroca() {
   const [financeDueDate, setFinanceDueDate] = useState(currentDateValue())
   const [financePaid, setFinancePaid] = useState(true)
   const [sidebarCompact, setSidebarCompact] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [productionLaunches, setProductionLaunches] = useState<Record<string, number>>({})
   const [guidedOrderStep, setGuidedOrderStep] = useState(1)
   const [guidedProductionStep, setGuidedProductionStep] = useState(1)
@@ -3500,14 +3502,24 @@ export default function SistemaMacaroca() {
       )}
       <div className={`macaroca-system grid min-h-screen transition-[grid-template-columns] duration-300 ${sidebarCompact ? 'lg:grid-cols-[88px_minmax(0,_1fr)]' : 'lg:grid-cols-[292px_minmax(0,_1fr)]'}`}>
         <aside className="border-b border-[#e5d7cd] bg-[#fffaf5] transition-all duration-300 lg:border-b-0 lg:border-r">
-          <div className={`flex items-center gap-3 border-b border-[#eadfd6] px-5 py-5 ${sidebarCompact ? 'lg:flex-col lg:px-3' : ''}`}>
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#211f1c] p-2 shadow-[0_10px_24px_rgba(33,31,28,0.12)]">
+          <div className={`flex items-center gap-3 border-b border-[#eadfd6] px-4 py-3 lg:px-5 lg:py-5 ${sidebarCompact ? 'lg:flex-col lg:px-3' : ''}`}>
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-[#211f1c] p-1.5 shadow-[0_10px_24px_rgba(33,31,28,0.12)] lg:h-16 lg:w-16 lg:p-2">
               <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
             </div>
             <div className={sidebarCompact ? 'lg:hidden' : ''}>
               <strong className="block text-sm">Maçaroca</strong>
               <span className="text-xs text-black/50">Rotina do ateliê</span>
             </div>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((current) => !current)}
+              className="ml-auto inline-flex h-9 items-center gap-2 rounded-md border border-[#d8c8bd] bg-white px-3 text-sm font-medium text-[#211f1c] lg:hidden"
+              aria-expanded={mobileMenuOpen}
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+            >
+              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              Menu
+            </button>
             <button
               type="button"
               onClick={() => setSidebarCompact((current) => !current)}
@@ -3519,7 +3531,7 @@ export default function SistemaMacaroca() {
             </button>
           </div>
 
-          <nav className={`grid gap-5 p-4 ${sidebarCompact ? 'lg:px-3' : ''}`}>
+          <nav className={`${mobileMenuOpen ? 'grid' : 'hidden'} gap-5 p-4 lg:grid ${sidebarCompact ? 'lg:px-3' : ''}`}>
             {visibleNavGroups.map((group) => (
               <div key={group.title}>
                 <p className={`mb-2 px-2 text-[11px] font-semibold uppercase text-black/35 ${sidebarCompact ? 'lg:text-center lg:text-[9px] lg:tracking-[0.08em]' : ''}`}>
@@ -3530,7 +3542,10 @@ export default function SistemaMacaroca() {
                     <button
                       key={item.key}
                       type="button"
-                      onClick={() => setActiveArea(item.key)}
+                      onClick={() => {
+                        setActiveArea(item.key)
+                        setMobileMenuOpen(false)
+                      }}
                       className={`flex h-11 items-center gap-3 rounded-md px-3 text-left text-sm transition ${
                         activeArea === item.key
                           ? 'bg-[#211f1c] text-white shadow-[0_10px_20px_rgba(33,31,28,0.14)]'
@@ -3551,15 +3566,15 @@ export default function SistemaMacaroca() {
         </aside>
 
         <main className="min-w-0">
-          <header className="border-b border-[#e5d7cd] bg-[#fffdfa]/95 px-5 py-4 md:px-8">
+          <header className="border-b border-[#e5d7cd] bg-[#fffdfa]/95 px-4 py-3 md:px-8 md:py-4">
             <div className="mx-auto flex max-w-[1180px] flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex min-w-0 items-center gap-4">
                 <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[#211f1c] p-2 sm:flex">
                   <img src={companyLogo} alt={state.company.name} className="max-h-full max-w-full object-contain" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm text-black/50">{pageIntro[activeArea].description}</p>
-                  <h1 className="mt-1 font-serif text-3xl leading-tight md:text-[2.35rem]">{pageIntro[activeArea].title}</h1>
+                  <p className="hidden text-sm text-black/50 sm:block">{pageIntro[activeArea].description}</p>
+                  <h1 className="text-xl font-semibold leading-tight md:mt-1 md:font-serif md:text-[2.35rem]">{pageIntro[activeArea].title}</h1>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 md:justify-end">
@@ -3620,8 +3635,8 @@ export default function SistemaMacaroca() {
             </div>
           </header>
 
-          <div className="mx-auto max-w-[1180px] px-5 py-6 md:px-8">
-            <div className="mb-6 rounded-md border border-[#eadbd2] bg-[#fff7f3] px-4 py-3 text-sm text-[#5a3c37]">
+          <div className="mx-auto max-w-[1180px] px-4 py-4 md:px-8 md:py-6">
+            <div className="mb-3 rounded-md border border-[#eadbd2] bg-[#fff7f3] px-3 py-2 text-sm text-[#5a3c37] md:mb-6 md:px-4 md:py-3">
               {message}
             </div>
 
@@ -3679,26 +3694,6 @@ export default function SistemaMacaroca() {
             {activeArea === 'plano-geral' && (
               <section className="grid gap-5">
                 <section className="grid gap-3 md:hidden">
-                  <div className="rounded-md border border-[#d8c8bd] bg-white p-3 shadow-[0_8px_18px_rgba(49,35,30,0.04)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-black/42">
-                          Administrativo
-                        </span>
-                        <h2 className="mt-1 text-xl font-semibold leading-tight">Visão rápida</h2>
-                      </div>
-                      {canAccessArea('pedido-guiado') && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveArea('pedido-guiado')}
-                          className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white"
-                        >
-                          Nova venda
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-2">
                     <PocketMetric
                       label="Pedidos pendentes"
@@ -3724,6 +3719,27 @@ export default function SistemaMacaroca() {
                       detail={canSeeMoney ? 'Recebido este mês' : 'Admin/Financeiro'}
                       tone="green"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {canAccessArea('pedido-guiado') && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveArea('pedido-guiado')}
+                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white"
+                      >
+                        Nova venda
+                      </button>
+                    )}
+                    {canAccessArea('producao-guiada') && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveArea('producao-guiada')}
+                        className="inline-flex h-10 items-center justify-center rounded-md border border-[#d8c8bd] bg-white px-3 text-sm font-medium"
+                      >
+                        Produzi hoje
+                      </button>
+                    )}
                   </div>
 
                   <MobileSummaryPanel
