@@ -107,12 +107,12 @@
     letter-spacing: 0;
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
-    background: #f7f3ee;
+    background: #f8fafc;
   }
 
   ::selection {
-    background: #ead2cb;
-    color: #211f1c;
+    background: #dbeafe;
+    color: #111827;
   }
 
   .macaroca-system input,
@@ -122,8 +122,8 @@
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
-    border-color: #e5d7cd;
-    background-color: #fffdfa;
+    border-color: #e5e7eb;
+    background-color: #ffffff;
   }
 
   .macaroca-system label,
@@ -137,12 +137,25 @@
   .macaroca-system input:focus,
   .macaroca-system select:focus,
   .macaroca-system textarea:focus {
-    border-color: #b88f82;
+    border-color: #4f46e5;
     background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
   }
 
   .macaroca-system summary::marker {
-    color: #7f3442;
+    color: #312e81;
+  }
+
+  .macaroca-system table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .macaroca-system th {
+    color: #64748b;
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 }
 

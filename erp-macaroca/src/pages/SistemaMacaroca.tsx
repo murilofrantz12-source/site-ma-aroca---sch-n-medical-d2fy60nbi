@@ -1234,7 +1234,7 @@ const colorPreview = (color: string) => {
   if (normalized.includes('rosa')) return '#d9a2ad'
   if (normalized.includes('bege') || normalized.includes('nude')) return '#d9c0a3'
   if (normalized.includes('cinza')) return '#8a8a8a'
-  return '#d8c8bd'
+  return '#d1d5db'
 }
 
 const allAreas: Area[] = [
@@ -3557,8 +3557,8 @@ export default function SistemaMacaroca() {
 
   if (!loggedUser) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#f7f3ee] px-5 text-[#211f1c]">
-        <div className="w-full max-w-md rounded-lg border border-[#d9c7bd] bg-[#fffdfa] p-7 shadow-[0_22px_60px_rgba(49,35,30,0.10)]">
+      <div className="grid min-h-screen place-items-center bg-[#f8fafc] px-5 text-[#111827]">
+        <div className="w-full max-w-md rounded-lg border border-[#d9c7bd] bg-[#ffffff] p-7 shadow-[0_22px_60px_rgba(49,35,30,0.10)]">
           <div className="mb-7 flex items-center gap-4">
             <img src={companyLogo} alt={state.company.name} className="h-16 w-auto rounded-md object-contain" />
             <div>
@@ -3580,7 +3580,7 @@ export default function SistemaMacaroca() {
                 type="password"
                 value={loginPassword}
                 onChange={(event) => setLoginPassword(event.target.value)}
-                className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
               />
             </label>
             {loginError && (
@@ -3590,7 +3590,7 @@ export default function SistemaMacaroca() {
             )}
             <button
               type="submit"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white shadow-[0_10px_24px_rgba(33,31,28,0.18)] transition hover:bg-[#7f3442]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white shadow-[0_10px_24px_rgba(33,31,28,0.18)] transition hover:bg-[#3730a3]"
             >
               Acessar sistema
               <ArrowRight className="h-4 w-4" />
@@ -3605,7 +3605,7 @@ export default function SistemaMacaroca() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f3ee] text-[#211f1c]">
+    <div className="min-h-screen bg-[#f8fafc] text-[#111827]">
       <style>
         {`
           .document-print-sheet { display: none; }
@@ -3657,9 +3657,9 @@ export default function SistemaMacaroca() {
         />
       )}
       <div className={`macaroca-system grid min-h-screen transition-[grid-template-columns] duration-300 ${sidebarCompact ? 'lg:grid-cols-[88px_minmax(0,_1fr)]' : 'lg:grid-cols-[292px_minmax(0,_1fr)]'}`}>
-        <aside className="border-b border-[#e5d7cd] bg-[#fffaf5] transition-all duration-300 lg:border-b-0 lg:border-r">
-          <div className={`flex items-center gap-3 border-b border-[#eadfd6] px-4 py-3 lg:px-5 lg:py-5 ${sidebarCompact ? 'lg:flex-col lg:px-3' : ''}`}>
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-[#211f1c] p-1.5 shadow-[0_10px_24px_rgba(33,31,28,0.12)] lg:h-16 lg:w-16 lg:p-2">
+        <aside className="border-b border-[#e5e7eb] bg-white transition-all duration-300 lg:border-b-0 lg:border-r">
+          <div className={`flex items-center gap-3 border-b border-[#e5e7eb] px-4 py-3 lg:px-5 lg:py-5 ${sidebarCompact ? 'lg:flex-col lg:px-3' : ''}`}>
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-[#111827] p-1.5 shadow-[0_10px_24px_rgba(33,31,28,0.12)] lg:h-16 lg:w-16 lg:p-2">
               <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
             </div>
             <div className={sidebarCompact ? 'lg:hidden' : ''}>
@@ -3669,7 +3669,7 @@ export default function SistemaMacaroca() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen((current) => !current)}
-              className="ml-auto inline-flex h-9 items-center gap-2 rounded-md border border-[#d8c8bd] bg-white px-3 text-sm font-medium text-[#211f1c] lg:hidden"
+              className="ml-auto inline-flex h-9 items-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#111827] lg:hidden"
               aria-expanded={mobileMenuOpen}
               aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
             >
@@ -3679,7 +3679,7 @@ export default function SistemaMacaroca() {
             <button
               type="button"
               onClick={() => setSidebarCompact((current) => !current)}
-              className={`ml-auto hidden h-9 w-9 items-center justify-center rounded-md border border-[#e5d7cd] bg-white text-[#5f4a42] transition hover:border-[#c8ad9f] lg:inline-flex ${sidebarCompact ? 'lg:ml-0' : ''}`}
+              className={`ml-auto hidden h-9 w-9 items-center justify-center rounded-md border border-[#e5e7eb] bg-white text-[#4b5563] transition hover:border-[#9ca3af] lg:inline-flex ${sidebarCompact ? 'lg:ml-0' : ''}`}
               aria-label={sidebarCompact ? 'Abrir menu lateral' : 'Recolher menu lateral'}
               title={sidebarCompact ? 'Abrir menu' : 'Recolher menu'}
             >
@@ -3690,7 +3690,7 @@ export default function SistemaMacaroca() {
           <nav className={`${mobileMenuOpen ? 'grid' : 'hidden'} gap-5 p-4 lg:grid ${sidebarCompact ? 'lg:px-3' : ''}`}>
             {visibleNavGroups.map((group) => (
               <div key={group.title}>
-                <p className={`mb-2 px-2 text-[11px] font-semibold uppercase text-black/35 ${sidebarCompact ? 'lg:text-center lg:text-[9px] lg:tracking-[0.08em]' : ''}`}>
+                <p className={`mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 ${sidebarCompact ? 'lg:text-center lg:text-[9px] lg:tracking-[0.08em]' : ''}`}>
                   {group.title}
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1">
@@ -3704,8 +3704,8 @@ export default function SistemaMacaroca() {
                       }}
                       className={`flex h-11 items-center gap-3 rounded-md px-3 text-left text-sm transition ${
                         activeArea === item.key
-                          ? 'bg-[#211f1c] text-white shadow-[0_10px_20px_rgba(33,31,28,0.14)]'
-                          : 'text-black/62 hover:bg-[#f1e7df] hover:text-[#211f1c]'
+                          ? 'bg-[#312e81] text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
                       } ${sidebarCompact ? 'lg:justify-center lg:px-0' : ''}`}
                       title={sidebarCompact ? item.label : undefined}
                     >
@@ -3722,20 +3722,20 @@ export default function SistemaMacaroca() {
         </aside>
 
         <main className="min-w-0">
-          <header className="border-b border-[#e5d7cd] bg-[#fffdfa]/95 px-4 py-3 md:px-8 md:py-4">
-            <div className="mx-auto flex max-w-[1180px] flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <header className="sticky top-0 z-20 border-b border-[#e5e7eb] bg-white/95 px-4 py-3 backdrop-blur md:px-8 md:py-4">
+            <div className="mx-auto flex max-w-[1220px] flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex min-w-0 items-center gap-4">
-                <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[#211f1c] p-2 sm:flex">
+                <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[#111827] p-2 sm:flex">
                   <img src={companyLogo} alt={state.company.name} className="max-h-full max-w-full object-contain" />
                 </div>
                 <div className="min-w-0">
-                  <p className="hidden text-sm text-black/50 sm:block">{pageIntro[activeArea].description}</p>
-                  <h1 className="text-xl font-semibold leading-tight md:mt-1 md:font-serif md:text-[2.35rem]">{pageIntro[activeArea].title}</h1>
+                  <p className="hidden text-sm text-slate-500 sm:block">{pageIntro[activeArea].description}</p>
+                  <h1 className="text-xl font-semibold leading-tight tracking-tight md:mt-1 md:text-[2rem]">{pageIntro[activeArea].title}</h1>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                <div className="flex h-9 items-center gap-2 rounded-md border border-[#e5d7cd] bg-[#fffaf5] px-2.5 text-sm">
-                  <ShieldCheck className="h-4 w-4 text-[#8f3f4c]" />
+                <div className="flex h-9 items-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2.5 text-sm">
+                  <ShieldCheck className="h-4 w-4 text-[#3730a3]" />
                   <span className="hidden text-black/55 xl:inline">{currentUserName}</span>
                   <strong>{userRole}</strong>
                 </div>
@@ -3756,7 +3756,7 @@ export default function SistemaMacaroca() {
                   <button
                     type="button"
                     onClick={() => setActiveArea('notas')}
-                    className="inline-flex h-9 items-center gap-2 rounded-md bg-[#7f3442] px-2.5 text-sm font-medium text-white shadow-[0_8px_18px_rgba(127,52,66,0.14)] transition hover:bg-[#6e2b38]"
+                    className="inline-flex h-9 items-center gap-2 rounded-md bg-[#312e81] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3]"
                   >
                     <FileText className="h-4 w-4" />
                     Compra
@@ -3766,7 +3766,7 @@ export default function SistemaMacaroca() {
                   <button
                     type="button"
                     onClick={() => setActiveArea('pedido-guiado')}
-                    className="inline-flex h-9 items-center gap-2 rounded-md bg-[#211f1c] px-2.5 text-sm font-medium text-white shadow-[0_8px_18px_rgba(33,31,28,0.12)] transition hover:bg-[#7f3442]"
+                    className="inline-flex h-9 items-center gap-2 rounded-md bg-[#111827] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3]"
                   >
                     <Plus className="h-4 w-4" />
                     Nova venda
@@ -3775,7 +3775,7 @@ export default function SistemaMacaroca() {
                 <button
                   type="button"
                   onClick={() => setActiveArea('configuracoes')}
-                  className="inline-flex h-9 items-center gap-2 rounded-md border border-[#e5d7cd] bg-[#fffaf5] px-2.5 text-sm font-medium transition hover:border-[#c8ad9f] hover:bg-white"
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2.5 text-sm font-medium transition hover:border-[#9ca3af] hover:bg-white"
                 >
                   <ShieldCheck className="h-4 w-4" />
                   Conta
@@ -3783,7 +3783,7 @@ export default function SistemaMacaroca() {
                 <button
                   type="button"
                   onClick={logout}
-                  className="inline-flex h-9 items-center gap-2 rounded-md border border-[#e5d7cd] bg-[#fffaf5] px-2.5 text-sm font-medium transition hover:border-[#c8ad9f] hover:bg-white"
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2.5 text-sm font-medium transition hover:border-[#9ca3af] hover:bg-white"
                 >
                   Sair
                 </button>
@@ -3791,17 +3791,17 @@ export default function SistemaMacaroca() {
             </div>
           </header>
 
-          <div className="mx-auto max-w-[1180px] px-4 py-4 md:px-8 md:py-6">
-            <div className="mb-3 rounded-md border border-[#eadbd2] bg-[#fff7f3] px-3 py-2 text-sm text-[#5a3c37] md:mb-6 md:px-4 md:py-3">
+          <div className="mx-auto max-w-[1220px] px-4 py-4 md:px-8 md:py-6">
+            <div className="mb-3 rounded-md border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-slate-600 md:mb-6 md:px-4 md:py-3">
               {message}
             </div>
 
             {activeArea === 'inicio' && (
               <section className="grid gap-5">
-                <section className="overflow-hidden rounded-lg border border-[#e5d7cd] bg-[#fffdfa] shadow-[0_12px_34px_rgba(49,35,30,0.045)]">
-                  <div className="grid gap-4 border-b border-[#eadfd6] bg-[#fffaf5] p-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-stretch">
+                <section className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-[#ffffff] shadow-[0_12px_34px_rgba(49,35,30,0.045)]">
+                  <div className="grid gap-4 border-b border-[#e5e7eb] bg-[#ffffff] p-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-stretch">
                     <div className="flex min-w-0 items-center gap-4">
-                      <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#211f1c] p-2">
+                      <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#111827] p-2">
                         <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
                       </div>
                       <div className="min-w-0">
@@ -3814,18 +3814,18 @@ export default function SistemaMacaroca() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid gap-2 rounded-md border border-[#eadfd6] bg-white p-3 text-sm text-black/58 sm:grid-cols-3 lg:grid-cols-1">
+                    <div className="grid gap-2 rounded-md border border-[#e5e7eb] bg-white p-3 text-sm text-black/58 sm:grid-cols-3 lg:grid-cols-1">
                       <div>
                         <span className="block text-xs uppercase text-black/35">Usuário</span>
-                        <strong className="text-[#211f1c]">{currentUserName}</strong>
+                        <strong className="text-[#111827]">{currentUserName}</strong>
                       </div>
                       <div>
                         <span className="block text-xs uppercase text-black/35">Hoje</span>
-                        <strong className="text-[#211f1c]">{new Date().toLocaleDateString('pt-BR')}</strong>
+                        <strong className="text-[#111827]">{new Date().toLocaleDateString('pt-BR')}</strong>
                       </div>
                       <div>
                         <span className="block text-xs uppercase text-black/35">Sincronização</span>
-                        <strong className="text-[#211f1c]">{syncStatus}</strong>
+                        <strong className="text-[#111827]">{syncStatus}</strong>
                       </div>
                     </div>
                   </div>
@@ -3882,7 +3882,7 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={() => setActiveArea('pedido-guiado')}
-                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white"
+                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-3 text-sm font-medium text-white"
                       >
                         Nova venda
                       </button>
@@ -3891,7 +3891,7 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={() => setActiveArea('producao-guiada')}
-                        className="inline-flex h-10 items-center justify-center rounded-md border border-[#d8c8bd] bg-white px-3 text-sm font-medium"
+                        className="inline-flex h-10 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium"
                       >
                         Produzi hoje
                       </button>
@@ -3907,10 +3907,10 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={() => setActiveArea('vendas')}
-                        className="rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 py-2.5 text-left"
+                        className="rounded-md border border-[#d1d5db] bg-[#ffffff] px-3 py-2.5 text-left"
                       >
-                        <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#7f3442]">Mais atrasado / mais próximo</span>
-                        <strong className="mt-1 block text-sm text-[#211f1c]">
+                        <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#3730a3]">Mais atrasado / mais próximo</span>
+                        <strong className="mt-1 block text-sm text-[#111827]">
                           {oldestPendingOrder.id} · {oldestPendingOrder.client}
                         </strong>
                         <span className="mt-1 block text-sm text-black/55">
@@ -3976,7 +3976,7 @@ export default function SistemaMacaroca() {
                   </MobileSummaryPanel>
                 </section>
 
-                <section className="hidden overflow-hidden rounded-lg border border-[#2f2b27] bg-[#211f1c] text-white shadow-[0_18px_44px_rgba(33,31,28,0.14)] md:block">
+                <section className="hidden overflow-hidden rounded-lg border border-[#2f2b27] bg-[#111827] text-white shadow-[0_18px_44px_rgba(33,31,28,0.14)] md:block">
                   <div className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:p-6">
                     <div className="min-w-0">
                       <span className="text-sm text-white/58">Resumo para acompanhar pelo celular</span>
@@ -4066,7 +4066,7 @@ export default function SistemaMacaroca() {
                         const product = state.products.find((item) => item.id === op.productId)
                         const remaining = Math.max(0, op.qty - op.produced)
                         return (
-                          <div key={op.id} className="rounded-md border border-[#eee3dc] bg-[#fffaf5] px-3 py-3">
+                          <div key={op.id} className="rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-3">
                             <div className="flex flex-wrap items-center gap-2">
                               <strong className="text-sm">{op.id}</strong>
                               <StatusBadge tone={opStatusTone(op.status)}>{op.status}</StatusBadge>
@@ -4170,7 +4170,7 @@ export default function SistemaMacaroca() {
                                     : null
 
                         return (
-                          <div key={order.id} className="rounded-md border border-[#e8ddd5] bg-[#fffaf5] p-4">
+                          <div key={order.id} className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -4187,8 +4187,8 @@ export default function SistemaMacaroca() {
                                   <MiniStat label="Falta" value={`${missingQty} un`} tone={missingQty > 0 ? 'rose' : 'green'} />
                                   {canSeeMoney && <MiniStat label="Venda" value={money(unitPrice * order.qty)} tone="green" />}
                                 </div>
-                                <details className="mt-3 rounded-md border border-[#eadfd6] bg-[#fffdfa] p-3">
-                                  <summary className="cursor-pointer text-sm font-medium text-[#7f3442]">Ver detalhes da venda</summary>
+                                <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
+                                  <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">Ver detalhes da venda</summary>
                                   <div className="mt-3 grid gap-1 text-sm text-black/55">
                                     <span>Telefone: {order.phone || 'Não informado'}</span>
                                     <span>Cidade: {order.city || 'Não informada'}</span>
@@ -4206,13 +4206,13 @@ export default function SistemaMacaroca() {
                               </div>
                               <div className="grid min-w-[180px] gap-2">
                                 {nextAction && (
-                                  <div className="rounded-md border border-[#211f1c]/10 bg-white p-3">
+                                  <div className="rounded-md border border-[#111827]/10 bg-white p-3">
                                     <span className="text-xs font-medium uppercase text-black/40">Próxima ação</span>
                                     <p className="mt-1 text-sm leading-5 text-black/60">{nextAction.detail}</p>
                                     <button
                                       type="button"
                                       onClick={nextAction.onClick}
-                                      className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white transition hover:bg-[#7f3442]"
+                                      className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#111827] px-3 text-sm font-medium text-white transition hover:bg-[#3730a3]"
                                     >
                                       {nextAction.label}
                                     </button>
@@ -4221,26 +4221,26 @@ export default function SistemaMacaroca() {
                                 <button
                                   type="button"
                                   onClick={() => setPreviewOrderId(order.id)}
-                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9b8b0] bg-[#fff2ef] px-3 text-sm font-medium text-[#3a2528]"
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-3 text-sm font-medium text-[#1f2937]"
                                 >
                                   <ReceiptText className="h-4 w-4" />
                                   Ver pedido
                                 </button>
                                 {canSeeMoney && (
-                                  <label className="grid gap-1 rounded-md border border-[#e5d7cd] bg-white p-2">
+                                  <label className="grid gap-1 rounded-md border border-[#e5e7eb] bg-white p-2">
                                     <FieldLabel>Preço por peça</FieldLabel>
                                     <input
                                       type="number"
                                       value={Math.round(unitPrice)}
                                       onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
-                                      className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                      className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
                                     />
                                   </label>
                                 )}
                                 <button
                                   type="button"
                                   onClick={() => setActiveArea('pedido-guiado')}
-                                  className="inline-flex h-10 items-center justify-center rounded-md border border-[#e5d7cd] bg-white px-3 text-sm font-medium"
+                                  className="inline-flex h-10 items-center justify-center rounded-md border border-[#e5e7eb] bg-white px-3 text-sm font-medium"
                                 >
                                   Nova venda
                                 </button>
@@ -4312,7 +4312,7 @@ export default function SistemaMacaroca() {
                       const timeline = orderTimeline(state, order)
 
                       return (
-                        <div key={order.id} className="rounded-md border border-[#e8ddd5] bg-[#fffaf5] p-4">
+                        <div key={order.id} className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
@@ -4329,8 +4329,8 @@ export default function SistemaMacaroca() {
                                 <MiniStat label="Separar" value={`${order.qty} un`} />
                                 <MiniStat label="Cliente" value={order.city || 'Sem cidade'} />
                               </div>
-                              <details className="mt-3 rounded-md border border-[#eadfd6] bg-[#fffdfa] p-3">
-                                <summary className="cursor-pointer text-sm font-medium text-[#7f3442]">
+                              <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
+                                <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">
                                   Conferir dados da entrega
                                 </summary>
                                 <div className="mt-3 grid gap-1 text-sm text-black/55">
@@ -4350,7 +4350,7 @@ export default function SistemaMacaroca() {
                             </div>
 
                             <div className="grid min-w-[220px] gap-2">
-                              <div className="rounded-md border border-[#211f1c]/10 bg-white p-3">
+                              <div className="rounded-md border border-[#111827]/10 bg-white p-3">
                                 <span className="text-xs font-medium uppercase text-black/40">Próxima ação</span>
                                 <p className="mt-1 text-sm leading-5 text-black/60">
                                   {canDeliver
@@ -4361,7 +4361,7 @@ export default function SistemaMacaroca() {
                                   type="button"
                                   onClick={() => updateOrderStatus(order.id, 'Entregue')}
                                   disabled={!canDeliver}
-                                  className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white transition hover:bg-[#7f3442] disabled:cursor-not-allowed disabled:opacity-45"
+                                  className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#111827] px-3 text-sm font-medium text-white transition hover:bg-[#3730a3] disabled:cursor-not-allowed disabled:opacity-45"
                                 >
                                   Registrar entrega
                                 </button>
@@ -4369,7 +4369,7 @@ export default function SistemaMacaroca() {
                               <button
                                 type="button"
                                 onClick={() => setPreviewOrderId(order.id)}
-                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9b8b0] bg-[#fff2ef] px-3 text-sm font-medium text-[#3a2528]"
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-3 text-sm font-medium text-[#1f2937]"
                               >
                                 <ReceiptText className="h-4 w-4" />
                                 Ver pedido
@@ -4380,15 +4380,15 @@ export default function SistemaMacaroca() {
                       )
                     })}
                     {!salesFlow.ready.length && (
-                      <div className="rounded-md border border-dashed border-[#d8c8bd] bg-[#fffaf5] p-6 text-sm text-black/55">
-                        <strong className="block text-[#211f1c]">Nenhum pedido pronto para entregar</strong>
+                      <div className="rounded-md border border-dashed border-[#d1d5db] bg-[#ffffff] p-6 text-sm text-black/55">
+                        <strong className="block text-[#111827]">Nenhum pedido pronto para entregar</strong>
                         <span className="mt-1 block">
                           Quando uma produção for finalizada ou uma venda for separada do estoque, ela aparece aqui.
                         </span>
                         <button
                           type="button"
                           onClick={() => setActiveArea('vendas')}
-                          className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                          className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                         >
                           Ver vendas em aberto
                         </button>
@@ -4425,7 +4425,7 @@ export default function SistemaMacaroca() {
                         const missingQty = stockPosition.toProduce
 
                         return (
-                          <div key={order.id} className="rounded-md border border-[#e8ddd5] bg-[#fffaf5] p-4">
+                          <div key={order.id} className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                               <div>
                                 <div className="flex flex-wrap items-center gap-2">
@@ -4447,7 +4447,7 @@ export default function SistemaMacaroca() {
                                 <button
                                   type="button"
                                   onClick={() => openProductionDecision(order)}
-                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                                 >
                                   Analisar produção
                                 </button>
@@ -4486,7 +4486,7 @@ export default function SistemaMacaroca() {
                 <Panel title="Necessidade por produto">
                   <div className="grid gap-3">
                     {productionNeedRows.map((row) => (
-                      <div key={row.product.id} className="grid gap-3 rounded-md border border-[#e8ddd5] bg-[#fffaf5] p-4 md:grid-cols-[1fr_auto] md:items-center">
+                      <div key={row.product.id} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 md:grid-cols-[1fr_auto] md:items-center">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <strong>{row.product.code} · {row.product.name}</strong>
@@ -4503,7 +4503,7 @@ export default function SistemaMacaroca() {
                             setStockOpQty(Math.max(1, row.toProduce))
                             setActiveArea('producao')
                           }}
-                          className="inline-flex h-10 items-center justify-center rounded-md border border-[#e5d7cd] bg-white px-4 text-sm font-medium"
+                          className="inline-flex h-10 items-center justify-center rounded-md border border-[#e5e7eb] bg-white px-4 text-sm font-medium"
                         >
                           Abrir ordem
                         </button>
@@ -4670,7 +4670,7 @@ export default function SistemaMacaroca() {
                           type="password"
                           value={currentPassword}
                           onChange={(event) => setCurrentPassword(event.target.value)}
-                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                         />
                       </label>
                       <label className="grid gap-2">
@@ -4679,7 +4679,7 @@ export default function SistemaMacaroca() {
                           type="password"
                           value={newAccountPassword}
                           onChange={(event) => setNewAccountPassword(event.target.value)}
-                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                         />
                       </label>
                       <label className="grid gap-2">
@@ -4688,13 +4688,13 @@ export default function SistemaMacaroca() {
                           type="password"
                           value={confirmAccountPassword}
                           onChange={(event) => setConfirmAccountPassword(event.target.value)}
-                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                         />
                       </label>
                       <button
                         type="button"
                         onClick={updateOwnPassword}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                       >
                         Salvar nova senha
                       </button>
@@ -4721,7 +4721,7 @@ export default function SistemaMacaroca() {
                                 type="file"
                                 accept="image/*"
                                 onChange={(event) => uploadCompanyLogo(event.target.files?.[0])}
-                                className="h-11 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#211f1c] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+                                className="h-11 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#111827] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
                               />
                             </label>
                           </div>
@@ -4732,7 +4732,7 @@ export default function SistemaMacaroca() {
                               value={state.company.budgetDefaultText}
                               onChange={(event) => updateCompanySetting('budgetDefaultText', event.target.value)}
                               rows={3}
-                              className="min-h-24 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#b88f82] focus:bg-white"
+                              className="min-h-24 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#4f46e5] focus:bg-white"
                             />
                           </label>
 
@@ -4748,19 +4748,19 @@ export default function SistemaMacaroca() {
                                 value={state.company.budgetDefaultNotes}
                                 onChange={(event) => updateCompanySetting('budgetDefaultNotes', event.target.value)}
                                 rows={3}
-                                className="min-h-24 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#b88f82] focus:bg-white"
+                                className="min-h-24 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#4f46e5] focus:bg-white"
                               />
                             </label>
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-[#eadbd2] bg-[#fffaf5] p-4">
+                        <div className="rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-4">
                           <span className="text-xs font-medium uppercase tracking-[0.08em] text-black/45">Prévia</span>
-                          <div className="mt-3 flex h-28 items-center justify-center rounded-md border border-[#e5d7cd] bg-white p-4">
+                          <div className="mt-3 flex h-28 items-center justify-center rounded-md border border-[#e5e7eb] bg-white p-4">
                             <img src={companyLogo} alt={state.company.name} className="max-h-full max-w-full object-contain" />
                           </div>
                           <div className="mt-4 grid gap-1 text-sm text-black/62">
-                            <strong className="text-[#211f1c]">{state.company.name}</strong>
+                            <strong className="text-[#111827]">{state.company.name}</strong>
                             <span>{state.company.phone}</span>
                             <span>{state.company.address}</span>
                             <span>Orçamento válido por {state.company.budgetValidityDays} dia(s).</span>
@@ -4768,7 +4768,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={() => updateCompanySetting('logoUrl', '')}
-                            className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-md border border-[#e0cec2] bg-white px-3 text-sm font-medium text-[#5f4a42]"
+                            className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#4b5563]"
                           >
                             Usar logo padrão Maçaroca
                           </button>
@@ -4778,7 +4778,7 @@ export default function SistemaMacaroca() {
 
                     <Panel title="Backup e exportação">
                       <div className="grid gap-5">
-                        <div className="rounded-md border border-[#eadbd2] bg-[#fffaf5] p-4">
+                        <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                           <div className="flex flex-wrap items-center gap-2">
                             <StatusBadge tone={syncStatus === 'Compartilhado' ? 'green' : syncStatus === 'Salvando' ? 'blue' : 'amber'}>
                               {syncStatus}
@@ -4806,7 +4806,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={exportBackupJson}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                           >
                             <FileText className="h-4 w-4" />
                             Exportar JSON
@@ -4814,7 +4814,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={exportBackupCsv}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#e0cec2] bg-white px-4 text-sm font-medium text-[#5f4a42]"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium text-[#4b5563]"
                           >
                             <ReceiptText className="h-4 w-4" />
                             Exportar CSV
@@ -4858,8 +4858,8 @@ export default function SistemaMacaroca() {
                           </select>
                         </label>
                         {selectedCustomer && (
-                          <div className="grid gap-1 rounded-md border border-black/10 bg-[#fbfbfa] p-4 text-sm text-black/60">
-                            <strong className="text-[#211f1c]">{selectedCustomer.name}</strong>
+                          <div className="grid gap-1 rounded-md border border-black/10 bg-[#f9fafb] p-4 text-sm text-black/60">
+                            <strong className="text-[#111827]">{selectedCustomer.name}</strong>
                             <span>{selectedCustomer.phone}</span>
                             <span>{selectedCustomer.city}</span>
                             <span>{selectedCustomer.notes}</span>
@@ -4868,7 +4868,7 @@ export default function SistemaMacaroca() {
                         <button
                           type="button"
                           onClick={() => setGuidedOrderStep(2)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                         >
                           Próximo: escolher peça
                           <ArrowRight className="h-4 w-4" />
@@ -4908,8 +4908,8 @@ export default function SistemaMacaroca() {
                             ))}
                           </select>
                         </label>
-                        <div className="rounded-md border border-black/10 bg-[#fbfbfa] p-4 text-sm text-black/60">
-                          <strong className="block text-[#211f1c]">
+                        <div className="rounded-md border border-black/10 bg-[#f9fafb] p-4 text-sm text-black/60">
+                          <strong className="block text-[#111827]">
                             {selectedProduct.code} · {productDisplayName(selectedProduct, activeVariationId)}
                           </strong>
                           <span className="mt-1 block">{selectedVariation?.measurements || selectedProduct.description}</span>
@@ -4928,7 +4928,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={() => setGuidedOrderStep(3)}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                           >
                             Próximo: preço e prazo
                             <ArrowRight className="h-4 w-4" />
@@ -4947,14 +4947,14 @@ export default function SistemaMacaroca() {
                           <SoftInput label="Prazo" value={orderDueDate} onChange={setOrderDueDate} />
                         </div>
                         {canSeeMoney && (
-                          <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+                          <div className="grid gap-3 rounded-md border border-[#d1d5db] bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
                             <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
                             <ReadOnlyField label="Preço da tabela" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
                             <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
                             <button
                               type="button"
                               onClick={() => setOrderUnitPriceInput(Math.round(selectedOrderPrice))}
-                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
+                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-[#ffffff] px-3 text-sm font-medium"
                             >
                               {selectedSalePrice ? 'Usar tabela' : 'Usar sugerido'}
                             </button>
@@ -4984,7 +4984,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={() => setGuidedOrderStep(4)}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                           >
                             Conferir pedido
                             <ArrowRight className="h-4 w-4" />
@@ -5006,7 +5006,7 @@ export default function SistemaMacaroca() {
                           <MiniRow title="Prazo" detail={formatDate(orderDueDate)} />
                         </div>
                         {orderNotes && <MiniRow title="Observação" detail={orderNotes} />}
-                        <div className="rounded-md border border-[#8f3f4c]/20 bg-[#f6ecec] p-4 text-sm text-[#3a2528]">
+                        <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-4 text-sm text-[#1f2937]">
                           {orderDocumentType === 'Pedido'
                             ? 'Ao confirmar, o sistema registra o pedido e leva para o PCP conferir estoque antes de criar produção.'
                             : 'Ao confirmar, o sistema salva apenas o orçamento. Ele não mexe no financeiro nem cria produção até virar pedido.'}
@@ -5022,7 +5022,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={createGuidedOrder}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                           >
                             {orderDocumentType === 'Pedido' ? 'Registrar pedido e ir para PCP' : 'Salvar orçamento'}
                             <ArrowRight className="h-4 w-4" />
@@ -5087,7 +5087,7 @@ export default function SistemaMacaroca() {
                         <button
                           type="button"
                           onClick={() => setGuidedProductionStep(2)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                         >
                           Próximo: quantidade pronta
                           <ArrowRight className="h-4 w-4" />
@@ -5119,7 +5119,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={() => setGuidedProductionStep(3)}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                           >
                             Conferir baixa de matéria-prima
                             <ArrowRight className="h-4 w-4" />
@@ -5154,7 +5154,7 @@ export default function SistemaMacaroca() {
                             ))}
                           </div>
                         ) : (
-                          <div className="rounded-md border border-[#8f3f4c]/20 bg-[#f6ecec] p-4 text-sm text-[#3a2528]">
+                          <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-4 text-sm text-[#1f2937]">
                             Matéria-prima suficiente. Ao salvar, o sistema baixa esses materiais e entra produto acabado no estoque.
                           </div>
                         )}
@@ -5170,7 +5170,7 @@ export default function SistemaMacaroca() {
                             type="button"
                             onClick={() => setGuidedProductionStep(4)}
                             disabled={!!guidedMissingMaterials.length}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white disabled:opacity-40"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
                           >
                             Próximo: salvar produção
                             <ArrowRight className="h-4 w-4" />
@@ -5189,7 +5189,7 @@ export default function SistemaMacaroca() {
                           <MiniRow title="Quantidade pronta" detail={`${guidedLaunchQty} un`} />
                           <MiniRow title="Responsável" detail={currentUserName} />
                         </div>
-                        <div className="rounded-md border border-[#8f3f4c]/20 bg-[#f6ecec] p-4 text-sm text-[#3a2528]">
+                        <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-4 text-sm text-[#1f2937]">
                           Depois de salvar, o histórico da ordem recebe esse registro e o estoque é atualizado.
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -5203,7 +5203,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={saveGuidedProduction}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                           >
                             Salvar produção
                             <ArrowRight className="h-4 w-4" />
@@ -5254,7 +5254,7 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={createProduct}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                       >
                         <Plus className="h-4 w-4" />
                         Criar
@@ -5265,7 +5265,7 @@ export default function SistemaMacaroca() {
                   <div className="grid gap-3 lg:grid-cols-[160px_1fr_1fr_1fr]">
                     <div className="grid gap-2">
                       <FieldLabel>Código interno</FieldLabel>
-                      <div className="flex h-11 items-center rounded-md border border-black/10 bg-[#fbfbfa] px-3 text-sm font-semibold">
+                      <div className="flex h-11 items-center rounded-md border border-black/10 bg-[#f9fafb] px-3 text-sm font-semibold">
                         {selectedProduct.code}
                       </div>
                     </div>
@@ -5317,7 +5317,7 @@ export default function SistemaMacaroca() {
                     />
                   </div>
 
-                  <div className="mt-5 grid gap-4 rounded-md border border-[#8f3f4c]/20 bg-[#fbf1f2] p-4">
+                  <div className="mt-5 grid gap-4 rounded-md border border-[#3730a3]/20 bg-[#f9fafb] p-4">
                     <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
                       <label className="grid flex-1 gap-2">
                         <FieldLabel>Variação da peça</FieldLabel>
@@ -5336,7 +5336,7 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={createVariation}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                       >
                         <Plus className="h-4 w-4" />
                         Nova variação
@@ -5367,11 +5367,11 @@ export default function SistemaMacaroca() {
                         </div>
 
                         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                          <div className="rounded-md border border-[#eadfd6] bg-[#fffdfa] p-4">
+                          <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <span className="text-xs text-black/45">Tamanho</span>
                             <strong className="mt-2 block text-2xl">{selectedVariation.size || '-'}</strong>
                           </div>
-                          <div className="rounded-md border border-[#eadfd6] bg-[#fffdfa] p-4">
+                          <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <span className="text-xs text-black/45">Cor</span>
                             <div className="mt-2 flex items-center gap-3">
                               <span
@@ -5381,11 +5381,11 @@ export default function SistemaMacaroca() {
                               <strong className="text-lg">{selectedVariation.color || '-'}</strong>
                             </div>
                           </div>
-                          <div className="rounded-md border border-[#eadfd6] bg-[#fffdfa] p-4">
+                          <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <span className="text-xs text-black/45">Tecido</span>
                             <strong className="mt-2 block text-lg">{selectedVariation.fabric || '-'}</strong>
                           </div>
-                          <div className="rounded-md border border-[#eadfd6] bg-[#fffdfa] p-4">
+                          <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <span className="text-xs text-black/45">Ficha da variação</span>
                             <strong className="mt-2 block text-lg">{money(selectedCost)}</strong>
                             <span className="mt-1 block text-xs text-black/45">
@@ -5395,7 +5395,7 @@ export default function SistemaMacaroca() {
                         </div>
 
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-                          <div className="rounded-md border border-[#eadfd6] bg-[#fffdfa] p-4">
+                          <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <FieldLabel>Medidas e observação técnica</FieldLabel>
                             <p className="mt-3 text-sm leading-6 text-black/62">
                               {selectedVariation.measurements || 'Sem medidas cadastradas.'}
@@ -5404,7 +5404,7 @@ export default function SistemaMacaroca() {
                               {selectedVariation.technicalNotes || 'Sem observação técnica.'}
                             </p>
                           </div>
-                          <div className="overflow-hidden rounded-md border border-[#eadfd6] bg-[#fffdfa]">
+                          <div className="overflow-hidden rounded-md border border-[#e5e7eb] bg-[#ffffff]">
                             {selectedVariation.referenceImage ? (
                               <img
                                 src={selectedVariation.referenceImage}
@@ -5412,7 +5412,7 @@ export default function SistemaMacaroca() {
                                 className="h-56 w-full object-cover"
                               />
                             ) : (
-                              <div className="grid h-56 place-items-center bg-[#f4ebe4] px-6 text-center text-sm text-black/45">
+                              <div className="grid h-56 place-items-center bg-[#f3f4f6] px-6 text-center text-sm text-black/45">
                                 Adicione uma foto ou link de referência para facilitar a conferência visual.
                               </div>
                             )}
@@ -5420,7 +5420,7 @@ export default function SistemaMacaroca() {
                         </div>
                       </section>
 
-                      <section className="grid gap-4 rounded-md border border-[#eadfd6] bg-[#fffaf5] p-4">
+                      <section className="grid gap-4 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                         <div>
                           <h3 className="font-medium">Editar dados da variação</h3>
                           <p className="mt-1 text-sm text-black/50">
@@ -5481,7 +5481,7 @@ export default function SistemaMacaroca() {
                           {selectedVariation.materials.map((material) => (
                             <div
                               key={material.id}
-                              className="rounded-md border border-[#eadfd6] bg-[#fffdfa] p-4"
+                              className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4"
                             >
                               <div className="mb-3 flex items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -5501,7 +5501,7 @@ export default function SistemaMacaroca() {
                                     onChange={(event) =>
                                       selectVariationMaterial(selectedVariation.id, material.id, event.target.value)
                                     }
-                                    className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                                    className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                                   >
                                     <option value="" disabled>
                                       Escolha uma matéria-prima
@@ -5552,14 +5552,14 @@ export default function SistemaMacaroca() {
                           {selectedProduct.materials.map((material) => (
                             <div
                               key={material.id}
-                              className="grid gap-3 rounded-md border border-black/10 bg-[#fbfbfa] p-3 lg:grid-cols-[1.4fr_110px_90px_130px]"
+                              className="grid gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-3 lg:grid-cols-[1.4fr_110px_90px_130px]"
                             >
                               <label className="grid gap-2">
                                 <FieldLabel>Matéria-prima</FieldLabel>
                                 <select
                                   value={material.rawMaterialId ?? ''}
                                   onChange={(event) => selectProductMaterial(material.id, event.target.value)}
-                                  className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                                  className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                                 >
                                   <option value="" disabled>
                                     Escolha uma matéria-prima
@@ -5630,7 +5630,7 @@ export default function SistemaMacaroca() {
                     return (
                       <Panel key={product.id} title={`${product.code} · ${product.name}`}>
                         <div className="grid gap-4">
-                          <div className="grid gap-3 rounded-md border border-[#eadfd6] bg-[#fffaf5] p-4 lg:grid-cols-[1fr_130px_150px_170px_auto] lg:items-end">
+                          <div className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 lg:grid-cols-[1fr_130px_150px_170px_auto] lg:items-end">
                             <div>
                               <FieldLabel>Preço padrão do produto</FieldLabel>
                               <p className="mt-1 text-sm leading-5 text-black/56">
@@ -5648,7 +5648,7 @@ export default function SistemaMacaroca() {
                             <button
                               type="button"
                               onClick={() => updateProductSalePrice(product.id, undefined, baseSuggestedPrice)}
-                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-white px-3 text-sm font-medium"
+                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium"
                             >
                               Usar sugerido
                             </button>
@@ -5665,7 +5665,7 @@ export default function SistemaMacaroca() {
                               return (
                                 <div
                                   key={variation.id}
-                                  className="grid gap-3 rounded-md border border-[#e8ddd5] bg-white p-4 lg:grid-cols-[1.3fr_120px_140px_160px_130px_auto] lg:items-end"
+                                  className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 lg:grid-cols-[1.3fr_120px_140px_160px_130px_auto] lg:items-end"
                                 >
                                   <div>
                                     <FieldLabel>Variação</FieldLabel>
@@ -5689,7 +5689,7 @@ export default function SistemaMacaroca() {
                                   <button
                                     type="button"
                                     onClick={() => updateProductSalePrice(product.id, variation.id, suggested)}
-                                    className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
+                                    className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-[#ffffff] px-3 text-sm font-medium"
                                   >
                                     Usar sugerido
                                   </button>
@@ -5711,7 +5711,7 @@ export default function SistemaMacaroca() {
                   <div className="grid gap-5">
                     <section className="grid gap-4">
                       <div>
-                        <h3 className="text-sm font-semibold text-[#211f1c]">Identificação</h3>
+                        <h3 className="text-sm font-semibold text-[#111827]">Identificação</h3>
                         <p className="mt-1 text-sm text-black/50">Nome, fornecedor e alerta mínimo para não faltar no ateliê.</p>
                       </div>
                       <SoftInput label="Nome da matéria-prima" value={newMaterialName} onChange={setNewMaterialName} />
@@ -5751,9 +5751,9 @@ export default function SistemaMacaroca() {
                       />
                     </section>
 
-                    <section className="grid gap-4 rounded-md border border-[#e5d7cd] bg-[#fffdfa] p-4">
+                    <section className="grid gap-4 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                       <div>
-                        <h3 className="text-sm font-semibold text-[#211f1c]">Unidades e conversão</h3>
+                        <h3 className="text-sm font-semibold text-[#111827]">Unidades e conversão</h3>
                         <p className="mt-1 text-sm text-black/50">
                           Ex.: compra em kg, mas usa em metro na ficha técnica.
                         </p>
@@ -5783,8 +5783,8 @@ export default function SistemaMacaroca() {
                           onChange={setNewMaterialCost}
                         />
                       </div>
-                      <div className="rounded-md border border-black/10 bg-[#f7f0ea] p-3 text-sm text-black/65">
-                        <strong className="block text-[#211f1c]">Como o sistema vai entender</strong>
+                      <div className="rounded-md border border-black/10 bg-[#f9fafb] p-3 text-sm text-black/65">
+                        <strong className="block text-[#111827]">Como o sistema vai entender</strong>
                         <span className="mt-1 block">
                           1 {newMaterialPurchaseUnit || 'un'} = {newMaterialFactor.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}{' '}
                           {newMaterialUnit || 'un'}
@@ -5795,9 +5795,9 @@ export default function SistemaMacaroca() {
                       </div>
                     </section>
 
-                    <section className="grid gap-4 rounded-md border border-dashed border-[#d9c8be] bg-[#fbfbfa] p-4">
+                    <section className="grid gap-4 rounded-md border border-dashed border-[#d9c8be] bg-[#f9fafb] p-4">
                       <div>
-                        <h3 className="text-sm font-semibold text-[#211f1c]">Simulação de uso</h3>
+                        <h3 className="text-sm font-semibold text-[#111827]">Simulação de uso</h3>
                         <p className="mt-1 text-sm text-black/50">Confira antes de cadastrar.</p>
                       </div>
                       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -5807,9 +5807,9 @@ export default function SistemaMacaroca() {
                           step="0.01"
                           onChange={setNewMaterialSimulationQty}
                         />
-                        <div className="flex min-h-11 min-w-0 flex-col justify-center rounded-md border border-[#e5d7cd] bg-white px-3 text-sm">
+                        <div className="flex min-h-11 min-w-0 flex-col justify-center rounded-md border border-[#e5e7eb] bg-white px-3 text-sm">
                           <span className="text-xs text-black/45">Custo estimado na ficha</span>
-                          <strong className="text-[#211f1c]">{money(newMaterialSimulationCost)}</strong>
+                          <strong className="text-[#111827]">{money(newMaterialSimulationCost)}</strong>
                         </div>
                       </div>
                     </section>
@@ -5817,7 +5817,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createRawMaterial}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -5855,7 +5855,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createSupplier}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -5890,7 +5890,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createCustomer}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -5906,7 +5906,7 @@ export default function SistemaMacaroca() {
                       )
 
                       return (
-                        <div key={customer.id} className="rounded-md border border-black/10 bg-[#fbfbfa] p-4">
+                        <div key={customer.id} className="rounded-md border border-black/10 bg-[#f9fafb] p-4">
                           <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                             <div>
                               <StatusBadge>Cliente</StatusBadge>
@@ -5948,7 +5948,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createBrand}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -5983,7 +5983,7 @@ export default function SistemaMacaroca() {
                         type="password"
                         value={newUserPassword}
                         onChange={(event) => setNewUserPassword(event.target.value)}
-                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                       />
                     </label>
                     <label className="grid gap-2">
@@ -5998,13 +5998,13 @@ export default function SistemaMacaroca() {
                         ))}
                       </select>
                     </label>
-                    <div className="rounded-md border border-[#eadbd2] bg-[#fffaf5] p-3 text-sm leading-5 text-black/60">
+                    <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3 text-sm leading-5 text-black/60">
                       {roleDescriptions[newUserRole]}
                     </div>
                     <button
                       type="button"
                       onClick={createUser}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar usuário
@@ -6069,7 +6069,7 @@ export default function SistemaMacaroca() {
                       <UnitInput label="Unidade" value={noteUnit} onChange={setNoteUnit} />
                     </div>
                     <SoftNumber label={`Custo por ${noteUnit || 'un'} na nota`} value={noteUnitCost} onChange={setNoteUnitCost} />
-                    <div className="rounded-md border border-[#8f3f4c]/20 bg-[#f6ecec] p-3 text-sm text-[#211f1c]">
+                    <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-3 text-sm text-[#111827]">
                       <strong className="block">Conversão para estoque</strong>
                       <span className="mt-1 block text-black/60">
                         Compra: {noteQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {noteUnit || 'un'} → entra como {noteStockQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {noteStockUnit}
@@ -6087,7 +6087,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createPurchaseNote}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       Registrar compra
                       <ArrowRight className="h-4 w-4" />
@@ -6147,7 +6147,7 @@ export default function SistemaMacaroca() {
                       </select>
                     </label>
                     {selectedCustomer && (
-                      <div className="grid gap-2 rounded-md border border-black/10 bg-[#fbfbfa] p-3 text-sm text-black/65">
+                      <div className="grid gap-2 rounded-md border border-black/10 bg-[#f9fafb] p-3 text-sm text-black/65">
                         <div>
                           <strong>Telefone:</strong> {selectedCustomer.phone}
                         </div>
@@ -6203,8 +6203,8 @@ export default function SistemaMacaroca() {
                       </select>
                     </label>
                     {selectedVariation && (
-                      <div className="grid gap-1 rounded-md border border-black/10 bg-[#fbfbfa] p-3 text-sm text-black/60">
-                        <strong className="text-[#211f1c]">{selectedVariation.name}</strong>
+                      <div className="grid gap-1 rounded-md border border-black/10 bg-[#f9fafb] p-3 text-sm text-black/60">
+                        <strong className="text-[#111827]">{selectedVariation.name}</strong>
                         <span>{selectedVariation.measurements}</span>
                         <span>{selectedVariation.technicalNotes}</span>
                       </div>
@@ -6218,14 +6218,14 @@ export default function SistemaMacaroca() {
                       <ReadOnlyField label="Status inicial" value="Aberto" />
                     </div>
                     {canSeeMoney && (
-                      <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-white p-3">
+                      <div className="grid gap-3 rounded-md border border-[#d1d5db] bg-white p-3">
                         <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
                         <ReadOnlyField label="Preço da tabela" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
                         <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
                         <button
                           type="button"
                           onClick={() => setOrderUnitPriceInput(Math.round(selectedOrderPrice))}
-                          className="inline-flex h-10 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
+                          className="inline-flex h-10 items-center justify-center rounded-md border border-[#d1d5db] bg-[#ffffff] px-3 text-sm font-medium"
                         >
                           {selectedSalePrice ? 'Usar preço da tabela' : 'Usar preço sugerido'}
                         </button>
@@ -6236,7 +6236,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createOrder}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       {orderDocumentType === 'Pedido' ? 'Registrar pedido' : 'Registrar orçamento'}
                       <ArrowRight className="h-4 w-4" />
@@ -6253,7 +6253,7 @@ export default function SistemaMacaroca() {
                       return (
                         <div
                           key={order.id}
-                          className="grid gap-3 rounded-md border border-black/10 bg-[#fbfbfa] p-4 md:grid-cols-[1fr_220px]"
+                          className="grid gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-4 md:grid-cols-[1fr_220px]"
                         >
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -6276,8 +6276,8 @@ export default function SistemaMacaroca() {
                               {canSeeMoney && <p>Preço combinado: {money(price)} por peça · Total: {money(order.qty * price)}</p>}
                               {order.notes && <p>Obs.: {order.notes}</p>}
                             </div>
-                            <details className="mt-3 rounded-md border border-[#eadfd6] bg-[#fffdfa] p-3">
-                              <summary className="cursor-pointer text-sm font-medium text-[#7f3442]">
+                            <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
+                              <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">
                                 Linha do tempo do pedido
                               </summary>
                               <div className="mt-3">
@@ -6302,7 +6302,7 @@ export default function SistemaMacaroca() {
                             <button
                               type="button"
                               onClick={() => openProductionDecision(order)}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white disabled:opacity-40"
+                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
                               disabled={order.documentType !== 'Pedido' || order.status !== 'Aberto'}
                             >
                               Analisar produção
@@ -6311,7 +6311,7 @@ export default function SistemaMacaroca() {
                               <button
                                 type="button"
                                 onClick={() => convertBudgetToOrder(order)}
-                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#7f3442] px-4 text-sm font-medium text-white"
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#3730a3] px-4 text-sm font-medium text-white"
                               >
                                 Virar pedido
                               </button>
@@ -6319,19 +6319,19 @@ export default function SistemaMacaroca() {
                             <button
                               type="button"
                               onClick={() => setPreviewOrderId(order.id)}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9b8b0] bg-[#fff2ef] px-4 text-sm font-medium text-[#3a2528]"
+                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-4 text-sm font-medium text-[#1f2937]"
                             >
                               <ReceiptText className="h-4 w-4" />
                               {order.documentType}
                             </button>
                             {canSeeMoney && (
-                              <label className="grid gap-1 rounded-md border border-[#e5d7cd] bg-white p-2">
+                              <label className="grid gap-1 rounded-md border border-[#e5e7eb] bg-white p-2">
                                 <FieldLabel>Preço por peça</FieldLabel>
                                 <input
                                   type="number"
                                   value={Math.round(price)}
                                   onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
-                                  className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                  className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
                                 />
                               </label>
                             )}
@@ -6417,7 +6417,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createStockProductionOrder}
-                      className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Criar produção
@@ -6442,7 +6442,7 @@ export default function SistemaMacaroca() {
                             const missingForStart = product ? missingMaterialsFor(product, remainingQty, op.variationId) : []
                             const missingForLaunch = product ? missingMaterialsFor(product, launchQty, op.variationId) : []
                             return (
-                              <div key={op.id} className="rounded-md border border-[#e8ddd5] bg-[#fffaf5] p-4">
+                              <div key={op.id} className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                                 <div className="flex items-center justify-between gap-3">
                                   <strong>{op.id}</strong>
                                   <div className="flex flex-wrap justify-end gap-1">
@@ -6464,8 +6464,8 @@ export default function SistemaMacaroca() {
                                 <p className="text-sm text-black/50">
                                   {order ? `Pedido ${order.id} · ${order.client}` : 'Produção para estoque'}
                                 </p>
-                                <details className="mt-3 rounded-md border border-[#eadfd6] bg-[#fffdfa] p-3">
-                                  <summary className="cursor-pointer text-sm font-medium text-[#7f3442]">
+                                <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
+                                  <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">
                                     Ajustar detalhes da ordem
                                   </summary>
                                   <div className="mt-3 grid gap-2">
@@ -6476,7 +6476,7 @@ export default function SistemaMacaroca() {
                                         onChange={(event) =>
                                           updateProductionOrder(op.id, 'responsible', event.target.value)
                                         }
-                                        className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                        className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
                                       />
                                     </label>
                                     <div className="grid grid-cols-2 gap-2">
@@ -6487,7 +6487,7 @@ export default function SistemaMacaroca() {
                                           onChange={(event) =>
                                             updateProductionOrder(op.id, 'startedAt', event.target.value)
                                           }
-                                          className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                          className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
                                         />
                                       </label>
                                       <label className="grid gap-1">
@@ -6497,7 +6497,7 @@ export default function SistemaMacaroca() {
                                           onChange={(event) =>
                                             updateProductionOrder(op.id, 'finishedAt', event.target.value)
                                           }
-                                          className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                          className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
                                         />
                                       </label>
                                     </div>
@@ -6508,7 +6508,7 @@ export default function SistemaMacaroca() {
                                         onChange={(event) =>
                                           updateProductionOrder(op.id, 'priority', event.target.value)
                                         }
-                                        className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                        className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
                                       >
                                         {(['Baixa', 'Normal', 'Alta', 'Urgente'] as ProductionPriority[]).map((priority) => (
                                           <option key={priority} value={priority}>
@@ -6525,27 +6525,27 @@ export default function SistemaMacaroca() {
                                         onChange={(event) =>
                                           updateProductionOrder(op.id, 'notes', event.target.value)
                                         }
-                                        className="min-h-16 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 py-2 text-sm outline-none focus:border-[#b88f82]"
+                                        className="min-h-16 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 py-2 text-sm outline-none focus:border-[#4f46e5]"
                                       />
                                     </label>
                                   </div>
                                 </details>
                                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/10">
                                   <span
-                                    className="block h-full rounded-full bg-[#8f3f4c]"
+                                    className="block h-full rounded-full bg-[#3730a3]"
                                     style={{ width: `${Math.min(100, (op.produced / op.qty) * 100)}%` }}
                                   />
                                 </div>
                                 <p className="mt-2 text-xs text-black/50">
                                   {op.produced} de {op.qty} un
                                 </p>
-                                <div className="mt-3 rounded-md border border-[#eadfd6] bg-[#fffdfa] p-3">
+                                <div className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
                                   <FieldLabel>Histórico de lançamentos</FieldLabel>
                                   <div className="mt-3 grid gap-2 text-xs text-black/60">
                                     {op.launches?.length ? (
                                       op.launches.slice(-4).reverse().map((launch) => (
-                                        <div key={launch.id} className="grid grid-cols-[70px_1fr] gap-2 rounded-md bg-[#fffaf5] px-2 py-2">
-                                          <strong className="text-[#7f3442]">{launch.qty} un</strong>
+                                        <div key={launch.id} className="grid grid-cols-[70px_1fr] gap-2 rounded-md bg-[#ffffff] px-2 py-2">
+                                          <strong className="text-[#3730a3]">{launch.qty} un</strong>
                                           <span>
                                             {formatDate(launch.date)}
                                             {launch.responsible ? ` · ${launch.responsible}` : ''}
@@ -6577,7 +6577,7 @@ export default function SistemaMacaroca() {
                                         <button
                                           type="button"
                                           onClick={() => updateProductionStatus(op.id, 'Em produção')}
-                                          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                                          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                                         >
                                           Iniciar produção
                                         </button>
@@ -6594,13 +6594,13 @@ export default function SistemaMacaroca() {
                                               [op.id]: Number(event.target.value),
                                             }))
                                           }
-                                          className="h-10 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 text-sm outline-none focus:border-[#b88f82]"
+                                          className="h-10 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none focus:border-[#4f46e5]"
                                           aria-label={`Quantidade produzida para ${op.id}`}
                                         />
                                         <button
                                           type="button"
                                           onClick={() => registerProduction(op)}
-                                          className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white transition hover:bg-[#7f3442]"
+                                          className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white transition hover:bg-[#3730a3]"
                                         >
                                           Lançar
                                         </button>
@@ -6618,7 +6618,7 @@ export default function SistemaMacaroca() {
                                                 : 'Pausada',
                                             )
                                           }
-                                          className="inline-flex h-10 w-full items-center justify-center rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-4 text-sm font-medium transition hover:border-[#c8ad9f]"
+                                          className="inline-flex h-10 w-full items-center justify-center rounded-md border border-[#e5e7eb] bg-[#ffffff] px-4 text-sm font-medium transition hover:border-[#9ca3af]"
                                         >
                                           {op.status === 'Pausada' ? 'Retomar produção' : 'Pausar produção'}
                                         </button>
@@ -6629,7 +6629,7 @@ export default function SistemaMacaroca() {
                                     <button
                                       type="button"
                                       onClick={() => setPreviewOpId(op.id)}
-                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 text-sm font-medium transition hover:border-[#c8ad9f]"
+                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm font-medium transition hover:border-[#9ca3af]"
                                     >
                                       <Printer className="h-4 w-4" />
                                       Ver ordem
@@ -6637,7 +6637,7 @@ export default function SistemaMacaroca() {
                                     <button
                                       type="button"
                                       onClick={() => downloadProductionOrderPdf(op.id)}
-                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d9b8b0] bg-[#fff2ef] px-3 text-sm font-medium text-[#3a2528] transition hover:bg-white"
+                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-3 text-sm font-medium text-[#1f2937] transition hover:bg-white"
                                     >
                                       <FileText className="h-4 w-4" />
                                       PDF
@@ -6793,19 +6793,19 @@ export default function SistemaMacaroca() {
                     <SoftInput label="Descrição" value={financeDescription} onChange={setFinanceDescription} />
                     <SoftInput label="Vencimento / data" value={financeDueDate} onChange={setFinanceDueDate} />
                     <SoftNumber label="Valor" value={financeValue} onChange={setFinanceValue} />
-                    <label className="flex items-center gap-3 rounded-md border border-black/10 bg-[#fbfbfa] p-3 text-sm">
+                    <label className="flex items-center gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-3 text-sm">
                       <input
                         type="checkbox"
                         checked={financePaid}
                         onChange={(event) => setFinancePaid(event.target.checked)}
-                        className="h-4 w-4 accent-[#8f3f4c]"
+                        className="h-4 w-4 accent-[#3730a3]"
                       />
                       Já foi pago ou recebido
                     </label>
                     <button
                       type="button"
                       onClick={addFinanceEntry}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       Registrar
                     </button>
@@ -6847,7 +6847,7 @@ export default function SistemaMacaroca() {
                           financeSummary.accountsPayable.map((entry) => (
                             <div
                               key={entry.id}
-                              className="flex flex-col justify-between gap-3 rounded-md border border-black/10 bg-[#fbfbfa] p-4 md:flex-row md:items-center"
+                              className="flex flex-col justify-between gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-4 md:flex-row md:items-center"
                             >
                               <div>
                                 <StatusBadge tone={entry.paid ? 'green' : 'amber'}>
@@ -6971,14 +6971,14 @@ function MobileSummaryPanel({
   children: ReactNode
 }) {
   return (
-    <section className="grid gap-2.5 rounded-md border border-[#d8c8bd] bg-white p-3 shadow-[0_8px_18px_rgba(49,35,30,0.035)]">
+    <section className="grid gap-2.5 rounded-md border border-[#d1d5db] bg-white p-3 shadow-[0_8px_18px_rgba(49,35,30,0.035)]">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-black/48">{title}</h3>
         {actionLabel && onAction && (
           <button
             type="button"
             onClick={onAction}
-            className="text-xs font-semibold text-[#7f3442]"
+            className="text-xs font-semibold text-[#3730a3]"
           >
             {actionLabel}
           </button>
@@ -6991,8 +6991,8 @@ function MobileSummaryPanel({
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="min-w-0 rounded-lg border border-[#e8ddd5] bg-[#fffdfa] p-5 shadow-[0_10px_30px_rgba(49,35,30,0.035)] md:p-6">
-      <h2 className="mb-5 font-serif text-[1.55rem] leading-tight text-[#211f1c] md:text-[1.7rem]">{title}</h2>
+    <section className="min-w-0 rounded-lg border border-[#e5e7eb] bg-white p-5 shadow-sm md:p-6">
+      <h2 className="mb-5 text-[1.08rem] font-semibold leading-tight tracking-tight text-slate-950 md:text-[1.18rem]">{title}</h2>
       {children}
     </section>
   )
@@ -7003,7 +7003,7 @@ function PocketAction({ label, onClick }: { label: string; onClick: () => void }
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-10 items-center justify-center rounded-md bg-white px-3 text-center text-sm font-medium text-[#211f1c] transition hover:bg-[#f4e7df]"
+      className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-center text-sm font-medium text-slate-800 transition hover:bg-slate-50"
     >
       {label}
     </button>
@@ -7022,18 +7022,18 @@ function PocketMetric({
   tone?: 'neutral' | 'green' | 'blue' | 'amber' | 'rose'
 }) {
   const toneClass = {
-    neutral: 'border-[#d8c8bd] border-l-[#8d7b70] bg-white',
-    green: 'border-[#d8c8bd] border-l-emerald-600 bg-white',
-    blue: 'border-[#d8c8bd] border-l-sky-700 bg-white',
-    amber: 'border-[#d8c8bd] border-l-amber-600 bg-white',
-    rose: 'border-[#d8c8bd] border-l-[#8f3f4c] bg-white',
+    neutral: 'border-slate-200 border-l-slate-400 bg-white',
+    green: 'border-slate-200 border-l-emerald-600 bg-white',
+    blue: 'border-slate-200 border-l-indigo-600 bg-white',
+    amber: 'border-slate-200 border-l-amber-500 bg-white',
+    rose: 'border-slate-200 border-l-rose-500 bg-white',
   }[tone]
 
   return (
-    <div className={`min-w-0 rounded-md border border-l-4 p-3 shadow-[0_6px_16px_rgba(49,35,30,0.03)] ${toneClass}`}>
-      <span className="block text-[11px] font-semibold uppercase leading-tight text-black/45">{label}</span>
-      <strong className="mt-1.5 block break-words text-xl font-semibold leading-tight text-[#211f1c]">{value}</strong>
-      <span className="mt-1.5 block text-xs leading-4 text-black/52">{detail}</span>
+    <div className={`min-w-0 rounded-md border border-l-4 p-3 shadow-sm ${toneClass}`}>
+      <span className="block text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-slate-400">{label}</span>
+      <strong className="mt-1.5 block break-words text-xl font-semibold leading-tight text-slate-950">{value}</strong>
+      <span className="mt-1.5 block text-xs leading-4 text-slate-500">{detail}</span>
     </div>
   )
 }
@@ -7054,22 +7054,22 @@ function ModuleTile({
   onClick: () => void
 }) {
   const toneClass = {
-    dark: 'border-[#211f1c] bg-[#211f1c] text-white shadow-[0_16px_34px_rgba(33,31,28,0.18)]',
-    rose: 'border-[#d8c8bd] bg-white text-[#3a2528]',
-    green: 'border-[#d8c8bd] bg-white text-[#211f1c]',
-    blue: 'border-[#d8c8bd] bg-white text-[#211f1c]',
-    amber: 'border-[#d8c8bd] bg-white text-[#211f1c]',
-    neutral: 'border-[#d8c8bd] bg-white text-[#211f1c]',
+    dark: 'border-[#312e81] bg-[#312e81] text-white shadow-sm',
+    rose: 'border-slate-200 bg-white text-slate-950',
+    green: 'border-slate-200 bg-white text-slate-950',
+    blue: 'border-slate-200 bg-white text-slate-950',
+    amber: 'border-slate-200 bg-white text-slate-950',
+    neutral: 'border-slate-200 bg-white text-slate-950',
   }[tone]
-  const mutedClass = tone === 'dark' ? 'text-white/62' : 'text-black/52'
-  const iconClass = tone === 'dark' ? 'bg-white/12 text-white' : 'bg-white text-[#7f3442]'
-  const badgeClass = tone === 'dark' ? 'bg-white/12 text-white/82' : 'bg-[#211f1c]/[0.06] text-black/58'
+  const mutedClass = tone === 'dark' ? 'text-white/70' : 'text-slate-500'
+  const iconClass = tone === 'dark' ? 'bg-white/12 text-white' : 'bg-slate-100 text-[#312e81]'
+  const badgeClass = tone === 'dark' ? 'bg-white/12 text-white/82' : 'bg-slate-100 text-slate-600'
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`group grid min-h-[168px] grid-rows-[auto_1fr_auto] rounded-md border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(49,35,30,0.10)] ${toneClass}`}
+      className={`group grid min-h-[150px] grid-rows-[auto_1fr_auto] rounded-md border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${toneClass}`}
     >
       <div className="flex items-start justify-between gap-3">
         <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-md [&_svg]:h-5 [&_svg]:w-5 ${iconClass}`}>
@@ -7081,7 +7081,7 @@ function ModuleTile({
         <strong className="block text-lg leading-6">{title}</strong>
         <span className={`mt-2 block text-sm leading-5 ${mutedClass}`}>{detail}</span>
       </div>
-      <span className={`mt-4 inline-flex items-center gap-2 text-sm font-medium ${tone === 'dark' ? 'text-white' : 'text-[#7f3442]'}`}>
+      <span className={`mt-4 inline-flex items-center gap-2 text-sm font-medium ${tone === 'dark' ? 'text-white' : 'text-[#312e81]'}`}>
         Abrir
         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
       </span>
@@ -7101,7 +7101,7 @@ function AttentionRow({
   tone: 'green' | 'amber' | 'rose'
 }) {
   return (
-    <div className="rounded-md border border-[#eee3dc] bg-[#fffaf5] px-3 py-3">
+    <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-3">
       <div className="mb-2">
         <StatusBadge tone={tone}>{label}</StatusBadge>
       </div>
@@ -7113,8 +7113,8 @@ function AttentionRow({
 
 function ProcessStep({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="min-w-0 rounded-md border border-[#eee3dc] bg-[#fffaf5] p-4">
-      <strong className="block text-sm text-[#211f1c]">{title}</strong>
+    <div className="min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
+      <strong className="block text-sm text-[#111827]">{title}</strong>
       <span className="mt-2 block text-sm leading-5 text-black/52">{detail}</span>
     </div>
   )
@@ -7130,13 +7130,13 @@ function MiniStat({
   tone?: 'neutral' | 'green' | 'rose'
 }) {
   const toneClass = {
-    neutral: 'text-[#211f1c]',
+    neutral: 'text-[#111827]',
     green: 'text-emerald-700',
     rose: 'text-rose-700',
   }[tone]
 
   return (
-    <div className="rounded-md border border-[#eadfd6] bg-[#fffdfa] px-3 py-2">
+    <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2">
       <span className="block text-xs text-black/45">{label}</span>
       <strong className={`mt-1 block text-sm ${toneClass}`}>{value}</strong>
     </div>
@@ -7145,8 +7145,8 @@ function MiniStat({
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-lg border border-[#e8ddd5] bg-[#fffdfa] p-4 shadow-[0_8px_24px_rgba(49,35,30,0.035)]">
-      <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-md bg-[#f3e4dd] text-[#7f3442] [&_svg]:h-5 [&_svg]:w-5">
+    <div className="rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-4 shadow-[0_8px_24px_rgba(49,35,30,0.035)]">
+      <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-md bg-[#eef2ff] text-[#3730a3] [&_svg]:h-5 [&_svg]:w-5">
         {icon}
       </div>
       <span className="text-sm text-black/50">{label}</span>
@@ -7167,13 +7167,13 @@ function DashboardBlock({
   children: ReactNode
 }) {
   return (
-    <section className="min-w-0 rounded-lg border border-[#e8ddd5] bg-[#fffdfa] p-5 shadow-[0_10px_30px_rgba(49,35,30,0.035)]">
+    <section className="min-w-0 rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-5 shadow-[0_10px_30px_rgba(49,35,30,0.035)]">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
           <span className="text-sm text-black/50">{title}</span>
           <strong className="mt-1 block text-3xl font-semibold">{value}</strong>
         </div>
-        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#f3e4dd] text-[#7f3442] [&_svg]:h-5 [&_svg]:w-5">
+        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#eef2ff] text-[#3730a3] [&_svg]:h-5 [&_svg]:w-5">
           {icon}
         </span>
       </div>
@@ -7184,7 +7184,7 @@ function DashboardBlock({
 
 function MiniRow({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="rounded-md border border-[#eee3dc] bg-[#fffaf5] px-3 py-3">
+    <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-3">
       <strong className="block text-sm">{title}</strong>
       <span className="mt-1 block text-sm leading-5 text-black/52">{detail}</span>
     </div>
@@ -7203,7 +7203,7 @@ function SmartAlertList({ alerts, limit }: { alerts: SmartAlert[]; limit?: numbe
       {visibleAlerts.map((alert) => (
         <div
           key={alert.id}
-          className="flex flex-col justify-between gap-3 rounded-md border border-[#eadfd6] bg-[#fffaf5] p-4 md:flex-row md:items-center"
+          className="flex flex-col justify-between gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 md:flex-row md:items-center"
         >
           <div className="min-w-0">
             <StatusBadge tone={alert.tone}>{alert.badge}</StatusBadge>
@@ -7213,7 +7213,7 @@ function SmartAlertList({ alerts, limit }: { alerts: SmartAlert[]; limit?: numbe
           <button
             type="button"
             onClick={alert.onClick}
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white transition hover:bg-[#7f3442]"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white transition hover:bg-[#3730a3]"
           >
             {alert.actionLabel}
           </button>
@@ -7226,14 +7226,14 @@ function SmartAlertList({ alerts, limit }: { alerts: SmartAlert[]; limit?: numbe
 function OrderTimeline({ items }: { items: OrderTimelineItem[] }) {
   const statusClass: Record<TimelineStatus, string> = {
     done: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-    current: 'border-[#d9b8b0] bg-[#fff2ef] text-[#7f3442]',
-    pending: 'border-[#eadfd6] bg-[#fffdfa] text-black/42',
+    current: 'border-[#c7d2fe] bg-[#eef2ff] text-[#3730a3]',
+    pending: 'border-[#e5e7eb] bg-[#ffffff] text-black/42',
   }
 
   const dotClass: Record<TimelineStatus, string> = {
     done: 'bg-emerald-600',
-    current: 'bg-[#7f3442]',
-    pending: 'bg-[#d8c8bd]',
+    current: 'bg-[#3730a3]',
+    pending: 'bg-[#d1d5db]',
   }
 
   return (
@@ -7258,7 +7258,7 @@ function OrderTimeline({ items }: { items: OrderTimelineItem[] }) {
 
 function EmptyLine({ text }: { text: string }) {
   return (
-    <div className="rounded-md border border-dashed border-[#d8c8bd] bg-[#fffaf5] px-3 py-4 text-sm text-black/48">
+    <div className="rounded-md border border-dashed border-[#d1d5db] bg-[#ffffff] px-3 py-4 text-sm text-black/48">
       {text}
     </div>
   )
@@ -7269,7 +7269,7 @@ function DashboardAction({ label, onClick }: { label: string; onClick: () => voi
     <button
       type="button"
       onClick={onClick}
-      className="flex h-10 items-center justify-between rounded-md border border-[#e5d7cd] bg-[#fffaf5] px-3 text-left text-sm font-medium transition hover:border-[#c8ad9f] hover:bg-white"
+      className="flex h-10 items-center justify-between rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-left text-sm font-medium transition hover:border-[#9ca3af] hover:bg-white"
     >
       {label}
       <ArrowRight className="h-4 w-4 text-black/40" />
@@ -7296,14 +7296,14 @@ function StepButton({
       onClick={onClick}
       className={`flex min-h-12 items-center gap-3 rounded-md border px-3 text-left text-sm transition ${
         active
-          ? 'border-[#caa59b] bg-[#fbebe6] text-[#3a2528]'
+          ? 'border-[#818cf8] bg-[#eef2ff] text-[#1f2937]'
           : done
-            ? 'border-[#e5d7cd] bg-[#fffaf5] text-black/70'
-            : 'border-[#e5d7cd] bg-[#fffdfa] text-black/55'
+            ? 'border-[#e5e7eb] bg-[#ffffff] text-black/70'
+            : 'border-[#e5e7eb] bg-[#ffffff] text-black/55'
       }`}
     >
       <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${
-        active || done ? 'bg-[#211f1c] text-white' : 'bg-[#efe4dc] text-black/55'
+        active || done ? 'bg-[#111827] text-white' : 'bg-[#f3f4f6] text-black/55'
       }`}>
         {done ? 'OK' : number}
       </span>
@@ -7327,15 +7327,15 @@ function QuickTaskButton({
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-[104px] items-start gap-4 rounded-lg border border-[#e8ddd5] bg-[#fffaf5] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#c8ad9f] hover:bg-[#fffdfa] hover:shadow-[0_12px_28px_rgba(49,35,30,0.065)]"
+      className="group flex min-h-[104px] items-start gap-4 rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#9ca3af] hover:bg-[#ffffff] hover:shadow-[0_12px_28px_rgba(49,35,30,0.065)]"
     >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-[#211f1c] text-white transition group-hover:bg-[#7f3442] [&_svg]:h-5 [&_svg]:w-5">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-[#111827] text-white transition group-hover:bg-[#3730a3] [&_svg]:h-5 [&_svg]:w-5">
         {icon}
       </span>
       <span className="min-w-0">
         <strong className="block text-lg font-medium">{title}</strong>
         <span className="mt-1 block text-sm leading-5 text-black/52">{detail}</span>
-        <span className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[#7f3442]">
+        <span className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[#3730a3]">
           Abrir
           <ArrowRight className="h-4 w-4" />
         </span>
@@ -7362,14 +7362,14 @@ function PricePanel({
   onChange: (field: 'tax' | 'commission' | 'fixedCost' | 'profit', value: number) => void
 }) {
   return (
-    <aside className="rounded-lg border border-[#2d2824] bg-[#211f1c] p-6 text-white shadow-[0_18px_44px_rgba(33,31,28,0.18)]">
+    <aside className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white/10">
+        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-indigo-50 text-[#312e81]">
           <Calculator className="h-5 w-5" />
         </div>
         <div>
-          <span className="text-sm text-white/55">Preço automático</span>
-          <h2 className="font-serif text-2xl">Preço sugerido</h2>
+          <span className="text-sm text-slate-500">Preço automático</span>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-950">Preço sugerido</h2>
         </div>
       </div>
       <div className="mt-5 grid gap-4">
@@ -7386,9 +7386,9 @@ function PricePanel({
 
 function PriceLine({ label, value, featured = false }: { label: string; value: string; featured?: boolean }) {
   return (
-    <div className="flex items-center justify-between border-b border-white/10 pb-3">
-      <span className="text-sm text-white/60">{label}</span>
-      <strong className={featured ? 'text-3xl text-white' : 'text-lg text-white/88'}>{value}</strong>
+    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <span className="text-sm text-slate-500">{label}</span>
+      <strong className={featured ? 'text-2xl text-[#312e81]' : 'text-lg text-slate-900'}>{value}</strong>
     </div>
   )
 }
@@ -7404,7 +7404,7 @@ function PercentControl({
 }) {
   return (
     <label className="grid gap-2">
-      <span className="flex items-center justify-between text-sm text-white/70">
+      <span className="flex items-center justify-between text-sm text-slate-600">
         {label}
         <strong>{value}%</strong>
       </span>
@@ -7414,7 +7414,7 @@ function PercentControl({
         max="60"
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="accent-white"
+        className="accent-[#312e81]"
       />
     </label>
   )
@@ -7428,7 +7428,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid min-w-0 gap-2">
       <FieldLabel>{label}</FieldLabel>
-      <div className="flex h-11 min-w-0 items-center rounded-md border border-[#e5d7cd] bg-[#f7f0ea] px-3 text-sm text-black/68">
+      <div className="flex h-11 min-w-0 items-center rounded-md border border-[#e5e7eb] bg-[#f9fafb] px-3 text-sm text-black/68">
         {value}
       </div>
     </div>
@@ -7450,7 +7450,7 @@ function SoftInput({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 min-w-0 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#b88f82] focus:bg-white"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
       />
     </label>
   )
@@ -7475,7 +7475,7 @@ function UnitInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Escolha ou digite"
-        className="h-11 min-w-0 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#b88f82] focus:bg-white"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
       />
       <datalist id={listId}>
         {measurementUnits.map((unit) => (
@@ -7504,7 +7504,7 @@ function SoftTextarea({
         value={value}
         rows={4}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-28 min-w-0 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 py-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#b88f82] focus:bg-white"
+        className="min-h-28 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
       />
     </label>
   )
@@ -7530,7 +7530,7 @@ function SoftNumber({
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-11 min-w-0 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-3 text-sm outline-none transition focus:border-[#b88f82] focus:bg-white"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition focus:border-[#4f46e5] focus:bg-white"
       />
     </label>
   )
@@ -7555,8 +7555,8 @@ function ProductionDecisionPreview({
 }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/45 p-4 backdrop-blur-sm print:hidden">
-      <div className="mx-auto flex max-h-[calc(100vh-2rem)] max-w-3xl flex-col overflow-hidden rounded-lg bg-[#fffdfa] shadow-2xl">
-        <header className="flex flex-col gap-3 border-b border-[#eadfd6] px-5 py-4 md:flex-row md:items-center md:justify-between">
+      <div className="mx-auto flex max-h-[calc(100vh-2rem)] max-w-3xl flex-col overflow-hidden rounded-lg bg-[#ffffff] shadow-2xl">
+        <header className="flex flex-col gap-3 border-b border-[#e5e7eb] px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <span className="text-sm text-black/50">Conferência do PCP</span>
             <h2 className="font-serif text-2xl">Enviar pedido para produção</h2>
@@ -7572,7 +7572,7 @@ function ProductionDecisionPreview({
         </header>
 
         <div className="grid gap-5 overflow-auto p-5">
-          <div className="rounded-md border border-[#eadfd6] bg-white p-4">
+          <div className="rounded-md border border-[#e5e7eb] bg-white p-4">
             <div className="flex flex-wrap items-center gap-2">
               <strong>{order.id} · {order.client}</strong>
               <StatusBadge tone="amber">Pedido em análise</StatusBadge>
@@ -7589,7 +7589,7 @@ function ProductionDecisionPreview({
             <MiniStat label="Em produção" value={`${position.producing} un`} tone={position.producing > 0 ? 'blue' : 'neutral'} />
           </div>
 
-          <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-[#fffaf5] p-4 md:grid-cols-[1fr_220px] md:items-end">
+          <div className="grid gap-3 rounded-md border border-[#d1d5db] bg-[#ffffff] p-4 md:grid-cols-[1fr_220px] md:items-end">
             <div>
               <FieldLabel>Quantidade que o PCP recomenda produzir</FieldLabel>
               <p className="mt-2 text-sm leading-6 text-black/58">
@@ -7607,7 +7607,7 @@ function ProductionDecisionPreview({
                 min={1}
                 value={qty}
                 onChange={(event) => onQtyChange(Math.max(1, Number(event.target.value)))}
-                className="h-11 rounded-md border border-[#d8c8bd] bg-white px-3 text-sm outline-none focus:border-[#8f3f4c]"
+                className="h-11 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
               />
             </label>
           </div>
@@ -7622,14 +7622,14 @@ function ProductionDecisionPreview({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-white px-4 text-sm font-medium"
+              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={onConfirm}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
             >
               Gerar OP com {qty} un
               <ArrowRight className="h-4 w-4" />
@@ -7680,7 +7680,7 @@ function ProductionOrderPreview({
             <button
               type="button"
               onClick={onDownloadPdf}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
             >
               <FileText className="h-4 w-4" />
               Baixar PDF
@@ -7706,7 +7706,7 @@ function ProductionOrderPreview({
 
         <div className="overflow-auto bg-[#f5f5f3] p-5">
           <article className="mx-auto max-w-5xl overflow-hidden rounded-md border border-black/10 bg-white text-[#111] shadow-sm">
-            <header className="grid gap-6 border-b-2 border-[#211f1c] bg-[#fbfbfa] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
+            <header className="grid gap-6 border-b-2 border-[#111827] bg-[#f9fafb] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
               <div className={`flex h-24 items-center justify-center rounded-md border border-black/10 px-5 ${brandDoc.darkLogo ? 'bg-[#111]' : 'bg-white'}`}>
                 <img src={brandDoc.logo} alt={brandDoc.name} className="max-h-20 w-auto object-contain" />
               </div>
@@ -7788,7 +7788,7 @@ function ProductionOrderPreview({
               <div className="mt-3 grid max-w-3xl gap-2">
                 {op.launches?.length ? (
                   op.launches.map((launch) => (
-                    <div key={launch.id} className="grid grid-cols-[120px_120px_1fr] rounded-md border border-black/10 bg-[#fbfbfa] px-3 py-2">
+                    <div key={launch.id} className="grid grid-cols-[120px_120px_1fr] rounded-md border border-black/10 bg-[#f9fafb] px-3 py-2">
                       <strong>{formatDate(launch.date)}</strong>
                       <span>{launch.qty} un</span>
                       <span>{launch.responsible || '-'}</span>
@@ -7975,7 +7975,7 @@ function OrderBudgetPreview({
             <button
               type="button"
               onClick={onDownloadPdf}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
             >
               <FileText className="h-4 w-4" />
               Baixar PDF
@@ -8001,7 +8001,7 @@ function OrderBudgetPreview({
 
         <div className="overflow-auto bg-[#f5f5f3] p-5">
           <article className="mx-auto max-w-5xl overflow-hidden rounded-md border border-black/10 bg-white text-[#111] shadow-sm">
-            <header className="grid gap-6 border-b-2 border-[#211f1c] bg-[#fbfbfa] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
+            <header className="grid gap-6 border-b-2 border-[#111827] bg-[#f9fafb] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
               <div className={`flex h-24 items-center justify-center rounded-md border border-black/10 px-5 ${brandDoc.darkLogo ? 'bg-[#111]' : 'bg-white'}`}>
                 <img src={brandDoc.logo} alt={brandDoc.name} className="max-h-20 w-auto object-contain" />
               </div>
@@ -8062,7 +8062,7 @@ function OrderBudgetPreview({
                 <p className="mt-2 whitespace-pre-wrap text-black/55">{budgetTerms}</p>
                 <p className="mt-2 text-black/55">Orçamento válido por {state.company.budgetValidityDays} dia(s) a partir da emissão.</p>
               </div>
-              <div className="rounded-md border border-[#211f1c] p-4 text-sm">
+              <div className="rounded-md border border-[#111827] p-4 text-sm">
                 <div className="flex justify-between border-b border-black/10 pb-3">
                   <span>Valor unitário</span>
                   <strong>{money(unitPrice)}</strong>
@@ -8219,7 +8219,7 @@ function PrintField({ label, value, plain = false }: { label: string; value: str
 
 function TotalLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-[#e5d7cd] bg-[#fffaf5] p-4">
+    <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
       <span className="text-sm text-black/50">{label}</span>
       <strong className="mt-1 block text-2xl font-semibold">{value}</strong>
     </div>
@@ -8237,30 +8237,30 @@ function StockTable({
 }) {
   if (!rows.length) {
     return (
-      <div className="rounded-md border border-dashed border-[#d8c8bd] bg-[#fffaf5] p-5 text-sm text-black/50">
+      <div className="rounded-md border border-dashed border-[#d1d5db] bg-[#ffffff] p-5 text-sm text-black/50">
         {emptyText}
       </div>
     )
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-[#e5d7cd] bg-[#fffdfa]">
+    <div className="overflow-hidden rounded-md border border-[#e5e7eb] bg-[#ffffff]">
       <table className="w-full border-collapse text-sm">
-        <thead className="bg-[#f3e9e1]">
+        <thead className="bg-[#f3f4f6]">
           <tr>
-            <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Item</th>
-            <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Disponível</th>
-            {showValue && <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Valor</th>}
+            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Item</th>
+            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Disponível</th>
+            {showValue && <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Valor</th>}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={`${row.item}-${row.unit}`}>
-              <td className="border-b border-[#f0e6de] px-3 py-2 font-medium">{row.item}</td>
-              <td className="border-b border-[#f0e6de] px-3 py-2">
+              <td className="border-b border-[#e5e7eb] px-3 py-2 font-medium">{row.item}</td>
+              <td className="border-b border-[#e5e7eb] px-3 py-2">
                 {row.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {row.unit}
               </td>
-              {showValue && <td className="border-b border-[#f0e6de] px-3 py-2">{money(row.value)}</td>}
+              {showValue && <td className="border-b border-[#e5e7eb] px-3 py-2">{money(row.value)}</td>}
             </tr>
           ))}
         </tbody>
@@ -8281,28 +8281,28 @@ function ProductStockTable({
   }[]
 }) {
   return (
-    <div className="overflow-hidden rounded-md border border-[#e5d7cd] bg-[#fffdfa]">
+    <div className="overflow-hidden rounded-md border border-[#e5e7eb] bg-[#ffffff]">
       <table className="w-full border-collapse text-sm">
-        <thead className="bg-[#f3e9e1]">
+        <thead className="bg-[#f3f4f6]">
           <tr>
-            <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Produto</th>
-            <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Físico</th>
-            <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Pendente</th>
-            <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Produzindo</th>
-            <th className="border-b border-[#e5d7cd] px-3 py-2 text-left">Disponível</th>
+            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Produto</th>
+            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Físico</th>
+            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Pendente</th>
+            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Produzindo</th>
+            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Disponível</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.product.id}>
-              <td className="border-b border-[#f0e6de] px-3 py-2">
+              <td className="border-b border-[#e5e7eb] px-3 py-2">
                 <strong className="block">{row.product.code}</strong>
                 <span className="text-black/55">{row.product.name}</span>
               </td>
-              <td className="border-b border-[#f0e6de] px-3 py-2">{row.physical} un</td>
-              <td className="border-b border-[#f0e6de] px-3 py-2">{row.pending} un</td>
-              <td className="border-b border-[#f0e6de] px-3 py-2">{row.producing} un</td>
-              <td className="border-b border-[#f0e6de] px-3 py-2">
+              <td className="border-b border-[#e5e7eb] px-3 py-2">{row.physical} un</td>
+              <td className="border-b border-[#e5e7eb] px-3 py-2">{row.pending} un</td>
+              <td className="border-b border-[#e5e7eb] px-3 py-2">{row.producing} un</td>
+              <td className="border-b border-[#e5e7eb] px-3 py-2">
                 <span
                   className={`rounded-md px-2 py-1 text-xs font-medium ${
                     row.available < 0
@@ -8354,7 +8354,7 @@ function priorityWeight(priority: ProductionPriority) {
 
 function StatusBadge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'green' | 'blue' | 'amber' | 'rose' }) {
   const toneClass = {
-    neutral: 'bg-[#efe4dc] text-black/62',
+    neutral: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
     green: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200',
     blue: 'bg-sky-50 text-sky-800 ring-1 ring-sky-200',
     amber: 'bg-amber-50 text-amber-800 ring-1 ring-amber-200',
@@ -8376,7 +8376,7 @@ function RecordRow({
   value: string
 }) {
   return (
-    <div className="flex flex-col justify-between gap-3 rounded-md border border-[#e5d7cd] bg-[#fffaf5] p-4 md:flex-row md:items-center">
+    <div className="flex flex-col justify-between gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 md:flex-row md:items-center">
       <div>
         <StatusBadge tone={badge.includes('Entrada') || badge.includes('Faturado') ? 'green' : badge.includes('Saída') || badge.includes('Consumo') ? 'amber' : 'neutral'}>
           {badge}
