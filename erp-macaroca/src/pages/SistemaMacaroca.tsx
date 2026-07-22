@@ -1386,8 +1386,7 @@ export default function SistemaMacaroca() {
         .from(cloudStateTable)
         .upsert({
           id: cloudStateId,
-          data: nextState,
-          updated_by: currentUserName,
+          state: nextState,
           updated_at: new Date().toISOString(),
         })
 
@@ -1414,7 +1413,7 @@ export default function SistemaMacaroca() {
       try {
         const { data, error } = await (supabase as any)
           .from(cloudStateTable)
-          .select('data, updated_at')
+          .select('state, updated_at')
           .eq('id', cloudStateId)
           .maybeSingle()
 
@@ -1427,8 +1426,8 @@ export default function SistemaMacaroca() {
           return
         }
 
-        if (data?.data) {
-          const nextState = normalizeState({ ...initialState, ...data.data } as AppState)
+        if (data?.state) {
+          const nextState = normalizeState({ ...initialState, ...data.state } as AppState)
           const serialized = JSON.stringify(nextState)
           applyingCloudStateRef.current = true
           lastSavedStateRef.current = serialized
@@ -1438,8 +1437,11 @@ export default function SistemaMacaroca() {
         }
 
         setSyncStatus('Compartilhado')
-        setSyncDetail(data?.data ? 'Dados carregados do banco compartilhado.' : 'Banco conectado. Este navegador vai criar o primeiro backup compartilhado.')
+        setSyncDetail(data?.state ? 'Dados carregados do banco compartilhado.' : 'Banco conectado. Criando o primeiro backup compartilhado deste navegador.')
         cloudLoadedRef.current = true
+        if (!data?.state) {
+          void saveStateImmediately(state, 'Primeiro backup compartilhado criado.')
+        }
       } catch {
         if (cancelled) return
         setSyncStatus('Local')
@@ -1475,8 +1477,7 @@ export default function SistemaMacaroca() {
           .from(cloudStateTable)
           .upsert({
             id: cloudStateId,
-            data: state,
-            updated_by: currentUserName,
+            state,
             updated_at: new Date().toISOString(),
           })
 
@@ -1506,7 +1507,7 @@ export default function SistemaMacaroca() {
         'postgres_changes',
         { event: '*', schema: 'public', table: cloudStateTable, filter: `id=eq.${cloudStateId}` },
         (payload: any) => {
-          const cloudData = payload.new?.data
+          const cloudData = payload.new?.state
           const updatedAt = payload.new?.updated_at
           if (!cloudData) return
 
