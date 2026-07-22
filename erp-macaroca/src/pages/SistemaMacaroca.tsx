@@ -180,6 +180,7 @@ type Order = {
   productId: string
   variationId?: string
   qty: number
+  unitPrice?: number
   dueDate: string
   notes: string
   status: OrderStatus
@@ -928,6 +929,7 @@ const normalizeState = (state: AppState): AppState => {
       phone: order.phone ?? order.contact ?? customers.find((customer) => customer.name === order.client)?.phone ?? '',
       city: order.city ?? order.address ?? customers.find((customer) => customer.name === order.client)?.city ?? '',
       orderDate: order.orderDate ?? '2026-07-20',
+      unitPrice: typeof order.unitPrice === 'number' ? order.unitPrice : undefined,
       status: normalizeOrderStatus(order.status),
       createdBy: order.createdBy ?? 'Sistema',
     })),
@@ -1173,6 +1175,12 @@ const idealPrice = (cost: number, tax: number, commission: number, fixedCost: nu
   return divider > 0 ? cost / divider : 0
 }
 
+const orderUnitPrice = (state: AppState, order: Order) => {
+  if (typeof order.unitPrice === 'number' && Number.isFinite(order.unitPrice)) return order.unitPrice
+  const product = state.products.find((item) => item.id === order.productId)
+  return product ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit) : 0
+}
+
 const documentBrand = (brand?: BrandName, company?: CompanySettings) => {
   const isSchon = brand?.toLowerCase().includes('sch')
   const companyName = company?.name || 'Maçaroca'
@@ -1331,6 +1339,7 @@ export default function SistemaMacaroca() {
   const [orderDocumentType, setOrderDocumentType] = useState<OrderDocumentType>('Pedido')
   const [orderDate, setOrderDate] = useState('2026-07-20')
   const [orderQty, setOrderQty] = useState(10)
+  const [orderUnitPriceInput, setOrderUnitPriceInput] = useState(0)
   const [orderDueDate, setOrderDueDate] = useState('2026-08-15')
   const [orderNotes, setOrderNotes] = useState('Observações do pedido')
   const [stockOpQty, setStockOpQty] = useState(12)
@@ -1551,6 +1560,7 @@ export default function SistemaMacaroca() {
   const newMaterialSimulationCost = newMaterialSimulationQty * newMaterialStockCost
   const selectedCost = selectedProduct ? productCost(selectedProduct, activeVariationId) : 0
   const selectedPrice = idealPrice(selectedCost, state.tax, state.commission, state.fixedCost, state.profit)
+  const finalOrderUnitPrice = orderUnitPriceInput > 0 ? orderUnitPriceInput : selectedPrice
   const selectedVariationMaterials = selectedVariation ? productMaterials(selectedProduct, selectedVariation.id) : []
   const openProductionOrders = state.productionOrders.filter((op) => op.status !== 'Finalizada')
   const guidedOp = openProductionOrders.find((op) => op.id === guidedOpId) ?? openProductionOrders[0]
@@ -1558,6 +1568,10 @@ export default function SistemaMacaroca() {
   const guidedOrder = guidedOp ? state.orders.find((order) => order.id === guidedOp.orderId) : undefined
   const guidedRemainingQty = guidedOp ? Math.max(0, guidedOp.qty - guidedOp.produced) : 0
   const guidedLaunchQty = Math.min(Math.max(0, guidedProductionQty), Math.max(1, guidedRemainingQty))
+
+  useEffect(() => {
+    setOrderUnitPriceInput(Math.round(selectedPrice))
+  }, [activeVariationId, selectedProductId])
 
   const totals = useMemo(() => {
     const income = state.cashEntries
@@ -1581,7 +1595,7 @@ export default function SistemaMacaroca() {
     const estimatedProfitByOrder = state.orders.filter((order) => order.documentType === 'Pedido').map((order) => {
       const product = state.products.find((item) => item.id === order.productId)
       const unitCost = product ? productCost(product, order.variationId) : 0
-      const price = product ? idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit) : 0
+      const price = orderUnitPrice(state, order)
       const revenue = price * order.qty
       const materialCost = unitCost * order.qty
       const taxCost = revenue * (state.tax / 100)
@@ -2137,7 +2151,7 @@ export default function SistemaMacaroca() {
 
   const createOrder = () => {
     if (!selectedProduct || !selectedCustomer) return
-    const price = idealPrice(productCost(selectedProduct, activeVariationId), state.tax, state.commission, state.fixedCost, state.profit)
+    const price = finalOrderUnitPrice
     const documentType = orderDocumentType
     const order: Order = {
       id: nextDocumentId(state.orders, documentType),
@@ -2150,6 +2164,7 @@ export default function SistemaMacaroca() {
       productId: selectedProduct.id,
       variationId: activeVariationId,
       qty: orderQty,
+      unitPrice: price,
       dueDate: orderDueDate,
       notes: orderNotes,
       status: 'Aberto',
@@ -2188,7 +2203,7 @@ export default function SistemaMacaroca() {
 
   const createGuidedOrderWithOp = () => {
     if (!selectedProduct || !selectedCustomer) return
-    const price = idealPrice(productCost(selectedProduct, activeVariationId), state.tax, state.commission, state.fixedCost, state.profit)
+    const price = finalOrderUnitPrice
     const documentType = orderDocumentType
     const orderId = nextDocumentId(state.orders, documentType)
     const opId = nextProductionOrderId(state.productionOrders)
@@ -2203,6 +2218,7 @@ export default function SistemaMacaroca() {
       productId: selectedProduct.id,
       variationId: activeVariationId,
       qty: orderQty,
+      unitPrice: price,
       dueDate: orderDueDate,
       notes: orderNotes,
       status: documentType === 'Pedido' ? 'Em produção' : 'Aberto',
@@ -2305,10 +2321,7 @@ export default function SistemaMacaroca() {
 
   const convertBudgetToOrder = (order: Order) => {
     if (order.documentType !== 'Orçamento') return
-    const product = state.products.find((item) => item.id === order.productId)
-    const price = product
-      ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit)
-      : 0
+    const price = orderUnitPrice(state, order)
     const newOrderId = nextDocumentId(state.orders, 'Pedido')
 
     setState((current) => ({
@@ -2433,6 +2446,28 @@ export default function SistemaMacaroca() {
           : current.inventoryEntries,
     }))
     setMessage(`Pedido marcado como ${status}.`)
+  }
+
+  const updateOrderUnitPrice = (orderId: string, unitPrice: number) => {
+    const safePrice = Math.max(0, unitPrice)
+    const order = state.orders.find((item) => item.id === orderId)
+    if (!order) return
+
+    const nextState = {
+      ...state,
+      orders: state.orders.map((item) =>
+        item.id === orderId ? { ...item, unitPrice: safePrice } : item,
+      ),
+      cashEntries: state.cashEntries.map((entry) =>
+        entry.source === orderId && entry.category === 'Venda recebida'
+          ? { ...entry, value: safePrice * order.qty }
+          : entry,
+      ),
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `Preço do ${order.documentType.toLowerCase()} ${order.id} sincronizado.`)
+    setMessage(`Preço do ${order.documentType.toLowerCase()} ${order.id} atualizado.`)
   }
 
   const deleteProductionOrder = (op: ProductionOrder) => {
@@ -3963,6 +3998,7 @@ export default function SistemaMacaroca() {
                       {salesFlow.active.map((order) => {
                         const product = state.products.find((item) => item.id === order.productId)
                         const stockRow = productStock.find((item) => item.product.id === order.productId)
+                        const unitPrice = orderUnitPrice(state, order)
                         const relatedOp = state.productionOrders.find((op) => op.orderId === order.id)
                         const timeline = orderTimeline(state, order)
                         const hasOp = hasProductionOrder(order.id)
@@ -4025,10 +4061,11 @@ export default function SistemaMacaroca() {
                                 <p className="mt-2 text-sm text-black/62">
                                   {productDisplayName(product, order.variationId)} · {order.qty} un · prazo {formatDate(order.dueDate)}
                                 </p>
-                                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                <div className="mt-3 grid gap-2 sm:grid-cols-4">
                                   <MiniStat label="Disponível" value={`${stockRow?.physical ?? 0} un`} />
                                   <MiniStat label="Reservado" value={`${stockRow?.pending ?? 0} un`} />
                                   <MiniStat label="Falta" value={`${missingQty} un`} tone={missingQty > 0 ? 'rose' : 'green'} />
+                                  {canSeeMoney && <MiniStat label="Venda" value={money(unitPrice * order.qty)} tone="green" />}
                                 </div>
                                 <details className="mt-3 rounded-md border border-[#eadfd6] bg-[#fffdfa] p-3">
                                   <summary className="cursor-pointer text-sm font-medium text-[#7f3442]">Ver detalhes da venda</summary>
@@ -4069,6 +4106,17 @@ export default function SistemaMacaroca() {
                                   <ReceiptText className="h-4 w-4" />
                                   Ver pedido
                                 </button>
+                                {canSeeMoney && (
+                                  <label className="grid gap-1 rounded-md border border-[#e5d7cd] bg-white p-2">
+                                    <FieldLabel>Preço por peça</FieldLabel>
+                                    <input
+                                      type="number"
+                                      value={Math.round(unitPrice)}
+                                      onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
+                                      className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                    />
+                                  </label>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => setActiveArea('pedido-guiado')}
@@ -4646,7 +4694,7 @@ export default function SistemaMacaroca() {
                   <div className="grid gap-2">
                     <StepButton number={1} label="Cliente" active={guidedOrderStep === 1} done={guidedOrderStep > 1} onClick={() => setGuidedOrderStep(1)} />
                     <StepButton number={2} label="Peça" active={guidedOrderStep === 2} done={guidedOrderStep > 2} onClick={() => setGuidedOrderStep(2)} />
-                    <StepButton number={3} label="Quantidade e prazo" active={guidedOrderStep === 3} done={guidedOrderStep > 3} onClick={() => setGuidedOrderStep(3)} />
+                    <StepButton number={3} label="Preço e prazo" active={guidedOrderStep === 3} done={guidedOrderStep > 3} onClick={() => setGuidedOrderStep(3)} />
                     <StepButton number={4} label="Confirmar" active={guidedOrderStep === 4} done={false} onClick={() => setGuidedOrderStep(4)} />
                   </div>
                 </Panel>
@@ -4742,7 +4790,7 @@ export default function SistemaMacaroca() {
                             onClick={() => setGuidedOrderStep(3)}
                             className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#211f1c] px-4 text-sm font-medium text-white"
                           >
-                            Próximo: quantidade e prazo
+                            Próximo: preço e prazo
                             <ArrowRight className="h-4 w-4" />
                           </button>
                         </div>
@@ -4751,13 +4799,26 @@ export default function SistemaMacaroca() {
                   )}
 
                   {guidedOrderStep === 3 && (
-                    <Panel title="3. Confirmar quantidade e prazo">
+                    <Panel title="3. Quantidade, prazo e preço">
                       <div className="grid gap-4">
                         <div className="grid gap-3 md:grid-cols-3">
                           <SoftNumber label="Quantidade" value={orderQty} onChange={setOrderQty} />
                           <SoftInput label="Data do pedido" value={orderDate} onChange={setOrderDate} />
                           <SoftInput label="Prazo" value={orderDueDate} onChange={setOrderDueDate} />
                         </div>
+                        {canSeeMoney && (
+                          <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-white p-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                            <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
+                            <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
+                            <button
+                              type="button"
+                              onClick={() => setOrderUnitPriceInput(Math.round(selectedPrice))}
+                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
+                            >
+                              Usar sugerido
+                            </button>
+                          </div>
+                        )}
                         <label className="grid gap-2">
                           <FieldLabel>O que você quer criar?</FieldLabel>
                           <select
@@ -4770,7 +4831,7 @@ export default function SistemaMacaroca() {
                           </select>
                         </label>
                         <SoftInput label="Observação do pedido" value={orderNotes} onChange={setOrderNotes} />
-                        {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * selectedPrice)} />}
+                        {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * finalOrderUnitPrice)} />}
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -4800,6 +4861,7 @@ export default function SistemaMacaroca() {
                           <MiniRow title="Tipo" detail={orderDocumentType} />
                           <MiniRow title="Peça" detail={`${selectedProduct.code} · ${productDisplayName(selectedProduct, activeVariationId)}`} />
                           <MiniRow title="Quantidade" detail={`${orderQty} un`} />
+                          {canSeeMoney && <MiniRow title="Preço combinado" detail={`${money(finalOrderUnitPrice)} por peça · total ${money(orderQty * finalOrderUnitPrice)}`} />}
                           <MiniRow title="Prazo" detail={formatDate(orderDueDate)} />
                         </div>
                         {orderNotes && <MiniRow title="Observação" detail={orderNotes} />}
@@ -5919,8 +5981,21 @@ export default function SistemaMacaroca() {
                       <SoftNumber label="Qtd." value={orderQty} onChange={setOrderQty} />
                       <ReadOnlyField label="Status inicial" value="Aberto" />
                     </div>
+                    {canSeeMoney && (
+                      <div className="grid gap-3 rounded-md border border-[#d8c8bd] bg-white p-3">
+                        <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
+                        <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
+                        <button
+                          type="button"
+                          onClick={() => setOrderUnitPriceInput(Math.round(selectedPrice))}
+                          className="inline-flex h-10 items-center justify-center rounded-md border border-[#d8c8bd] bg-[#fffaf5] px-3 text-sm font-medium"
+                        >
+                          Usar preço sugerido
+                        </button>
+                      </div>
+                    )}
                     <SoftInput label="Observações" value={orderNotes} onChange={setOrderNotes} />
-                    {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * selectedPrice)} />}
+                    {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * finalOrderUnitPrice)} />}
                     <button
                       type="button"
                       onClick={createOrder}
@@ -5937,9 +6012,7 @@ export default function SistemaMacaroca() {
                     {state.orders.map((order) => {
                       const product = state.products.find((item) => item.id === order.productId)
                       const timeline = orderTimeline(state, order)
-                      const price = product
-                        ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit)
-                        : 0
+                      const price = orderUnitPrice(state, order)
                       return (
                         <div
                           key={order.id}
@@ -5963,6 +6036,7 @@ export default function SistemaMacaroca() {
                               <p>Telefone: {order.phone || 'Não informado'}</p>
                               <p>Cidade: {order.city || 'Não informada'}</p>
                               <p>Registrado por: {order.createdBy ?? 'Sistema'}</p>
+                              {canSeeMoney && <p>Preço combinado: {money(price)} por peça · Total: {money(order.qty * price)}</p>}
                               {order.notes && <p>Obs.: {order.notes}</p>}
                             </div>
                             <details className="mt-3 rounded-md border border-[#eadfd6] bg-[#fffdfa] p-3">
@@ -6013,6 +6087,17 @@ export default function SistemaMacaroca() {
                               <ReceiptText className="h-4 w-4" />
                               {order.documentType}
                             </button>
+                            {canSeeMoney && (
+                              <label className="grid gap-1 rounded-md border border-[#e5d7cd] bg-white p-2">
+                                <FieldLabel>Preço por peça</FieldLabel>
+                                <input
+                                  type="number"
+                                  value={Math.round(price)}
+                                  onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
+                                  className="h-9 rounded-md border border-[#e5d7cd] bg-[#fffdfa] px-2 text-sm outline-none focus:border-[#b88f82]"
+                                />
+                              </label>
+                            )}
                             <button
                               type="button"
                               onClick={() => updateOrderStatus(order.id, 'Entregue')}
@@ -7523,7 +7608,8 @@ function OrderBudgetPreview({
   const variation = productVariation(product, order.variationId)
   const brandDoc = documentBrand(product.brand, state.company)
   const unitCost = productCost(product, order.variationId)
-  const unitPrice = idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit)
+  const suggestedPrice = idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit)
+  const unitPrice = orderUnitPrice(state, order)
   const total = unitPrice * order.qty
   const relatedOp = state.productionOrders.find((op) => op.orderId === order.id)
   const documentTitle = order.documentType ?? 'Pedido'
@@ -7639,6 +7725,10 @@ function OrderBudgetPreview({
                   <span>Valor unitário</span>
                   <strong>{money(unitPrice)}</strong>
                 </div>
+                <div className="flex justify-between border-b border-black/10 py-3 text-black/55">
+                  <span>Preço sugerido</span>
+                  <span>{money(suggestedPrice)}</span>
+                </div>
                 <div className="flex justify-between border-b border-black/10 py-3">
                   <span>Quantidade</span>
                   <strong>{order.qty} un</strong>
@@ -7666,8 +7756,7 @@ function OrderBudgetPrint({ order, state }: { order: Order; state: AppState }) {
 
   const variation = productVariation(product, order.variationId)
   const brandDoc = documentBrand(product.brand, state.company)
-  const unitCost = productCost(product, order.variationId)
-  const unitPrice = idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit)
+  const unitPrice = orderUnitPrice(state, order)
   const total = unitPrice * order.qty
   const documentTitle = order.documentType ?? 'Pedido'
   const productDescription = [
