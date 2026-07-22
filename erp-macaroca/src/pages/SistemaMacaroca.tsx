@@ -27,6 +27,7 @@ import logoSchon from '@/assets/so-by-macaroca-logo-peq-editado-4f9ae.png'
 import { supabase } from '@/lib/supabase/client'
 
 type Area =
+  | 'inicio'
   | 'plano-geral'
   | 'painel'
   | 'vendas'
@@ -1260,6 +1261,7 @@ const colorPreview = (color: string) => {
 }
 
 const allAreas: Area[] = [
+  'inicio',
   'plano-geral',
   'painel',
   'vendas',
@@ -1285,6 +1287,7 @@ const allAreas: Area[] = [
 const roleAreaAccess: Record<UserRole, Area[]> = {
   Admin: allAreas,
   Sócia: [
+    'inicio',
     'plano-geral',
     'vendas',
     'entregas',
@@ -1297,9 +1300,10 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'configuracoes',
     'pedidos',
   ],
-  Comercial: ['plano-geral', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
-  Produção: ['plano-geral', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
+  Comercial: ['inicio', 'plano-geral', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
+  Produção: ['inicio', 'plano-geral', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
   Financeiro: [
+    'inicio',
     'plano-geral',
     'vendas',
     'entregas',
@@ -1334,7 +1338,7 @@ export default function SistemaMacaroca() {
   const [loginName, setLoginName] = useState('Murilo')
   const [loginPassword, setLoginPassword] = useState('1')
   const [loginError, setLoginError] = useState('')
-  const [activeArea, setActiveArea] = useState<Area>('plano-geral')
+  const [activeArea, setActiveArea] = useState<Area>('inicio')
   const [selectedProductId, setSelectedProductId] = useState(
     state.products.find((product) => product.id === 'produto-conj-base')?.id ?? state.products[0]?.id ?? '',
   )
@@ -1546,7 +1550,7 @@ export default function SistemaMacaroca() {
 
   useEffect(() => {
     if (!areaAllowedForRole(userRole, activeArea)) {
-      setActiveArea('plano-geral')
+      setActiveArea('inicio')
       setMessage(`Perfil ${userRole}: ${roleDescriptions[userRole]}`)
     }
   }, [activeArea, userRole])
@@ -3078,6 +3082,10 @@ export default function SistemaMacaroca() {
       .slice()
       .sort((left, right) => priorityWeight(right.priority) - priorityWeight(left.priority)),
   }
+  const pendingOrdersByDueDate = generalPlan.pendingOrders
+    .slice()
+    .sort((left, right) => (left.dueDate || '').localeCompare(right.dueDate || ''))
+  const oldestPendingOrder = pendingOrdersByDueDate[0]
   const hasProductionOrder = (orderId: string) =>
     state.productionOrders.some((op) => op.orderId === orderId)
   const salesFlow = {
@@ -3191,7 +3199,8 @@ export default function SistemaMacaroca() {
     {
       title: 'Início',
       items: [
-        { key: 'plano-geral', label: 'Hoje', icon: <LayoutDashboard /> },
+        { key: 'inicio', label: 'Módulos', icon: <LayoutDashboard /> },
+        { key: 'plano-geral', label: 'Administrativo', icon: <ShieldCheck /> },
       ],
     },
     {
@@ -3253,28 +3262,68 @@ export default function SistemaMacaroca() {
     tone: 'dark' | 'rose' | 'green' | 'blue' | 'amber' | 'neutral'
   }[] = [
     {
-      key: 'pedido-guiado',
-      title: 'Criar orçamento ou pedido',
-      detail: 'Comece por cliente, peça, quantidade e prazo.',
-      badge: `${state.orders.filter((order) => order.documentType === 'Orçamento').length} orçamento(s)`,
-      icon: <Plus />,
+      key: 'plano-geral',
+      title: 'Administrativo',
+      detail: 'Cenário geral: pendências, atrasos, alertas e visão rápida.',
+      badge: `${generalPlan.pendingOrders.length} pendente(s)`,
+      icon: <LayoutDashboard />,
       tone: 'dark',
     },
     {
+      key: 'notas',
+      title: 'Compra',
+      detail: 'Notas, recebimentos e entrada de matéria-prima.',
+      badge: `${state.purchaseNotes.length} nota(s)`,
+      icon: <ReceiptText />,
+      tone: 'neutral',
+    },
+    {
       key: 'vendas',
-      title: 'Acompanhar pedidos',
-      detail: 'Veja abertos, em produção, prontos e entregues.',
-      badge: `${salesFlow.active.length} ativo(s)`,
+      title: 'Venda',
+      detail: 'Orçamentos, pedidos, clientes e próximos passos.',
+      badge: `${salesFlow.active.length} pedido(s)`,
       icon: <ClipboardList />,
       tone: 'rose',
     },
     {
+      key: 'entregas',
+      title: 'Separação',
+      detail: 'Pedidos prontos para separar, sair do estoque e entregar.',
+      badge: `${salesFlow.ready.length} pronto(s)`,
+      icon: <PackageCheck />,
+      tone: 'green',
+    },
+    {
       key: 'producao',
-      title: 'Produção',
-      detail: 'Ordens abertas, OP para estoque, impressão e baixa.',
+      title: 'Indústria',
+      detail: 'Ordens de produção, apontamentos, OPs e prioridades.',
       badge: `${openProductionOrders.length} OP aberta(s)`,
       icon: <Scissors />,
       tone: 'blue',
+    },
+    {
+      key: 'financeiro',
+      title: 'Caixa',
+      detail: 'Entradas e saídas do mês, contas pagas e saldo.',
+      badge: canSeeMoney ? money(totals.balance) : 'restrito',
+      icon: <WalletCards />,
+      tone: canSeeMoney && totals.balance >= 0 ? 'green' : 'amber',
+    },
+    {
+      key: 'financeiro',
+      title: 'Financeiro',
+      detail: 'Despesas fixas, compras, recebimentos e lucro estimado.',
+      badge: canSeeMoney ? money(financeSummary.receivedSalesMonthTotal) : 'restrito',
+      icon: <Banknote />,
+      tone: 'amber',
+    },
+    {
+      key: 'pedidos',
+      title: 'Recepção / O.S.',
+      detail: 'Entrada rápida de orçamento, pedido e ordem de serviço.',
+      badge: `${state.orders.length} doc(s)`,
+      icon: <FileText />,
+      tone: 'neutral',
     },
     {
       key: 'estoque',
@@ -3282,39 +3331,7 @@ export default function SistemaMacaroca() {
       detail: 'Matéria-prima, produto acabado e compras sugeridas.',
       badge: `${generalPlan.attentionStock.length} alerta(s)`,
       icon: <Package />,
-      tone: generalPlan.attentionStock.length ? 'amber' : 'green',
-    },
-    {
-      key: 'notas',
-      title: 'Compras de matéria-prima',
-      detail: 'Lance notas e entradas para alimentar o estoque.',
-      badge: `${state.purchaseNotes.length} nota(s)`,
-      icon: <ReceiptText />,
-      tone: 'neutral',
-    },
-    {
-      key: 'clientes',
-      title: 'Clientes',
-      detail: 'Cadastros, contatos e histórico de pedidos.',
-      badge: `${state.customers.length} cliente(s)`,
-      icon: <Store />,
-      tone: 'neutral',
-    },
-    {
-      key: 'produtos',
-      title: 'Produtos e fichas',
-      detail: 'Peças, variações, medidas e matéria-prima.',
-      badge: `${state.products.length} produto(s)`,
-      icon: <Shirt />,
-      tone: 'neutral',
-    },
-    {
-      key: 'financeiro',
-      title: 'Financeiro',
-      detail: 'Entradas, saídas, compras, despesas e lucro.',
-      badge: canSeeMoney ? money(totals.balance) : 'restrito',
-      icon: <WalletCards />,
-      tone: canSeeMoney && totals.balance >= 0 ? 'green' : 'amber',
+      tone: generalPlan.attentionStock.length ? 'amber' : 'neutral',
     },
   ].filter((item) => canAccessArea(item.key))
   const previewOp = state.productionOrders.find((op) => op.id === previewOpId)
@@ -3322,9 +3339,13 @@ export default function SistemaMacaroca() {
   const printOp = state.productionOrders.find((op) => op.id === printOpId)
   const printOrder = state.orders.find((order) => order.id === printOrderId)
   const pageIntro: Record<Area, { title: string; description: string }> = {
+    inicio: {
+      title: 'Escolha uma área',
+      description: 'Entrada principal do sistema por módulos de trabalho.',
+    },
     'plano-geral': {
-      title: 'O que precisa ser feito hoje?',
-      description: 'Pedidos, produção, estoque e entregas em uma visão rápida.',
+      title: 'Administrativo',
+      description: 'Cenário amplo para acompanhar pendências, pedidos, produção, estoque e financeiro.',
     },
     painel: {
       title: 'Painel completo',
@@ -3621,7 +3642,7 @@ export default function SistemaMacaroca() {
               {message}
             </div>
 
-            {activeArea === 'plano-geral' && (
+            {activeArea === 'inicio' && (
               <section className="grid gap-5">
                 <section className="overflow-hidden rounded-lg border border-[#e5d7cd] bg-[#fffdfa] shadow-[0_12px_34px_rgba(49,35,30,0.045)]">
                   <div className="grid gap-4 border-b border-[#eadfd6] bg-[#fffaf5] p-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-stretch">
@@ -3635,7 +3656,7 @@ export default function SistemaMacaroca() {
                         </span>
                         <h2 className="mt-1 font-serif text-3xl leading-tight">Maçaroca</h2>
                         <p className="mt-1 text-sm leading-5 text-black/52">
-                          Escolha por onde começar. Cada bloco abre uma parte diferente da rotina.
+                          Escolha a área de trabalho. Depois, cada módulo mostra só o que precisa para aquela rotina.
                         </p>
                       </div>
                     </div>
@@ -3669,11 +3690,15 @@ export default function SistemaMacaroca() {
                     ))}
                   </div>
                 </section>
+              </section>
+            )}
 
+            {activeArea === 'plano-geral' && (
+              <section className="grid gap-5">
                 <section className="grid gap-4 md:hidden">
                   <div className="rounded-lg border border-[#2f2b27] bg-[#211f1c] p-4 text-white shadow-[0_14px_34px_rgba(33,31,28,0.14)]">
-                    <span className="text-xs font-medium uppercase tracking-[0.12em] text-white/52">Modo celular</span>
-                    <h2 className="mt-2 font-serif text-[2rem] leading-none">Plano geral</h2>
+                    <span className="text-xs font-medium uppercase tracking-[0.12em] text-white/52">Administrativo</span>
+                    <h2 className="mt-2 font-serif text-[2rem] leading-none">Cenário geral</h2>
                     <p className="mt-2 text-sm leading-5 text-white/62">
                       O resumo rápido para acompanhar pedidos, produção, estoque e mês financeiro.
                     </p>
@@ -3707,16 +3732,46 @@ export default function SistemaMacaroca() {
                   </div>
 
                   <MobileSummaryPanel title="Pedidos pendentes">
-                    {generalPlan.pendingOrders.slice(0, 3).map((order) => {
+                    {oldestPendingOrder && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveArea('vendas')}
+                        className="rounded-md border border-rose-100 bg-rose-50 px-3 py-3 text-left"
+                      >
+                        <span className="block text-xs font-semibold uppercase text-rose-700">Mais atrasado / mais próximo</span>
+                        <strong className="mt-1 block text-sm text-[#211f1c]">
+                          {oldestPendingOrder.id} · {oldestPendingOrder.client}
+                        </strong>
+                        <span className="mt-1 block text-sm text-black/55">
+                          Prazo {formatDate(oldestPendingOrder.dueDate)} · clique para ver todos
+                        </span>
+                      </button>
+                    )}
+                    {pendingOrdersByDueDate.slice(0, 3).map((order) => {
                       const product = state.products.find((item) => item.id === order.productId)
                       return (
-                        <MiniRow
+                        <button
                           key={order.id}
-                          title={`${order.id} · ${order.client}`}
-                          detail={`${productDisplayName(product, order.variationId)} · ${order.qty} un · prazo ${formatDate(order.dueDate)}`}
-                        />
+                          type="button"
+                          onClick={() => setActiveArea('vendas')}
+                          className="rounded-md border border-[#eee3dc] bg-[#fffaf5] px-3 py-3 text-left"
+                        >
+                          <strong className="block text-sm">{order.id} · {order.client}</strong>
+                          <span className="mt-1 block text-sm leading-5 text-black/52">
+                            {productDisplayName(product, order.variationId)} · {order.qty} un · prazo {formatDate(order.dueDate)}
+                          </span>
+                        </button>
                       )
                     })}
+                    {!!generalPlan.pendingOrders.length && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveArea('vendas')}
+                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#211f1c] px-3 text-sm font-medium text-white"
+                      >
+                        Ver todos os pedidos
+                      </button>
+                    )}
                     {!generalPlan.pendingOrders.length && <EmptyLine text="Nenhum pedido pendente." />}
                   </MobileSummaryPanel>
 
