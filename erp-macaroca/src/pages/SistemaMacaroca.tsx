@@ -2,6 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Banknote,
   Calculator,
   ClipboardList,
@@ -1394,6 +1396,7 @@ export default function SistemaMacaroca() {
   const [financeValue, setFinanceValue] = useState(250000)
   const [financeDueDate, setFinanceDueDate] = useState(currentDateValue())
   const [financePaid, setFinancePaid] = useState(true)
+  const [sidebarCompact, setSidebarCompact] = useState(false)
   const [productionLaunches, setProductionLaunches] = useState<Record<string, number>>({})
   const [guidedOrderStep, setGuidedOrderStep] = useState(1)
   const [guidedProductionStep, setGuidedProductionStep] = useState(1)
@@ -3491,22 +3494,31 @@ export default function SistemaMacaroca() {
           onDownloadPdf={() => downloadProductionOrderPdf(previewOp.id)}
         />
       )}
-      <div className="macaroca-system grid min-h-screen lg:grid-cols-[292px_minmax(0,_1fr)]">
-        <aside className="border-b border-[#e5d7cd] bg-[#fffaf5] lg:border-b-0 lg:border-r">
-          <div className="flex items-center gap-3 border-b border-[#eadfd6] px-5 py-5">
+      <div className={`macaroca-system grid min-h-screen transition-[grid-template-columns] duration-300 ${sidebarCompact ? 'lg:grid-cols-[88px_minmax(0,_1fr)]' : 'lg:grid-cols-[292px_minmax(0,_1fr)]'}`}>
+        <aside className="border-b border-[#e5d7cd] bg-[#fffaf5] transition-all duration-300 lg:border-b-0 lg:border-r">
+          <div className={`flex items-center gap-3 border-b border-[#eadfd6] px-5 py-5 ${sidebarCompact ? 'lg:flex-col lg:px-3' : ''}`}>
             <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#211f1c] p-2 shadow-[0_10px_24px_rgba(33,31,28,0.12)]">
               <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
             </div>
-            <div>
+            <div className={sidebarCompact ? 'lg:hidden' : ''}>
               <strong className="block text-sm">Maçaroca</strong>
               <span className="text-xs text-black/50">Rotina do ateliê</span>
             </div>
+            <button
+              type="button"
+              onClick={() => setSidebarCompact((current) => !current)}
+              className={`ml-auto hidden h-9 w-9 items-center justify-center rounded-md border border-[#e5d7cd] bg-white text-[#5f4a42] transition hover:border-[#c8ad9f] lg:inline-flex ${sidebarCompact ? 'lg:ml-0' : ''}`}
+              aria-label={sidebarCompact ? 'Abrir menu lateral' : 'Recolher menu lateral'}
+              title={sidebarCompact ? 'Abrir menu' : 'Recolher menu'}
+            >
+              {sidebarCompact ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
           </div>
 
-          <nav className="grid gap-5 p-4">
+          <nav className={`grid gap-5 p-4 ${sidebarCompact ? 'lg:px-3' : ''}`}>
             {visibleNavGroups.map((group) => (
               <div key={group.title}>
-                <p className="mb-2 px-2 text-[11px] font-semibold uppercase text-black/35">
+                <p className={`mb-2 px-2 text-[11px] font-semibold uppercase text-black/35 ${sidebarCompact ? 'lg:text-center lg:text-[9px] lg:tracking-[0.08em]' : ''}`}>
                   {group.title}
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1">
@@ -3519,12 +3531,13 @@ export default function SistemaMacaroca() {
                         activeArea === item.key
                           ? 'bg-[#211f1c] text-white shadow-[0_10px_20px_rgba(33,31,28,0.14)]'
                           : 'text-black/62 hover:bg-[#f1e7df] hover:text-[#211f1c]'
-                      }`}
+                      } ${sidebarCompact ? 'lg:justify-center lg:px-0' : ''}`}
+                      title={sidebarCompact ? item.label : undefined}
                     >
                       <span className="grid h-5 w-5 place-items-center [&_svg]:h-4 [&_svg]:w-4">
                         {item.icon}
                       </span>
-                      <span>{item.label}</span>
+                      <span className={sidebarCompact ? 'lg:hidden' : ''}>{item.label}</span>
                     </button>
                   ))}
                 </div>
