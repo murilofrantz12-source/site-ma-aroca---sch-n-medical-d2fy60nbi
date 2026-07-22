@@ -3252,7 +3252,9 @@ export default function SistemaMacaroca() {
       <div className="macaroca-system grid min-h-screen lg:grid-cols-[292px_minmax(0,_1fr)]">
         <aside className="border-b border-[#e5d7cd] bg-[#fffaf5] lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-3 border-b border-[#eadfd6] px-5 py-5">
-            <img src={companyLogo} alt={state.company.name} className="h-14 w-auto rounded-md object-contain" />
+            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#211f1c] p-2 shadow-[0_10px_24px_rgba(33,31,28,0.12)]">
+              <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
+            </div>
             <div>
               <strong className="block text-sm">Maçaroca</strong>
               <span className="text-xs text-black/50">Rotina do ateliê</span>
