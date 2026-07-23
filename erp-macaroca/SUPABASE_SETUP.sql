@@ -28,3 +28,12 @@ for update
 to anon, authenticated
 using (id = 'main')
 with check (id = 'main');
+
+alter table public.macaroca_app_state replica identity full;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.macaroca_app_state;
+exception
+  when duplicate_object or undefined_object then null;
+end $$;
