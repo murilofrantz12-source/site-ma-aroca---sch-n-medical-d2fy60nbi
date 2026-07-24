@@ -31,6 +31,11 @@ import { supabase } from '@/lib/supabase/client'
 type Area =
   | 'inicio'
   | 'plano-geral'
+  | 'modulo-vendas'
+  | 'modulo-producao'
+  | 'modulo-estoque'
+  | 'modulo-cadastros'
+  | 'modulo-gestao'
   | 'painel'
   | 'vendas'
   | 'entregas'
@@ -1241,6 +1246,11 @@ const colorPreview = (color: string) => {
 const allAreas: Area[] = [
   'inicio',
   'plano-geral',
+  'modulo-vendas',
+  'modulo-producao',
+  'modulo-estoque',
+  'modulo-cadastros',
+  'modulo-gestao',
   'painel',
   'vendas',
   'entregas',
@@ -1268,6 +1278,9 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
   Sócia: [
     'inicio',
     'plano-geral',
+    'modulo-vendas',
+    'modulo-producao',
+    'modulo-estoque',
     'vendas',
     'entregas',
     'pedido-guiado',
@@ -1279,11 +1292,15 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'configuracoes',
     'pedidos',
   ],
-  Comercial: ['inicio', 'plano-geral', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
-  Produção: ['inicio', 'plano-geral', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
+  Comercial: ['inicio', 'plano-geral', 'modulo-vendas', 'modulo-estoque', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
+  Produção: ['inicio', 'plano-geral', 'modulo-producao', 'modulo-estoque', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
   Financeiro: [
     'inicio',
     'plano-geral',
+    'modulo-vendas',
+    'modulo-estoque',
+    'modulo-cadastros',
+    'modulo-gestao',
     'vendas',
     'entregas',
     'pedidos',
@@ -2883,7 +2900,7 @@ export default function SistemaMacaroca() {
     setLoggedUserId(user.id)
     setLoginError('')
     setMessage(`Olá, ${user.name}. Escolha uma rotina para começar.`)
-    setActiveArea('plano-geral')
+    setActiveArea('inicio')
   }
 
   const logout = () => {
@@ -3395,51 +3412,22 @@ export default function SistemaMacaroca() {
       title: 'Início',
       items: [
         { key: 'inicio', label: 'Módulos', icon: <LayoutDashboard /> },
-        { key: 'plano-geral', label: 'Administrativo', icon: <ShieldCheck /> },
+        { key: 'plano-geral', label: 'Visão geral', icon: <ShieldCheck /> },
       ],
     },
     {
-      title: 'Vendas',
+      title: 'Rotina',
       items: [
-        { key: 'vendas', label: 'Acompanhar vendas', icon: <ClipboardList /> },
-        { key: 'pedido-guiado', label: 'Nova venda', icon: <Plus /> },
-        { key: 'entregas', label: 'Entregas', icon: <PackageCheck /> },
-        { key: 'clientes', label: 'Clientes', icon: <Store /> },
+        { key: 'modulo-vendas', label: 'Vendas', icon: <ClipboardList /> },
+        { key: 'modulo-producao', label: 'Produção', icon: <Scissors /> },
+        { key: 'modulo-estoque', label: 'Estoque e compras', icon: <Package /> },
       ],
     },
     {
-      title: 'Produção',
+      title: 'Organização',
       items: [
-        { key: 'producao-necessidades', label: 'O que produzir', icon: <PackageCheck /> },
-        { key: 'producao', label: 'Ordens de produção', icon: <Scissors /> },
-        { key: 'producao-guiada', label: 'Registrar produção', icon: <Printer /> },
-      ],
-    },
-    {
-      title: 'Estoque e compras',
-      items: [
-        { key: 'estoque', label: 'Estoque atual', icon: <Package /> },
-        { key: 'movimentacoes', label: 'Entradas e saídas', icon: <PackageCheck /> },
-        { key: 'notas', label: 'Compras de matéria-prima', icon: <ReceiptText /> },
-        { key: 'fornecedores', label: 'Fornecedores', icon: <Store /> },
-      ],
-    },
-    {
-      title: 'Cadastros',
-      items: [
-        { key: 'produtos', label: 'Produtos e fichas', icon: <Shirt /> },
-        { key: 'materias', label: 'Matérias-primas', icon: <Package /> },
-        { key: 'marcas', label: 'Marcas', icon: <PackageCheck /> },
-      ],
-    },
-    {
-      title: 'Gestão',
-      items: [
-        { key: 'precos', label: 'Preços de venda', icon: <Calculator /> },
-        { key: 'financeiro', label: 'Financeiro', icon: <WalletCards /> },
-        { key: 'usuarios', label: 'Usuários', icon: <ShieldCheck /> },
-        { key: 'configuracoes', label: 'Conta e documentos', icon: <ShieldCheck /> },
-        { key: 'painel', label: 'Painel completo', icon: <LayoutDashboard /> },
+        { key: 'modulo-cadastros', label: 'Cadastros', icon: <Shirt /> },
+        { key: 'modulo-gestao', label: 'Gestão', icon: <WalletCards /> },
       ],
     },
   ]
@@ -3466,62 +3454,129 @@ export default function SistemaMacaroca() {
       tone: 'dark',
     },
     {
-      key: 'notas',
-      title: 'Compra',
-      detail: 'Notas, recebimentos e entrada de matéria-prima.',
-      badge: `${state.purchaseNotes.length} nota(s)`,
-      icon: <ReceiptText />,
-      tone: 'neutral',
-    },
-    {
-      key: 'vendas',
-      title: 'Venda',
+      key: 'modulo-vendas',
+      title: 'Vendas',
       detail: 'Orçamentos, pedidos, clientes e próximos passos.',
       badge: `${salesFlow.active.length} pedido(s)`,
       icon: <ClipboardList />,
       tone: 'rose',
     },
     {
-      key: 'entregas',
-      title: 'Separação',
-      detail: 'Pedidos prontos para separar, sair do estoque e entregar.',
-      badge: `${salesFlow.ready.length} pronto(s)`,
-      icon: <PackageCheck />,
-      tone: 'green',
-    },
-    {
-      key: 'producao',
-      title: 'Indústria',
+      key: 'modulo-producao',
+      title: 'Produção',
       detail: 'Ordens de produção, apontamentos, OPs e prioridades.',
       badge: `${openProductionOrders.length} OP aberta(s)`,
       icon: <Scissors />,
       tone: 'blue',
     },
     {
-      key: 'financeiro',
-      title: 'Caixa',
-      detail: 'Entradas e saídas do mês, contas pagas e saldo.',
-      badge: canSeeMoney ? money(totals.balance) : 'restrito',
-      icon: <WalletCards />,
-      tone: canSeeMoney && totals.balance >= 0 ? 'green' : 'amber',
-    },
-    {
-      key: 'precos',
-      title: 'Preços',
-      detail: 'Tabela oficial de valores para orçamento e pedido.',
-      badge: `${state.products.length} produto(s)`,
-      icon: <Calculator />,
-      tone: 'amber',
-    },
-    {
-      key: 'estoque',
-      title: 'Estoque',
-      detail: 'Matéria-prima, produto acabado e compras sugeridas.',
+      key: 'modulo-estoque',
+      title: 'Estoque e compras',
+      detail: 'Saldos, entradas, saídas, compras e fornecedores.',
       badge: `${generalPlan.attentionStock.length} alerta(s)`,
       icon: <Package />,
       tone: generalPlan.attentionStock.length ? 'amber' : 'neutral',
     },
+    {
+      key: 'modulo-cadastros',
+      title: 'Cadastros',
+      detail: 'Produtos, fichas, matérias-primas, clientes e marcas.',
+      badge: `${state.products.length} produto(s)`,
+      icon: <Shirt />,
+      tone: 'neutral',
+    },
+    {
+      key: 'modulo-gestao',
+      title: 'Gestão',
+      detail: 'Preços, financeiro, usuários, documentos e relatórios.',
+      badge: canSeeMoney ? money(totals.balance) : 'acesso restrito',
+      icon: <WalletCards />,
+      tone: canSeeMoney && totals.balance >= 0 ? 'green' : 'neutral',
+    },
   ].filter((item) => canAccessArea(item.key))
+  const moduleHubs: {
+    key: Area
+    eyebrow: string
+    title: string
+    description: string
+    items: {
+      key: Area
+      title: string
+      detail: string
+      badge: string
+      icon: ReactNode
+      primary?: boolean
+    }[]
+  }[] = [
+    {
+      key: 'modulo-vendas',
+      eyebrow: 'Comercial e atendimento',
+      title: 'Vendas',
+      description: 'Comece uma venda, acompanhe os pedidos e conclua a entrega sem misturar as etapas.',
+      items: [
+        { key: 'pedido-guiado', title: 'Criar orçamento ou pedido', detail: 'Escolha cliente, peça, quantidade, preço e prazo.', badge: 'Começar', icon: <Plus />, primary: true },
+        { key: 'vendas', title: 'Acompanhar vendas', detail: 'Veja pedidos abertos e a próxima ação de cada um.', badge: `${salesFlow.active.length} aberto(s)`, icon: <ClipboardList /> },
+        { key: 'entregas', title: 'Separação e entrega', detail: 'Confira o que está pronto e registre a saída.', badge: `${salesFlow.ready.length} pronto(s)`, icon: <PackageCheck /> },
+        { key: 'clientes', title: 'Clientes', detail: 'Cadastre contatos e consulte o histórico de pedidos.', badge: `${state.customers.length} cadastrado(s)`, icon: <Store /> },
+      ],
+    },
+    {
+      key: 'modulo-producao',
+      eyebrow: 'PCP e ateliê',
+      title: 'Produção',
+      description: 'Decida o que produzir, acompanhe as ordens e registre somente o que ficou pronto.',
+      items: [
+        { key: 'producao-necessidades', title: 'O que precisa produzir', detail: 'Compare pedidos, estoque disponível e quantidade faltante.', badge: `${productionNeedRows.length} necessidade(s)`, icon: <PackageCheck />, primary: true },
+        { key: 'producao', title: 'Ordens de produção', detail: 'Crie, priorize, confira e imprima as OPs.', badge: `${openProductionOrders.length} aberta(s)`, icon: <Scissors /> },
+        { key: 'producao-guiada', title: 'Registrar produção', detail: 'Informe as peças prontas e confirme os materiais usados.', badge: 'Apontar', icon: <Printer /> },
+        { key: 'estoque', title: 'Conferir materiais', detail: 'Veja matéria-prima disponível e o que falta comprar.', badge: `${dashboard.lowRaw.length} alerta(s)`, icon: <Package /> },
+      ],
+    },
+    {
+      key: 'modulo-estoque',
+      eyebrow: 'Materiais e recebimentos',
+      title: 'Estoque e compras',
+      description: 'Consulte o saldo, registre compras e acompanhe tudo o que entrou ou saiu.',
+      items: [
+        { key: 'estoque', title: 'Estoque atual', detail: 'Consulte matéria-prima, produto pronto e compras sugeridas.', badge: `${generalPlan.attentionStock.length} alerta(s)`, icon: <Package />, primary: true },
+        { key: 'notas', title: 'Compras de matéria-prima', detail: 'Registre notas e a entrada dos materiais comprados.', badge: `${state.purchaseNotes.length} nota(s)`, icon: <ReceiptText /> },
+        { key: 'movimentacoes', title: 'Entradas e saídas', detail: 'Consulte o histórico de tudo que movimentou o estoque.', badge: `${state.inventoryEntries.length} registro(s)`, icon: <PackageCheck /> },
+        { key: 'fornecedores', title: 'Fornecedores', detail: 'Mantenha os contatos usados nas compras.', badge: `${state.suppliers.length} cadastrado(s)`, icon: <Store /> },
+      ],
+    },
+    {
+      key: 'modulo-cadastros',
+      eyebrow: 'Base do sistema',
+      title: 'Cadastros',
+      description: 'Organize as informações usadas nas vendas, fichas técnicas, produção e compras.',
+      items: [
+        { key: 'produtos', title: 'Produtos e fichas', detail: 'Cadastre peças, variações e consumo de matéria-prima.', badge: `${state.products.length} produto(s)`, icon: <Shirt />, primary: true },
+        { key: 'materias', title: 'Matérias-primas', detail: 'Defina unidade, conversão, custo e estoque mínimo.', badge: `${state.rawMaterials.length} material(is)`, icon: <Package /> },
+        { key: 'clientes', title: 'Clientes', detail: 'Cadastre contatos e informações de entrega.', badge: `${state.customers.length} cliente(s)`, icon: <Store /> },
+        { key: 'marcas', title: 'Marcas', detail: 'Configure Maçaroca, Schön e novos prefixos de produto.', badge: `${state.brands.length} marca(s)`, icon: <PackageCheck /> },
+      ],
+    },
+    {
+      key: 'modulo-gestao',
+      eyebrow: 'Administração',
+      title: 'Gestão',
+      description: 'Defina preços, acompanhe o dinheiro e controle os acessos ao sistema.',
+      items: [
+        { key: 'precos', title: 'Preços de venda', detail: 'Defina o valor oficial de cada peça e variação.', badge: `${state.products.length} produto(s)`, icon: <Calculator />, primary: true },
+        { key: 'financeiro', title: 'Financeiro', detail: 'Acompanhe recebimentos, despesas, contas e saldo.', badge: canSeeMoney ? money(totals.balance) : 'Restrito', icon: <WalletCards /> },
+        { key: 'usuarios', title: 'Usuários e permissões', detail: 'Cadastre pessoas e escolha o que cada perfil acessa.', badge: `${state.users.length} usuário(s)`, icon: <ShieldCheck /> },
+        { key: 'configuracoes', title: 'Conta e documentos', detail: 'Altere senha, logo e textos de orçamento e pedido.', badge: 'Configurar', icon: <FileText /> },
+        { key: 'painel', title: 'Painel completo', detail: 'Consulte indicadores administrativos e relatórios gerais.', badge: 'Relatórios', icon: <LayoutDashboard /> },
+      ],
+    },
+  ]
+    .map((module) => ({
+      ...module,
+      items: module.items.filter((item) => canAccessArea(item.key)),
+    }))
+    .filter((module) => canAccessArea(module.key) && module.items.length > 0)
+  const activeModuleHub = moduleHubs.find((module) => module.key === activeArea)
+  const parentModuleHub = moduleHubs.find((module) => module.items.some((item) => item.key === activeArea))
   const previewOp = state.productionOrders.find((op) => op.id === previewOpId)
   const previewOrder = state.orders.find((order) => order.id === previewOrderId)
   const printOp = state.productionOrders.find((op) => op.id === printOpId)
@@ -3534,6 +3589,26 @@ export default function SistemaMacaroca() {
     'plano-geral': {
       title: 'Administrativo',
       description: 'Cenário amplo para acompanhar pendências, pedidos, produção, estoque e financeiro.',
+    },
+    'modulo-vendas': {
+      title: 'Vendas',
+      description: 'Escolha o que deseja fazer dentro da rotina comercial.',
+    },
+    'modulo-producao': {
+      title: 'Produção',
+      description: 'Escolha uma etapa do planejamento ou da produção.',
+    },
+    'modulo-estoque': {
+      title: 'Estoque e compras',
+      description: 'Escolha entre consulta, compra ou histórico de movimentações.',
+    },
+    'modulo-cadastros': {
+      title: 'Cadastros',
+      description: 'Escolha a informação que deseja cadastrar ou revisar.',
+    },
+    'modulo-gestao': {
+      title: 'Gestão',
+      description: 'Escolha uma área administrativa do sistema.',
     },
     painel: {
       title: 'Painel completo',
@@ -3787,6 +3862,17 @@ export default function SistemaMacaroca() {
           <header className="sticky top-0 z-20 border-b border-[#e5e7eb] bg-white/95 px-4 py-3 backdrop-blur md:px-8 md:py-4">
             <div className="mx-auto flex max-w-[1220px] flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex min-w-0 items-center gap-4">
+                {parentModuleHub && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveArea(parentModuleHub.key)}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
+                    aria-label={`Voltar para ${parentModuleHub.title}`}
+                    title={`Voltar para ${parentModuleHub.title}`}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                )}
                 <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[#111827] p-2 sm:flex">
                   <img src={companyLogo} alt={state.company.name} className="max-h-full max-w-full object-contain" />
                 </div>
@@ -3821,7 +3907,7 @@ export default function SistemaMacaroca() {
                   <button
                     type="button"
                     onClick={() => setActiveArea('notas')}
-                    className="inline-flex h-9 items-center gap-2 rounded-md bg-[#312e81] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3]"
+                    className="hidden h-9 items-center gap-2 rounded-md bg-[#312e81] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3] md:inline-flex"
                   >
                     <FileText className="h-4 w-4" />
                     Compra
@@ -3831,7 +3917,7 @@ export default function SistemaMacaroca() {
                   <button
                     type="button"
                     onClick={() => setActiveArea('pedido-guiado')}
-                    className="inline-flex h-9 items-center gap-2 rounded-md bg-[#111827] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3]"
+                    className="hidden h-9 items-center gap-2 rounded-md bg-[#111827] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3] md:inline-flex"
                   >
                     <Plus className="h-4 w-4" />
                     Nova venda
@@ -3879,7 +3965,7 @@ export default function SistemaMacaroca() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid gap-2 rounded-md border border-[#e5e7eb] bg-white p-3 text-sm text-black/58 sm:grid-cols-3 lg:grid-cols-1">
+                    <div className="hidden gap-2 rounded-md border border-[#e5e7eb] bg-white p-3 text-sm text-black/58 sm:grid sm:grid-cols-3 lg:grid-cols-1">
                       <div>
                         <span className="block text-xs uppercase text-black/35">Usuário</span>
                         <strong className="text-[#111827]">{currentUserName}</strong>
@@ -3895,7 +3981,7 @@ export default function SistemaMacaroca() {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 p-3 sm:gap-3 sm:p-4 xl:grid-cols-4">
                     {moduleTiles.map((item) => (
                       <ModuleTile
                         key={item.key}
@@ -3910,6 +3996,20 @@ export default function SistemaMacaroca() {
                   </div>
                 </section>
               </section>
+            )}
+
+            {activeModuleHub && (
+              <ModuleHub
+                eyebrow={activeModuleHub.eyebrow}
+                title={activeModuleHub.title}
+                description={activeModuleHub.description}
+                items={activeModuleHub.items}
+                onBack={() => setActiveArea('inicio')}
+                onOpen={(area) => {
+                  setActiveArea(area)
+                  setMessage(`Você entrou em ${pageIntro[area].title}.`)
+                }}
+              />
             )}
 
             {activeArea === 'plano-geral' && (
@@ -7142,23 +7242,105 @@ function ModuleTile({
     <button
       type="button"
       onClick={onClick}
-      className={`group grid min-h-[150px] grid-rows-[auto_1fr_auto] rounded-md border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${toneClass}`}
+      className={`group grid min-h-[126px] grid-rows-[auto_1fr_auto] rounded-md border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[150px] sm:p-4 ${toneClass}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-md [&_svg]:h-5 [&_svg]:w-5 ${iconClass}`}>
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-md sm:h-11 sm:w-11 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-5 sm:[&_svg]:w-5 ${iconClass}`}>
           {icon}
         </span>
-        <span className={`rounded-full px-2 py-1 text-xs font-medium ${badgeClass}`}>{badge}</span>
+        <span className={`max-w-[78px] rounded-full px-1.5 py-1 text-right text-[10px] font-medium leading-3 sm:max-w-none sm:px-2 sm:text-xs ${badgeClass}`}>{badge}</span>
       </div>
-      <div className="mt-4 min-w-0">
-        <strong className="block text-lg leading-6">{title}</strong>
-        <span className={`mt-2 block text-sm leading-5 ${mutedClass}`}>{detail}</span>
+      <div className="mt-3 min-w-0 sm:mt-4">
+        <strong className="block text-sm leading-5 sm:text-lg sm:leading-6">{title}</strong>
+        <span className={`mt-2 hidden text-sm leading-5 sm:block ${mutedClass}`}>{detail}</span>
       </div>
-      <span className={`mt-4 inline-flex items-center gap-2 text-sm font-medium ${tone === 'dark' ? 'text-white' : 'text-[#312e81]'}`}>
+      <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium sm:mt-4 sm:gap-2 sm:text-sm ${tone === 'dark' ? 'text-white' : 'text-[#312e81]'}`}>
         Abrir
         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
       </span>
     </button>
+  )
+}
+
+function ModuleHub({
+  eyebrow,
+  title,
+  description,
+  items,
+  onBack,
+  onOpen,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  items: {
+    key: Area
+    title: string
+    detail: string
+    badge: string
+    icon: ReactNode
+    primary?: boolean
+  }[]
+  onBack: () => void
+  onOpen: (area: Area) => void
+}) {
+  return (
+    <section className="grid gap-5">
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-950"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Todos os módulos
+        </button>
+        <span className="block text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">{eyebrow}</span>
+        <div className="mt-2 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+          <div>
+            <h2 className="text-2xl font-semibold leading-tight text-slate-950 md:text-3xl">{title}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{description}</p>
+          </div>
+          <span className="text-sm text-slate-400">{items.length} opções</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        {items.map((item, index) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onOpen(item.key)}
+            className={`group relative grid min-h-[138px] grid-cols-1 grid-rows-[40px_1fr] gap-2 rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[170px] sm:grid-cols-[48px_minmax(0,1fr)] sm:grid-rows-none sm:gap-4 sm:p-5 ${
+              item.primary
+                ? 'border-[#312e81] bg-[#312e81] text-white'
+                : 'border-slate-200 bg-white text-slate-950 hover:border-slate-300'
+            } ${items.length % 2 === 1 && index === items.length - 1 ? 'sm:col-span-2' : ''}`}
+          >
+            <span className={`grid h-10 w-10 place-items-center rounded-md sm:h-12 sm:w-12 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-5 sm:[&_svg]:w-5 ${
+              item.primary ? 'bg-white/12 text-white' : 'bg-slate-100 text-[#312e81]'
+            }`}>
+              {item.icon}
+            </span>
+            <span className="min-w-0">
+              <strong className="block pr-1 text-sm leading-5 sm:pr-20 sm:text-lg sm:leading-6">{item.title}</strong>
+              <span className={`mt-2 hidden text-sm leading-5 sm:block ${item.primary ? 'text-white/72' : 'text-slate-500'}`}>
+                {item.detail}
+              </span>
+              <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium sm:mt-4 sm:gap-2 sm:text-sm ${item.primary ? 'text-white' : 'text-[#312e81]'}`}>
+                Abrir
+                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </span>
+            </span>
+            <span className={`absolute right-3 top-3 hidden rounded-full px-2 py-1 text-xs font-medium sm:inline-flex ${
+              item.primary ? 'bg-white/12 text-white/85' : 'bg-slate-100 text-slate-500'
+            }`}>
+              {item.badge}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 
