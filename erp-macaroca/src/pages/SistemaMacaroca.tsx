@@ -3670,7 +3670,7 @@ export default function SistemaMacaroca() {
   const visibleHelpGuides = helpGuides.filter((guide) => {
     if (!normalizedGuideSearch) return true
 
-    return [guide.category, guide.title, guide.summary, ...guide.keywords]
+    return [guide.category, guide.title, ...guide.keywords]
       .join(' ')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
