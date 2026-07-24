@@ -1402,6 +1402,7 @@ export default function SistemaMacaroca() {
   const [financePaid, setFinancePaid] = useState(true)
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [moduleContext, setModuleContext] = useState<Area | null>(null)
   const [productionLaunches, setProductionLaunches] = useState<Record<string, number>>({})
   const [guidedOrderStep, setGuidedOrderStep] = useState(1)
   const [guidedProductionStep, setGuidedProductionStep] = useState(1)
@@ -3576,7 +3577,16 @@ export default function SistemaMacaroca() {
     }))
     .filter((module) => canAccessArea(module.key) && module.items.length > 0)
   const activeModuleHub = moduleHubs.find((module) => module.key === activeArea)
-  const parentModuleHub = moduleHubs.find((module) => module.items.some((item) => item.key === activeArea))
+  const contextualParentModuleHub = moduleContext
+    ? moduleHubs.find(
+        (module) =>
+          module.key === moduleContext &&
+          module.items.some((item) => item.key === activeArea),
+      )
+    : undefined
+  const parentModuleHub =
+    contextualParentModuleHub ??
+    moduleHubs.find((module) => module.items.some((item) => item.key === activeArea))
   const previewOp = state.productionOrders.find((op) => op.id === previewOpId)
   const previewOrder = state.orders.find((order) => order.id === previewOrderId)
   const printOp = state.productionOrders.find((op) => op.id === printOpId)
@@ -3836,6 +3846,7 @@ export default function SistemaMacaroca() {
                       key={item.key}
                       type="button"
                       onClick={() => {
+                        if (item.key.startsWith('modulo-')) setModuleContext(item.key)
                         setActiveArea(item.key)
                         setMobileMenuOpen(false)
                       }}
@@ -3947,6 +3958,19 @@ export default function SistemaMacaroca() {
               {message}
             </div>
 
+            {parentModuleHub && (
+              <ModuleSectionTabs
+                moduleTitle={parentModuleHub.title}
+                items={parentModuleHub.items}
+                activeArea={activeArea}
+                onSelect={(area) => {
+                  setModuleContext(parentModuleHub.key)
+                  setActiveArea(area)
+                  setMessage(`Você entrou em ${pageIntro[area].title}.`)
+                }}
+              />
+            )}
+
             {activeArea === 'inicio' && (
               <section className="grid gap-5">
                 <section className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-[#ffffff] shadow-[0_12px_34px_rgba(49,35,30,0.045)]">
@@ -3990,7 +4014,10 @@ export default function SistemaMacaroca() {
                         badge={item.badge}
                         icon={item.icon}
                         tone={item.tone}
-                        onClick={() => setActiveArea(item.key)}
+                        onClick={() => {
+                          if (item.key.startsWith('modulo-')) setModuleContext(item.key)
+                          setActiveArea(item.key)
+                        }}
                       />
                     ))}
                   </div>
@@ -4004,8 +4031,12 @@ export default function SistemaMacaroca() {
                 title={activeModuleHub.title}
                 description={activeModuleHub.description}
                 items={activeModuleHub.items}
-                onBack={() => setActiveArea('inicio')}
+                onBack={() => {
+                  setModuleContext(null)
+                  setActiveArea('inicio')
+                }}
                 onOpen={(area) => {
+                  setModuleContext(activeModuleHub.key)
                   setActiveArea(area)
                   setMessage(`Você entrou em ${pageIntro[area].title}.`)
                 }}
@@ -7259,6 +7290,67 @@ function ModuleTile({
         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
       </span>
     </button>
+  )
+}
+
+function ModuleSectionTabs({
+  moduleTitle,
+  items,
+  activeArea,
+  onSelect,
+}: {
+  moduleTitle: string
+  items: {
+    key: Area
+    title: string
+    detail: string
+    badge: string
+    icon: ReactNode
+    primary?: boolean
+  }[]
+  activeArea: Area
+  onSelect: (area: Area) => void
+}) {
+  return (
+    <section className="mb-5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm md:p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            Acesso rápido
+          </span>
+          <strong className="mt-0.5 block text-sm text-slate-800">{moduleTitle}</strong>
+        </div>
+        <span className="hidden text-xs text-slate-400 sm:block">Troque de tela sem voltar ao menu</span>
+      </div>
+      <nav
+        aria-label={`Opções de ${moduleTitle}`}
+        className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2"
+      >
+        {items.map((item) => {
+          const isActive = item.key === activeArea
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => onSelect(item.key)}
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex min-h-12 items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium leading-4 transition sm:text-sm ${
+                isActive
+                  ? 'border-[#312e81] bg-[#312e81] text-white shadow-sm'
+                  : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-950'
+              }`}
+            >
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md [&_svg]:h-4 [&_svg]:w-4 ${
+                isActive ? 'bg-white/12' : 'bg-white text-[#312e81]'
+              }`}>
+                {item.icon}
+              </span>
+              <span>{item.title}</span>
+            </button>
+          )
+        })}
+      </nav>
+    </section>
   )
 }
 
