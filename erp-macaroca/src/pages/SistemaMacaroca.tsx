@@ -1332,8 +1332,8 @@ export default function SistemaMacaroca() {
   const [syncDetail, setSyncDetail] = useState('Conectando ao banco compartilhado...')
   const [lastCloudSync, setLastCloudSync] = useState('')
   const [loggedUserId, setLoggedUserId] = useState('')
-  const [loginName, setLoginName] = useState('Murilo')
-  const [loginPassword, setLoginPassword] = useState('1')
+  const [loginName, setLoginName] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [activeArea, setActiveArea] = useState<Area>('plano-geral')
   const [selectedProductId, setSelectedProductId] = useState(
