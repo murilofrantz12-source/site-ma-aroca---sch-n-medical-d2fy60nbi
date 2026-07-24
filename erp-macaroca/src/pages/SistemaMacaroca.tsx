@@ -36,6 +36,7 @@ type Area =
   | 'modulo-estoque'
   | 'modulo-cadastros'
   | 'modulo-gestao'
+  | 'ajuda'
   | 'painel'
   | 'vendas'
   | 'entregas'
@@ -72,6 +73,17 @@ type FinanceCategory =
   | 'Outro'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type SyncStatus = 'Carregando' | 'Compartilhado' | 'Salvando' | 'Local' | 'Erro'
+
+type HelpGuide = {
+  id: string
+  category: string
+  title: string
+  summary: string
+  keywords: string[]
+  target: Area
+  action: string
+  steps: string[]
+}
 
 type OrderTimelineItem = {
   label: string
@@ -1251,6 +1263,7 @@ const allAreas: Area[] = [
   'modulo-estoque',
   'modulo-cadastros',
   'modulo-gestao',
+  'ajuda',
   'painel',
   'vendas',
   'entregas',
@@ -1281,6 +1294,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'modulo-vendas',
     'modulo-producao',
     'modulo-estoque',
+    'ajuda',
     'vendas',
     'entregas',
     'pedido-guiado',
@@ -1292,8 +1306,8 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'configuracoes',
     'pedidos',
   ],
-  Comercial: ['inicio', 'plano-geral', 'modulo-vendas', 'modulo-estoque', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
-  Produção: ['inicio', 'plano-geral', 'modulo-producao', 'modulo-estoque', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
+  Comercial: ['inicio', 'plano-geral', 'modulo-vendas', 'modulo-estoque', 'ajuda', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
+  Produção: ['inicio', 'plano-geral', 'modulo-producao', 'modulo-estoque', 'ajuda', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
   Financeiro: [
     'inicio',
     'plano-geral',
@@ -1301,6 +1315,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'modulo-estoque',
     'modulo-cadastros',
     'modulo-gestao',
+    'ajuda',
     'vendas',
     'entregas',
     'pedidos',
@@ -1323,6 +1338,213 @@ const roleDescriptions: Record<UserRole, string> = {
   Financeiro: 'Foco em compras, entradas e saídas, notas, fornecedores e financeiro.',
 }
 
+const helpGuides: HelpGuide[] = [
+  {
+    id: 'novo-orcamento',
+    category: 'Vendas',
+    title: 'Como criar um orçamento',
+    summary: 'Registre uma proposta sem gerar produção ou reservar estoque.',
+    keywords: ['orçamento', 'proposta', 'cliente', 'preço', 'imprimir'],
+    target: 'pedido-guiado',
+    action: 'Criar orçamento',
+    steps: [
+      'Abra Vendas e escolha Criar orçamento ou pedido.',
+      'Selecione Orçamento como tipo do documento.',
+      'Escolha o cliente, a peça e a variação correta.',
+      'Informe quantidade, prazo e o preço oferecido ao cliente.',
+      'Confira o resumo e salve.',
+      'Use Prévia para revisar e depois imprimir ou baixar o documento.',
+    ],
+  },
+  {
+    id: 'novo-pedido',
+    category: 'Vendas',
+    title: 'Como registrar um pedido',
+    summary: 'Cadastre a venda com o preço real negociado e verifique o estoque.',
+    keywords: ['pedido', 'venda', 'cliente', 'valor', 'preço negociado'],
+    target: 'pedido-guiado',
+    action: 'Registrar pedido',
+    steps: [
+      'Abra Vendas e escolha Criar orçamento ou pedido.',
+      'Selecione Pedido e escolha o cliente.',
+      'Escolha produto, tamanho, cor ou outra variação.',
+      'Informe quantidade, prazo e preço unitário negociado.',
+      'Confira disponível, reservado e quantidade que falta produzir.',
+      'Salve o pedido e siga a próxima ação indicada pelo sistema.',
+    ],
+  },
+  {
+    id: 'definir-preco',
+    category: 'Preços',
+    title: 'Como definir o preço de uma peça',
+    summary: 'Use custo, comissão, despesas e lucro para chegar ao preço oficial.',
+    keywords: ['preço', 'markup', 'lucro', 'comissão', 'custo', 'margem'],
+    target: 'precos',
+    action: 'Abrir preços',
+    steps: [
+      'Confirme primeiro se a ficha da peça possui todas as matérias-primas.',
+      'Abra Gestão e entre em Preços de venda.',
+      'Escolha a peça e a variação.',
+      'Revise custo, comissão, custos fixos e lucro desejado.',
+      'Compare preço mínimo, preço ideal e preço oficial.',
+      'Salve o preço oficial. No pedido ele ainda poderá ser negociado.',
+    ],
+  },
+  {
+    id: 'gerar-producao',
+    category: 'Produção',
+    title: 'Como mandar um pedido para produção',
+    summary: 'Produza somente o que falta depois de descontar o estoque disponível.',
+    keywords: ['PCP', 'produção', 'pedido', 'estoque', 'falta', 'OP'],
+    target: 'producao-necessidades',
+    action: 'Ver o que produzir',
+    steps: [
+      'Abra Produção e escolha O que precisa produzir.',
+      'Localize o produto ou pedido na lista.',
+      'Confira pedido pendente, estoque disponível e produção já aberta.',
+      'Revise a quantidade sugerida pelo sistema.',
+      'Ajuste a quantidade se necessário e gere a ordem de produção.',
+      'Abra a OP para definir prioridade, responsável e datas.',
+    ],
+  },
+  {
+    id: 'op-estoque',
+    category: 'Produção',
+    title: 'Como criar uma produção para estoque',
+    summary: 'Crie uma OP sem pedido relacionado para repor produtos acabados.',
+    keywords: ['OP', 'estoque', 'reposição', 'produção livre'],
+    target: 'producao',
+    action: 'Abrir ordens',
+    steps: [
+      'Abra Produção e entre em Ordens de produção.',
+      'Escolha Nova ordem para estoque.',
+      'Selecione produto, variação e quantidade planejada.',
+      'Defina prioridade, responsável e prazo.',
+      'Confira se existe matéria-prima suficiente.',
+      'Salve e imprima a OP para acompanhar a execução.',
+    ],
+  },
+  {
+    id: 'registrar-producao',
+    category: 'Produção',
+    title: 'Como registrar o que foi produzido',
+    summary: 'Informe apenas as peças que realmente ficaram prontas naquele lançamento.',
+    keywords: ['apontamento', 'produzi hoje', 'peça pronta', 'baixa', 'material'],
+    target: 'producao-guiada',
+    action: 'Registrar produção',
+    steps: [
+      'Abra Produção e escolha Registrar produção.',
+      'Selecione a ordem de produção aberta.',
+      'Informe quantas peças ficaram prontas agora.',
+      'Confira os materiais que serão descontados do estoque.',
+      'Confirme o lançamento com seu usuário.',
+      'Quando atingir a quantidade total, conclua a produção.',
+    ],
+  },
+  {
+    id: 'comprar-material',
+    category: 'Estoque',
+    title: 'Como registrar uma compra de matéria-prima',
+    summary: 'Lance a nota para aumentar o estoque e registrar a saída financeira.',
+    keywords: ['compra', 'nota', 'entrada', 'tecido', 'matéria-prima', 'fornecedor'],
+    target: 'notas',
+    action: 'Registrar compra',
+    steps: [
+      'Abra Estoque e compras e escolha Compras de matéria-prima.',
+      'Informe número, fornecedor e data da nota.',
+      'Escolha o material comprado e sua unidade de compra.',
+      'Informe quantidade e custo.',
+      'Confira a conversão para a unidade usada na ficha técnica.',
+      'Salve para registrar a entrada no estoque e a despesa financeira.',
+    ],
+  },
+  {
+    id: 'conferir-estoque',
+    category: 'Estoque',
+    title: 'Como conferir o estoque',
+    summary: 'Entenda o físico, o reservado para pedidos e o saldo disponível.',
+    keywords: ['estoque', 'saldo', 'reservado', 'disponível', 'baixo'],
+    target: 'estoque',
+    action: 'Conferir estoque',
+    steps: [
+      'Abra Estoque e compras e entre em Estoque atual.',
+      'Escolha Matéria-prima ou Produto acabado.',
+      'No produto, compare físico, pendente, produzindo e disponível.',
+      'Lembre que pedidos pendentes reduzem o disponível.',
+      'Produções só aumentam o físico após o registro das peças prontas.',
+      'Use os alertas para ver o que precisa ser comprado.',
+    ],
+  },
+  {
+    id: 'entregar-pedido',
+    category: 'Vendas',
+    title: 'Como separar e entregar um pedido',
+    summary: 'Finalize o fluxo registrando a saída do produto acabado.',
+    keywords: ['entrega', 'separação', 'saída', 'pedido pronto', 'concluir'],
+    target: 'entregas',
+    action: 'Ver entregas',
+    steps: [
+      'Abra Vendas e entre em Separação e entrega.',
+      'Localize o pedido com status Pronto.',
+      'Confira cliente, produto, quantidade e endereço.',
+      'Separe fisicamente as peças.',
+      'Registre a saída do estoque.',
+      'Marque o pedido como Entregue para retirá-lo das pendências.',
+    ],
+  },
+  {
+    id: 'cadastrar-produto',
+    category: 'Cadastros',
+    title: 'Como cadastrar uma peça e sua ficha',
+    summary: 'Crie produto, variações e os materiais consumidos em cada unidade.',
+    keywords: ['produto', 'peça', 'ficha técnica', 'tamanho', 'cor', 'material'],
+    target: 'produtos',
+    action: 'Cadastrar produto',
+    steps: [
+      'Abra Cadastros e escolha Produtos e fichas.',
+      'Informe marca, nome, categoria e descrição da peça.',
+      'Cadastre tamanho, cor, tecido, medidas e referência.',
+      'Adicione somente matérias-primas já cadastradas.',
+      'Informe o consumo de cada material para produzir uma unidade.',
+      'Salve e confira o custo calculado antes de definir o preço.',
+    ],
+  },
+  {
+    id: 'cadastrar-material',
+    category: 'Cadastros',
+    title: 'Como cadastrar matéria-prima e conversão',
+    summary: 'Defina como o material é comprado e como é consumido na produção.',
+    keywords: ['matéria-prima', 'kg', 'metro', 'unidade', 'conversão', 'tecido'],
+    target: 'materias',
+    action: 'Cadastrar material',
+    steps: [
+      'Abra Cadastros e escolha Matérias-primas.',
+      'Informe nome, categoria e fornecedor padrão.',
+      'Escolha a unidade de compra, como kg.',
+      'Escolha a unidade de uso, como metro.',
+      'Informe a conversão, por exemplo: 1 kg rende 3 m.',
+      'Defina custo e estoque mínimo, simule a conversão e salve.',
+    ],
+  },
+  {
+    id: 'usuarios-senha',
+    category: 'Acesso',
+    title: 'Como cadastrar usuário ou trocar senha',
+    summary: 'Crie um acesso individual e mantenha cada lançamento identificado.',
+    keywords: ['usuário', 'login', 'senha', 'sócia', 'permissão', 'perfil'],
+    target: 'usuarios',
+    action: 'Gerenciar usuários',
+    steps: [
+      'O administrador abre Gestão e entra em Usuários e permissões.',
+      'Informe o nome, crie uma senha e escolha o perfil.',
+      'Salve e entregue as credenciais somente para aquela pessoa.',
+      'Cada usuária deve entrar usando o próprio nome e senha.',
+      'Para trocar a própria senha, abra Conta no topo da tela.',
+      'Informe a senha atual, a nova senha e confirme a alteração.',
+    ],
+  },
+]
+
 const areaAllowedForRole = (role: UserRole, area: Area) =>
   (roleAreaAccess[role] ?? roleAreaAccess.Sócia).includes(area)
 
@@ -1335,6 +1557,7 @@ export default function SistemaMacaroca() {
   const [loginName, setLoginName] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
+  const [guideSearch, setGuideSearch] = useState('')
   const [activeArea, setActiveArea] = useState<Area>('plano-geral')
   const [selectedProductId, setSelectedProductId] = useState(
     state.products.find((product) => product.id === 'produto-conj-base')?.id ?? state.products[0]?.id ?? '',
@@ -3414,6 +3637,7 @@ export default function SistemaMacaroca() {
       items: [
         { key: 'inicio', label: 'Módulos', icon: <LayoutDashboard /> },
         { key: 'plano-geral', label: 'Visão geral', icon: <ShieldCheck /> },
+        { key: 'ajuda', label: 'Ajuda passo a passo', icon: <FileText /> },
       ],
     },
     {
@@ -3438,6 +3662,21 @@ export default function SistemaMacaroca() {
       items: group.items.filter((item) => canAccessArea(item.key)),
     }))
     .filter((group) => group.items.length > 0)
+  const normalizedGuideSearch = guideSearch
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+  const visibleHelpGuides = helpGuides.filter((guide) => {
+    if (!normalizedGuideSearch) return true
+
+    return [guide.category, guide.title, guide.summary, ...guide.keywords, ...guide.steps]
+      .join(' ')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .includes(normalizedGuideSearch)
+  })
   const moduleTiles: {
     key: Area
     title: string
@@ -3619,6 +3858,10 @@ export default function SistemaMacaroca() {
     'modulo-gestao': {
       title: 'Gestão',
       description: 'Escolha uma área administrativa do sistema.',
+    },
+    ajuda: {
+      title: 'Ajuda passo a passo',
+      description: 'Busque uma dúvida e siga os passos na ordem indicada.',
     },
     painel: {
       title: 'Painel completo',
@@ -4022,6 +4265,124 @@ export default function SistemaMacaroca() {
                     ))}
                   </div>
                 </section>
+              </section>
+            )}
+
+            {activeArea === 'ajuda' && (
+              <section className="grid gap-5">
+                <div className="border-b border-[#e5e7eb] bg-white p-4 md:p-6">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                    <label className="grid min-w-0 gap-2">
+                      <FieldLabel>O que você precisa fazer?</FieldLabel>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <input
+                          type="search"
+                          value={guideSearch}
+                          onChange={(event) => setGuideSearch(event.target.value)}
+                          placeholder="Ex.: criar pedido, definir preço, produzir, estoque..."
+                          className="h-11 min-w-0 flex-1 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none transition focus:border-[#3730a3] focus:ring-2 focus:ring-[#3730a3]/10"
+                        />
+                        {guideSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setGuideSearch('')}
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-[#d1d5db] bg-white text-slate-600 transition hover:border-slate-400 hover:text-slate-950"
+                            aria-label="Limpar busca"
+                            title="Limpar busca"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Pedido', 'Preço', 'Produção', 'Estoque', 'Produto', 'Senha'].map((term) => (
+                        <button
+                          key={term}
+                          type="button"
+                          onClick={() => setGuideSearch(term)}
+                          className="h-9 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[#3730a3] hover:text-[#3730a3]"
+                        >
+                          {term}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">Guias disponíveis</h2>
+                    <p className="text-sm text-slate-500">
+                      {visibleHelpGuides.length} passo(s) a passo encontrado(s)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid items-start gap-4 xl:grid-cols-2">
+                  {visibleHelpGuides.map((guide) => (
+                    <article
+                      key={guide.id}
+                      className="overflow-hidden rounded-md border border-[#dfe3e8] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.035)]"
+                    >
+                      <div className="border-b border-[#e5e7eb] bg-[#f8fafc] px-4 py-4 md:px-5">
+                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#3730a3]">
+                          {guide.category}
+                        </span>
+                        <h3 className="mt-1 text-lg font-semibold text-[#111827]">{guide.title}</h3>
+                        <p className="mt-1 text-sm leading-5 text-slate-600">{guide.summary}</p>
+                      </div>
+                      <ol className="grid gap-3 p-4 md:p-5">
+                        {guide.steps.map((step, index) => (
+                          <li key={step} className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-3 text-sm leading-5 text-slate-700">
+                            <span className="grid h-7 w-7 place-items-center rounded-full bg-[#eef2ff] text-xs font-semibold text-[#3730a3]">
+                              {index + 1}
+                            </span>
+                            <span className="pt-1">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                      <div className="flex items-center justify-between gap-3 border-t border-[#e5e7eb] px-4 py-3 md:px-5">
+                        <span className="hidden text-xs text-slate-400 sm:block">
+                          Palavras: {guide.keywords.slice(0, 3).join(', ')}
+                        </span>
+                        {canAccessArea(guide.target) ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveArea(guide.target)
+                              setMessage(`Guia aberto: ${guide.title}. Siga os passos e use esta tela para concluir.`)
+                            }}
+                            className="ml-auto inline-flex h-9 items-center gap-2 rounded-md bg-[#111827] px-3 text-sm font-medium text-white transition hover:bg-[#3730a3]"
+                          >
+                            {guide.action}
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <span className="ml-auto text-xs font-medium text-slate-500">
+                            Disponível para o perfil responsável
+                          </span>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                {!visibleHelpGuides.length && (
+                  <div className="rounded-md border border-dashed border-[#cbd5e1] bg-white px-5 py-10 text-center">
+                    <strong className="block text-base">Nenhum guia encontrado</strong>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Tente buscar por pedido, preço, produção, estoque, produto ou senha.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setGuideSearch('')}
+                      className="mt-4 h-9 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium"
+                    >
+                      Ver todos os guias
+                    </button>
+                  </div>
+                )}
               </section>
             )}
 
