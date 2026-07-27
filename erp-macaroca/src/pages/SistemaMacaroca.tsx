@@ -27,6 +27,16 @@ import {
 import logoMacaroca from '@/assets/macaroca-editado-40689.png'
 import logoSchon from '@/assets/so-by-macaroca-logo-peq-editado-4f9ae.png'
 import { supabase } from '@/lib/supabase/client'
+import {
+  loadErpState,
+  loadProfile,
+  saveErpChanges,
+  usernameEmail,
+  type AuditEvent,
+  type ErpEnvironment,
+  type ErpProfile,
+  type VersionMap,
+} from '@/lib/erp-store'
 
 type Area =
   | 'inicio'
@@ -57,6 +67,7 @@ type Area =
   | 'estoque'
   | 'movimentacoes'
   | 'financeiro'
+  | 'historico'
 type BrandName = string
 type UserRole = 'Admin' | 'Sócia' | 'Comercial' | 'Produção' | 'Financeiro'
 type OrderDocumentType = 'Orçamento' | 'Pedido'
@@ -309,6 +320,8 @@ const cloudStateTable = (import.meta.env.VITE_SUPABASE_STATE_TABLE as string | u
 const cloudStateId = (import.meta.env.VITE_SUPABASE_STATE_ID as string | undefined) || 'main'
 const appEnvironment = (import.meta.env.VITE_APP_ENV as string | undefined) || 'production'
 const isTestEnvironment = appEnvironment === 'test'
+const erpEnvironment: ErpEnvironment = isTestEnvironment ? 'test' : 'production'
+const normalizedStoreEnabled = import.meta.env.VITE_ERP_V2 === 'true'
 
 const defaultProducts: Product[] = [
   {
@@ -857,7 +870,7 @@ const inferFinanceCategory = (entry: CashEntry): FinanceCategory => {
   return 'Outro'
 }
 
-const normalizeState = (state: AppState): AppState => {
+const normalizeState = (state: AppState, includePrototypeDefaults = true): AppState => {
   const counters: Record<string, number> = {}
   const looksLikeOldPriceProfile =
     state.commission === 5 &&
@@ -868,12 +881,12 @@ const normalizeState = (state: AppState): AppState => {
     ...(state.company ?? {}),
     budgetValidityDays: Number(state.company?.budgetValidityDays) || initialState.company.budgetValidityDays,
   }
-  const users = mergeById(initialState.users, state.users).map((user) => ({
+  const users = mergeById(includePrototypeDefaults ? initialState.users : [], state.users).map((user) => ({
     ...user,
     role: normalizeUserRole(user.role),
   }))
-  const brands = mergeById(initialState.brands, state.brands)
-  const rawMaterials = mergeById(initialState.rawMaterials, state.rawMaterials).map((material) => ({
+  const brands = mergeById(includePrototypeDefaults ? initialState.brands : [], state.brands)
+  const rawMaterials = mergeById(includePrototypeDefaults ? initialState.rawMaterials : [], state.rawMaterials).map((material) => ({
     ...material,
     code: material.code,
     category: material.category ?? 'Matéria-prima',
@@ -882,8 +895,8 @@ const normalizeState = (state: AppState): AppState => {
     purchaseToStockFactor: material.purchaseToStockFactor ?? 1,
     lastPurchase: material.lastPurchase ?? '',
   }))
-  const suppliers = mergeById(initialState.suppliers, state.suppliers)
-  const customers = mergeById(initialState.customers, state.customers).map((customer) => ({
+  const suppliers = mergeById(includePrototypeDefaults ? initialState.suppliers : [], state.suppliers)
+  const customers = mergeById(includePrototypeDefaults ? initialState.customers : [], state.customers).map((customer) => ({
     ...customer,
     phone: customer.phone ?? customer.contact ?? '',
     city: customer.city ?? customer.address ?? '',
@@ -918,7 +931,7 @@ const normalizeState = (state: AppState): AppState => {
     commission: looksLikeOldPriceProfile ? 10 : state.commission,
     fixedCost: looksLikeOldPriceProfile ? 0 : state.fixedCost,
     profit: looksLikeOldPriceProfile ? 52 : state.profit,
-    products: mergeById(initialState.products, state.products).map((product) => {
+    products: mergeById(includePrototypeDefaults ? initialState.products : [], state.products).map((product) => {
       counters[product.brand] = (counters[product.brand] ?? 0) + 1
       return {
         ...product,
@@ -955,7 +968,7 @@ const normalizeState = (state: AppState): AppState => {
         })),
       }
     }),
-    purchaseNotes: mergeById(initialState.purchaseNotes, state.purchaseNotes ?? []).map((note) => ({
+    purchaseNotes: mergeById(includePrototypeDefaults ? initialState.purchaseNotes : [], state.purchaseNotes ?? []).map((note) => ({
       ...note,
       createdBy: note.createdBy ?? 'Sistema',
     })),
@@ -980,7 +993,7 @@ const normalizeState = (state: AppState): AppState => {
       finishedAt: op.finishedAt ?? '',
       launches: op.launches ?? [],
     })),
-    inventoryEntries: mergeById(initialState.inventoryEntries, state.inventoryEntries ?? []).map((entry) =>
+    inventoryEntries: mergeById(includePrototypeDefaults ? initialState.inventoryEntries : [], state.inventoryEntries ?? []).map((entry) =>
       entry.id === 'EST-003' && entry.kind === 'Consumo MP' && entry.item === 'Scrub completo'
         ? {
             ...entry,
@@ -992,7 +1005,7 @@ const normalizeState = (state: AppState): AppState => {
             createdBy: entry.createdBy ?? 'Sistema',
           },
     ),
-    cashEntries: mergeById(initialState.cashEntries, state.cashEntries ?? []).map((entry) => ({
+    cashEntries: mergeById(includePrototypeDefaults ? initialState.cashEntries : [], state.cashEntries ?? []).map((entry) => ({
       ...entry,
       category: inferFinanceCategory(entry),
       paid: entry.paid ?? true,
@@ -1015,6 +1028,35 @@ const numericCode = (id: string) => id.replace(/\D/g, '') || id
 const formatDate = (date?: string) => {
   const source = date ? new Date(`${date}T00:00:00`) : new Date()
   return new Intl.DateTimeFormat('pt-BR').format(source)
+}
+
+const formatDateTime = (date?: string) => {
+  const source = date ? new Date(date) : new Date()
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(source)
+}
+
+const auditEntityLabels: Record<string, string> = {
+  brand: 'Marca',
+  raw_material: 'Matéria-prima',
+  supplier: 'Fornecedor',
+  customer: 'Cliente',
+  product: 'Produto',
+  purchase_note: 'Compra de matéria-prima',
+  order: 'Orçamento ou pedido',
+  production_order: 'Ordem de produção',
+  inventory_entry: 'Entrada ou saída de estoque',
+  cash_entry: 'Lançamento financeiro',
+  company: 'Empresa e documentos',
+  pricing: 'Configuração de preços',
+}
+
+const auditActionLabels: Record<AuditEvent['action'], string> = {
+  INSERT: 'Criou',
+  UPDATE: 'Alterou',
+  DELETE: 'Excluiu',
 }
 
 const currentDateValue = () => new Date().toISOString().slice(0, 10)
@@ -1174,7 +1216,12 @@ const readInitialState = () => {
 
   try {
     const saved = window.localStorage.getItem(storageKey)
-    return saved ? normalizeState({ ...initialState, ...JSON.parse(saved) } as AppState) : initialState
+    if (!saved) return initialState
+    const normalized = normalizeState({ ...initialState, ...JSON.parse(saved) } as AppState)
+    if (normalizedStoreEnabled) {
+      normalized.users = normalized.users.map((user) => ({ ...user, password: '' }))
+    }
+    return normalized
   } catch {
     return initialState
   }
@@ -1286,6 +1333,7 @@ const allAreas: Area[] = [
   'estoque',
   'movimentacoes',
   'financeiro',
+  'historico',
 ]
 
 const roleAreaAccess: Record<UserRole, Area[]> = {
@@ -1328,6 +1376,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'fornecedores',
     'precos',
     'financeiro',
+    'historico',
     'configuracoes',
   ],
 }
@@ -1556,6 +1605,9 @@ export default function SistemaMacaroca() {
   const [syncDetail, setSyncDetail] = useState('Conectando ao banco compartilhado...')
   const [lastCloudSync, setLastCloudSync] = useState('')
   const [loggedUserId, setLoggedUserId] = useState('')
+  const [authReady, setAuthReady] = useState(!normalizedStoreEnabled)
+  const [authProfile, setAuthProfile] = useState<ErpProfile | null>(null)
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
   const [loginName, setLoginName] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
@@ -1593,7 +1645,7 @@ export default function SistemaMacaroca() {
   const [newBrandName, setNewBrandName] = useState('Nova marca')
   const [newBrandPrefix, setNewBrandPrefix] = useState('NM')
   const [newUserName, setNewUserName] = useState('Nova sócia')
-  const [newUserPassword, setNewUserPassword] = useState('1')
+  const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState<UserRole>('Sócia')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newAccountPassword, setNewAccountPassword] = useState('')
@@ -1637,19 +1689,36 @@ export default function SistemaMacaroca() {
   const [previewOrderId, setPreviewOrderId] = useState<string | null>(null)
   const [printOpId, setPrintOpId] = useState<string | null>(null)
   const [printOrderId, setPrintOrderId] = useState<string | null>(null)
-  const loggedUser = state.users.find((user) => user.id === loggedUserId)
+  const loggedUser = authProfile
+    ? {
+        id: authProfile.id,
+        name: authProfile.username,
+        password: '',
+        role: authProfile.role,
+      }
+    : state.users.find((user) => user.id === loggedUserId)
   const userRole = normalizeUserRole(loggedUser?.role)
   const currentUserName = loggedUser?.name ?? 'Sistema'
   const canSeeMoney = userRole === 'Admin' || userRole === 'Financeiro'
   const canManagePurchases = userRole === 'Admin' || userRole === 'Financeiro'
   const canDeleteRecords = userRole === 'Admin'
-  const canAccessArea = (area: Area) => areaAllowedForRole(userRole, area)
+  const canAccessArea = (area: Area) =>
+    authProfile?.mustChangePassword
+      ? area === 'configuracoes' || area === 'ajuda'
+      : areaAllowedForRole(userRole, area)
   const companyLogo = state.company.logoUrl || logoMacaroca
   const cloudLoadedRef = useRef(false)
   const applyingCloudStateRef = useRef(false)
   const lastSavedStateRef = useRef('')
   const lastCloudUpdatedAtRef = useRef('')
   const latestStateRef = useRef(state)
+  const normalizedLoadedRef = useRef(false)
+  const normalizedVersionsRef = useRef<VersionMap>({})
+  const normalizedSavedStateRef = useRef<AppState | null>(null)
+  const normalizedSavingRef = useRef(false)
+  const normalizedDirtyRef = useRef(false)
+  const normalizedPendingStateRef = useRef<AppState | null>(null)
+  const normalizedReloadTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     latestStateRef.current = state
@@ -1662,6 +1731,211 @@ export default function SistemaMacaroca() {
     }
     return ''
   }
+
+  const loadNormalizedState = useCallback(async (detail = 'Dados seguros carregados do banco.') => {
+    if (!normalizedStoreEnabled) return false
+
+    try {
+      setSyncStatus('Carregando')
+      const loaded = await loadErpState(erpEnvironment, initialState as unknown as Record<string, unknown>)
+      const nextState = normalizeState({ ...initialState, ...loaded.state } as AppState, false)
+
+      normalizedVersionsRef.current = loaded.versions
+      normalizedSavedStateRef.current = nextState
+      normalizedLoadedRef.current = true
+      normalizedDirtyRef.current = false
+      applyingCloudStateRef.current = true
+      latestStateRef.current = nextState
+      setState(nextState)
+      setAuditEvents(loaded.audit)
+      setLastCloudSync(loaded.updatedAt || new Date().toISOString())
+      window.localStorage.setItem(storageKey, JSON.stringify(nextState))
+      setSyncStatus('Compartilhado')
+      setSyncDetail(detail)
+      return true
+    } catch (error) {
+      normalizedLoadedRef.current = false
+      setSyncStatus('Erro')
+      setSyncDetail(`Não foi possível abrir os dados seguros.${explainSyncError(error) ? ` Detalhe: ${explainSyncError(error)}` : ''}`)
+      return false
+    }
+  }, [])
+
+  const persistNormalizedState = useCallback(async (requestedState: AppState) => {
+    normalizedPendingStateRef.current = requestedState
+    if (normalizedSavingRef.current) return
+
+    normalizedSavingRef.current = true
+
+    while (normalizedPendingStateRef.current) {
+      const nextState = normalizedPendingStateRef.current
+      normalizedPendingStateRef.current = null
+      const previousState = normalizedSavedStateRef.current
+
+      if (!previousState) continue
+
+      try {
+        setSyncStatus('Salvando')
+        const result = await saveErpChanges(
+          erpEnvironment,
+          previousState as unknown as Record<string, unknown>,
+          nextState as unknown as Record<string, unknown>,
+          normalizedVersionsRef.current,
+        )
+
+        normalizedVersionsRef.current = result.versions
+        normalizedSavedStateRef.current = nextState
+        normalizedDirtyRef.current = false
+        lastSavedStateRef.current = JSON.stringify(nextState)
+        const savedAt = new Date().toISOString()
+        setLastCloudSync(savedAt)
+        setSyncStatus('Compartilhado')
+        setSyncDetail(result.changed ? 'Alterações salvas com histórico e identificação do usuário.' : 'Dados conferidos.')
+      } catch (error) {
+        const detail = explainSyncError(error)
+        const conflict = detail.includes('CONFLICT') || detail.toLowerCase().includes('conflict')
+
+        setSyncStatus('Erro')
+        setSyncDetail(
+          conflict
+            ? 'Outra pessoa alterou este registro primeiro. Recarreguei a versão mais recente para evitar perda.'
+            : `Não foi possível salvar a alteração.${detail ? ` Detalhe: ${detail}` : ''}`,
+        )
+        await loadNormalizedState(
+          conflict
+            ? 'Versão mais recente carregada. Confira o registro antes de tentar novamente.'
+            : 'Dados recarregados após uma falha de gravação.',
+        )
+        normalizedPendingStateRef.current = null
+        normalizedDirtyRef.current = false
+      }
+    }
+
+    normalizedSavingRef.current = false
+  }, [loadNormalizedState])
+
+  useEffect(() => {
+    if (!normalizedStoreEnabled) return
+    let active = true
+
+    const applySession = async (userId?: string) => {
+      if (!active) return
+
+      if (!userId) {
+        setAuthProfile(null)
+        setLoggedUserId('')
+        setAuthReady(true)
+        normalizedLoadedRef.current = false
+        setSyncStatus('Carregando')
+        setSyncDetail('Entre para acessar os dados compartilhados.')
+        return
+      }
+
+      try {
+        const profile = await loadProfile(userId)
+        if (!active) return
+        setAuthProfile(profile)
+        setLoggedUserId(profile.id)
+        setAuthReady(true)
+      } catch (error) {
+        if (!active) return
+        setAuthProfile(null)
+        setLoggedUserId('')
+        setAuthReady(true)
+        setLoginError(`Acesso sem perfil ativo.${explainSyncError(error) ? ` Detalhe: ${explainSyncError(error)}` : ''}`)
+        await supabase.auth.signOut()
+      }
+    }
+
+    void supabase.auth.getSession().then(({ data }) => {
+      void applySession(data.session?.user.id)
+    })
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void applySession(session?.user.id)
+    })
+
+    return () => {
+      active = false
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!normalizedStoreEnabled || !authProfile) return
+    void loadNormalizedState(
+      authProfile.mustChangePassword
+        ? 'Primeiro acesso confirmado. Crie uma nova senha para continuar.'
+        : 'Dados seguros carregados e sincronizados.',
+    ).then(() => {
+      if (authProfile.mustChangePassword) {
+        setActiveArea('configuracoes')
+        setMessage('Por segurança, troque a senha temporária antes de usar o sistema.')
+      } else {
+        setActiveArea('inicio')
+        setMessage(`Olá, ${authProfile.username}. Escolha uma rotina para começar.`)
+      }
+    })
+  }, [authProfile, loadNormalizedState])
+
+  useEffect(() => {
+    if (!normalizedStoreEnabled || !authProfile || !normalizedLoadedRef.current) return
+
+    if (applyingCloudStateRef.current) {
+      applyingCloudStateRef.current = false
+      return
+    }
+
+    if (JSON.stringify(state) === JSON.stringify(normalizedSavedStateRef.current)) return
+
+    normalizedDirtyRef.current = true
+    const timeout = window.setTimeout(() => {
+      void persistNormalizedState(state)
+    }, 450)
+
+    return () => window.clearTimeout(timeout)
+  }, [authProfile, persistNormalizedState, state])
+
+  useEffect(() => {
+    if (!normalizedStoreEnabled || !authProfile) return
+
+    const scheduleReload = () => {
+      if (normalizedReloadTimerRef.current) window.clearTimeout(normalizedReloadTimerRef.current)
+      normalizedReloadTimerRef.current = window.setTimeout(() => {
+        if (normalizedSavingRef.current || normalizedDirtyRef.current) {
+          scheduleReload()
+          return
+        }
+        void loadNormalizedState('Atualização recebida de outro aparelho.')
+      }, 350)
+    }
+
+    const channel = supabase
+      .channel(`macaroca-erp-records-${erpEnvironment}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'erp_records', filter: `environment=eq.${erpEnvironment}` },
+        scheduleReload,
+      )
+      .subscribe()
+
+    const checkForChanges = () => {
+      if (!normalizedSavingRef.current && !normalizedDirtyRef.current) {
+        void loadNormalizedState('Dados conferidos com o banco compartilhado.')
+      }
+    }
+    const interval = window.setInterval(checkForChanges, 12000)
+    window.addEventListener('focus', checkForChanges)
+    document.addEventListener('visibilitychange', checkForChanges)
+
+    return () => {
+      if (normalizedReloadTimerRef.current) window.clearTimeout(normalizedReloadTimerRef.current)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', checkForChanges)
+      document.removeEventListener('visibilitychange', checkForChanges)
+      supabase.removeChannel(channel)
+    }
+  }, [authProfile, loadNormalizedState])
 
   const applyCloudState = useCallback((cloudData: Partial<AppState>, updatedAt?: string, detail = 'Dados atualizados do banco compartilhado.') => {
     const cloudUpdatedAt = updatedAt ?? new Date().toISOString()
@@ -1690,6 +1964,14 @@ export default function SistemaMacaroca() {
   }, [])
 
   const saveStateImmediately = async (nextState: AppState, successDetail = 'Dados sincronizados para todas as usuárias.') => {
+    if (normalizedStoreEnabled) {
+      normalizedDirtyRef.current = true
+      setState(nextState)
+      await persistNormalizedState(nextState)
+      setSyncDetail(successDetail)
+      return
+    }
+
     const serialized = JSON.stringify(nextState)
     const savedAt = new Date().toISOString()
     window.localStorage.setItem(storageKey, serialized)
@@ -1780,6 +2062,7 @@ export default function SistemaMacaroca() {
   )
 
   useEffect(() => {
+    if (normalizedStoreEnabled) return
     let cancelled = false
 
     void loadCloudState({ createWhenEmpty: true }).then(() => {
@@ -1792,6 +2075,7 @@ export default function SistemaMacaroca() {
   }, [loadCloudState])
 
   useEffect(() => {
+    if (normalizedStoreEnabled) return
     if (!cloudLoadedRef.current) return
 
     const serialized = JSON.stringify(state)
@@ -1837,6 +2121,7 @@ export default function SistemaMacaroca() {
   }, [currentUserName, state])
 
   useEffect(() => {
+    if (normalizedStoreEnabled) return
     const channel = supabase
       .channel('macaroca-app-state')
       .on(
@@ -1858,6 +2143,7 @@ export default function SistemaMacaroca() {
   }, [applyCloudState])
 
   useEffect(() => {
+    if (normalizedStoreEnabled) return
     const checkForCloudChanges = () => {
       void loadCloudState({ quiet: true })
     }
@@ -1874,11 +2160,15 @@ export default function SistemaMacaroca() {
   }, [loadCloudState])
 
   useEffect(() => {
-    if (!areaAllowedForRole(userRole, activeArea)) {
-      setActiveArea('inicio')
-      setMessage(`Perfil ${userRole}: ${roleDescriptions[userRole]}`)
+    if (!canAccessArea(activeArea)) {
+      setActiveArea(authProfile?.mustChangePassword ? 'configuracoes' : 'inicio')
+      setMessage(
+        authProfile?.mustChangePassword
+          ? 'Troque a senha temporária para liberar o restante do sistema.'
+          : `Perfil ${userRole}: ${roleDescriptions[userRole]}`,
+      )
     }
-  }, [activeArea, userRole])
+  }, [activeArea, authProfile?.mustChangePassword, userRole])
 
   const selectedProduct =
     state.products.find((product) => product.id === selectedProductId) ?? state.products[0]
@@ -3111,7 +3401,31 @@ export default function SistemaMacaroca() {
     setMessage(paid ? 'Conta marcada como paga.' : 'Conta voltou para pendente.')
   }
 
-  const login = () => {
+  const login = async () => {
+    if (normalizedStoreEnabled) {
+      const name = loginName.trim()
+      if (!name || !loginPassword) {
+        setLoginError('Informe seu nome e sua senha.')
+        return
+      }
+
+      setLoginError('')
+      setSyncStatus('Carregando')
+      const { error } = await supabase.auth.signInWithPassword({
+        email: usernameEmail(name),
+        password: loginPassword,
+      })
+
+      if (error) {
+        setLoginError('Nome ou senha incorretos.')
+        setSyncStatus('Erro')
+        return
+      }
+
+      setLoginPassword('')
+      return
+    }
+
     const user = state.users.find(
       (item) =>
         item.name.trim().toLowerCase() === loginName.trim().toLowerCase() &&
@@ -3129,23 +3443,89 @@ export default function SistemaMacaroca() {
     setActiveArea('inicio')
   }
 
-  const logout = () => {
+  const logout = async () => {
+    if (normalizedStoreEnabled) {
+      await supabase.auth.signOut()
+      setAuthProfile(null)
+      normalizedLoadedRef.current = false
+    }
     setLoggedUserId('')
     setLoginPassword('')
     setMessage('Tudo certo por aqui.')
   }
 
-  const createUser = () => {
+  const refreshSharedState = async () => {
+    if (normalizedStoreEnabled) {
+      if (normalizedDirtyRef.current || normalizedSavingRef.current) {
+        setMessage('Aguarde um instante: há uma alteração sendo salva.')
+        return
+      }
+      await loadNormalizedState('Dados atualizados com o banco compartilhado.')
+      return
+    }
+
+    await loadCloudState()
+  }
+
+  const createUser = async () => {
     const name = newUserName.trim()
-    const password = newUserPassword.trim()
+    const password = newUserPassword
 
     if (!name || !password) {
       setMessage('Informe nome e senha para cadastrar o usuário.')
       return
     }
 
+    if (normalizedStoreEnabled && password.length < 8) {
+      setMessage('A senha temporária precisa ter pelo menos 8 caracteres.')
+      return
+    }
+
     if (state.users.some((user) => user.name.trim().toLowerCase() === name.toLowerCase())) {
       setMessage('Já existe um usuário com esse nome.')
+      return
+    }
+
+    if (normalizedStoreEnabled) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) {
+        setMessage('Sua sessão expirou. Entre novamente.')
+        return
+      }
+
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, password, role: newUserRole }),
+      })
+      const result = await response.json()
+
+      if (!response.ok) {
+        setMessage(result.error || 'Não foi possível cadastrar o usuário.')
+        return
+      }
+
+      setState((current) => ({
+        ...current,
+        users: [
+          {
+            id: result.user.id,
+            name: result.user.name,
+            password: '',
+            role: result.user.role,
+          },
+          ...current.users,
+        ],
+      }))
+      setNewUserName('Nova sócia')
+      setNewUserPassword('')
+      setNewUserRole('Sócia')
+      setActiveArea('usuarios')
+      setMessage(`Usuário ${result.user.name} cadastrado com troca de senha obrigatória.`)
       return
     }
 
@@ -3161,14 +3541,57 @@ export default function SistemaMacaroca() {
       users: [user, ...current.users],
     }))
     setNewUserName('Nova sócia')
-    setNewUserPassword('1')
+    setNewUserPassword('')
     setNewUserRole('Sócia')
     setActiveArea('usuarios')
     setMessage(`Usuário ${user.name} cadastrado.`)
   }
 
-  const updateOwnPassword = () => {
+  const updateOwnPassword = async () => {
     if (!loggedUser) return
+
+    if (normalizedStoreEnabled) {
+      if (newAccountPassword.length < 8) {
+        setMessage('A nova senha precisa ter pelo menos 8 caracteres.')
+        return
+      }
+
+      if (newAccountPassword !== confirmAccountPassword) {
+        setMessage('A confirmação da senha não confere.')
+        return
+      }
+
+      const { error: validationError } = await supabase.auth.signInWithPassword({
+        email: usernameEmail(loggedUser.name),
+        password: currentPassword,
+      })
+      if (validationError) {
+        setMessage('Senha atual incorreta.')
+        return
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newAccountPassword,
+      })
+      if (updateError) {
+        setMessage(`Não foi possível alterar a senha. ${updateError.message}`)
+        return
+      }
+
+      const { error: profileError } = await (supabase as any).rpc('erp_finish_password_change')
+      if (profileError) {
+        setMessage('A senha foi atualizada, mas o perfil precisa ser conferido pelo administrador.')
+        return
+      }
+
+      setAuthProfile((profile) => profile ? { ...profile, mustChangePassword: false } : profile)
+      setCurrentPassword('')
+      setNewAccountPassword('')
+      setConfirmAccountPassword('')
+      setActiveArea('inicio')
+      setMessage('Senha segura criada. O sistema está liberado.')
+      return
+    }
 
     if (currentPassword !== loggedUser.password) {
       setMessage('Senha atual incorreta.')
@@ -3807,6 +4230,7 @@ export default function SistemaMacaroca() {
         { key: 'precos', title: 'Preços de venda', detail: 'Defina o valor oficial de cada peça e variação.', badge: `${state.products.length} produto(s)`, icon: <Calculator />, primary: true },
         { key: 'financeiro', title: 'Financeiro', detail: 'Acompanhe recebimentos, despesas, contas e saldo.', badge: canSeeMoney ? money(totals.balance) : 'Restrito', icon: <WalletCards /> },
         { key: 'usuarios', title: 'Usuários e permissões', detail: 'Cadastre pessoas e escolha o que cada perfil acessa.', badge: `${state.users.length} usuário(s)`, icon: <ShieldCheck /> },
+        { key: 'historico', title: 'Histórico de alterações', detail: 'Veja quem criou, alterou ou excluiu cada registro.', badge: `${auditEvents.length} evento(s)`, icon: <FileText /> },
         { key: 'configuracoes', title: 'Conta e documentos', detail: 'Altere senha, logo e textos de orçamento e pedido.', badge: 'Configurar', icon: <FileText /> },
         { key: 'painel', title: 'Painel completo', detail: 'Consulte indicadores administrativos e relatórios gerais.', badge: 'Relatórios', icon: <LayoutDashboard /> },
       ],
@@ -3941,10 +4365,25 @@ export default function SistemaMacaroca() {
       title: 'Minha conta e documentos',
       description: 'Veja seu perfil, altere sua senha e configure dados dos documentos.',
     },
+    historico: {
+      title: 'Histórico de alterações',
+      description: 'Veja quem criou, alterou ou excluiu cada registro do sistema.',
+    },
     pedidos: {
       title: 'Pedidos e entregas',
       description: 'Tela completa de pedidos, usada como apoio operacional.',
     },
+  }
+
+  if (!authReady) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#f8fafc] px-5 text-[#111827]">
+        <div className="text-center">
+          <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#3730a3]" />
+          <p className="mt-3 text-sm text-black/55">Conferindo acesso seguro...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!loggedUser) {
@@ -3967,7 +4406,7 @@ export default function SistemaMacaroca() {
             className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault()
-              login()
+              void login()
             }}
           >
             <SoftInput label="Nome" value={loginName} onChange={setLoginName} />
@@ -4155,7 +4594,7 @@ export default function SistemaMacaroca() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => void loadCloudState()}
+                  onClick={() => void refreshSharedState()}
                   className={`flex h-9 items-center gap-2 rounded-md border px-2.5 text-sm transition hover:shadow-sm ${
                     syncStatus === 'Compartilhado'
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
@@ -4199,7 +4638,7 @@ export default function SistemaMacaroca() {
                 </button>
                 <button
                   type="button"
-                  onClick={logout}
+                  onClick={() => void logout()}
                   className="inline-flex h-9 items-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2.5 text-sm font-medium transition hover:border-[#9ca3af] hover:bg-white"
                 >
                   Sair
@@ -5225,9 +5664,17 @@ export default function SistemaMacaroca() {
                 <div className="grid gap-5 xl:grid-cols-[minmax(320px,360px)_minmax(0,1fr)]">
                   <Panel title="Minha conta">
                     <div className="grid gap-3">
+                      {authProfile?.mustChangePassword && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-950">
+                          Esta é uma senha temporária. Crie uma senha pessoal com pelo menos 8 caracteres para liberar o sistema.
+                        </div>
+                      )}
                       <ReadOnlyField label="Nome" value={loggedUser.name} />
                       <ReadOnlyField label="Perfil" value={loggedUser.role} />
-                      <ReadOnlyField label="Status" value="Acessando agora" />
+                      <ReadOnlyField
+                        label="Status"
+                        value={authProfile?.mustChangePassword ? 'Troca de senha necessária' : 'Acesso protegido'}
+                      />
                     </div>
                   </Panel>
 
@@ -5237,6 +5684,7 @@ export default function SistemaMacaroca() {
                         <FieldLabel>Senha atual</FieldLabel>
                         <input
                           type="password"
+                          autoComplete="current-password"
                           value={currentPassword}
                           onChange={(event) => setCurrentPassword(event.target.value)}
                           className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
@@ -5246,6 +5694,9 @@ export default function SistemaMacaroca() {
                         <FieldLabel>Nova senha</FieldLabel>
                         <input
                           type="password"
+                          minLength={normalizedStoreEnabled ? 8 : undefined}
+                          autoComplete="new-password"
+                          placeholder={normalizedStoreEnabled ? 'Pelo menos 8 caracteres' : undefined}
                           value={newAccountPassword}
                           onChange={(event) => setNewAccountPassword(event.target.value)}
                           className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
@@ -5255,6 +5706,8 @@ export default function SistemaMacaroca() {
                         <FieldLabel>Confirmar nova senha</FieldLabel>
                         <input
                           type="password"
+                          minLength={normalizedStoreEnabled ? 8 : undefined}
+                          autoComplete="new-password"
                           value={confirmAccountPassword}
                           onChange={(event) => setConfirmAccountPassword(event.target.value)}
                           className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
@@ -5262,7 +5715,7 @@ export default function SistemaMacaroca() {
                       </label>
                       <button
                         type="button"
-                        onClick={updateOwnPassword}
+                        onClick={() => void updateOwnPassword()}
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                       >
                         Salvar nova senha
@@ -5271,7 +5724,7 @@ export default function SistemaMacaroca() {
                   </Panel>
                 </div>
 
-                {userRole === 'Admin' && (
+                {userRole === 'Admin' && !authProfile?.mustChangePassword && (
                   <>
                     <Panel title="Empresa e documentos">
                       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -5362,7 +5815,7 @@ export default function SistemaMacaroca() {
                           )}
                           <button
                             type="button"
-                            onClick={() => void loadCloudState()}
+                            onClick={() => void refreshSharedState()}
                             className="mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#111827] transition hover:border-[#3730a3] hover:text-[#3730a3]"
                           >
                             <RefreshCw className="h-4 w-4" />
@@ -6558,10 +7011,18 @@ export default function SistemaMacaroca() {
                       <FieldLabel>Senha</FieldLabel>
                       <input
                         type="password"
+                        minLength={normalizedStoreEnabled ? 8 : undefined}
+                        autoComplete="new-password"
+                        placeholder={normalizedStoreEnabled ? 'Senha temporária com 8 ou mais caracteres' : undefined}
                         value={newUserPassword}
                         onChange={(event) => setNewUserPassword(event.target.value)}
                         className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                       />
+                      {normalizedStoreEnabled && (
+                        <span className="text-xs leading-5 text-black/48">
+                          A pessoa deverá criar uma nova senha no primeiro acesso.
+                        </span>
+                      )}
                     </label>
                     <label className="grid gap-2">
                       <FieldLabel>Perfil</FieldLabel>
@@ -6580,7 +7041,7 @@ export default function SistemaMacaroca() {
                     </div>
                     <button
                       type="button"
-                      onClick={createUser}
+                      onClick={() => void createUser()}
                       className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
@@ -6597,7 +7058,7 @@ export default function SistemaMacaroca() {
                         badge={user.role}
                         title={user.name}
                         detail={user.id === loggedUserId ? `Usuário acessando agora · ${roleDescriptions[user.role]}` : roleDescriptions[user.role]}
-                        value={user.password ? 'Senha definida' : 'Sem senha'}
+                        value={normalizedStoreEnabled ? 'Senha protegida' : user.password ? 'Senha definida' : 'Sem senha'}
                       />
                     ))}
                   </div>
@@ -7328,6 +7789,42 @@ export default function SistemaMacaroca() {
                         value={`${entry.kind === 'Consumo MP' || entry.kind === 'Saída PA' ? '-' : ''}${money(entry.value)}`}
                       />
                     ))}
+                  </div>
+                </Panel>
+              </section>
+            )}
+
+            {activeArea === 'historico' && canAccessArea('historico') && (
+              <section className="grid gap-5">
+                <Panel title="Quem fez cada alteração">
+                  <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                    <Metric label="Ações recentes" value={auditEvents.length.toString()} icon={<FileText />} />
+                    <Metric
+                      label="Pessoas"
+                      value={new Set(auditEvents.map((event) => event.userName)).size.toString()}
+                      icon={<ShieldCheck />}
+                    />
+                    <Metric
+                      label="Última alteração"
+                      value={auditEvents[0] ? formatDateTime(auditEvents[0].createdAt) : 'Nenhuma'}
+                      icon={<RefreshCw />}
+                    />
+                  </div>
+
+                  <div className="grid gap-3">
+                    {auditEvents.length ? (
+                      auditEvents.map((event) => (
+                        <RecordRow
+                          key={event.id}
+                          badge={auditActionLabels[event.action]}
+                          title={`${auditEntityLabels[event.entityType] ?? 'Registro'} · ${event.recordId}`}
+                          detail={`${event.userName} · ${formatDateTime(event.createdAt)}`}
+                          value={event.version ? `Versão ${event.version}` : 'Registro excluído'}
+                        />
+                      ))
+                    ) : (
+                      <EmptyLine text="As próximas inclusões, alterações e exclusões aparecerão aqui com o nome da pessoa responsável." />
+                    )}
                   </div>
                 </Panel>
               </section>

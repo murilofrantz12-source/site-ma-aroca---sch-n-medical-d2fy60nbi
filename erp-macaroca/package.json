@@ -2,7 +2,7 @@
   "name": "macaroca-erp",
   "description": "Sistema interno de controle de produção da Maçaroca",
   "private": true,
-  "version": "0.0.26",
+  "version": "0.0.27",
   "type": "module",
   "scripts": {
     "start": "vite dev --host 0.0.0.0 --port 8110",
@@ -13,6 +13,9 @@
     "backup": "node scripts/backup-current-state.mjs",
     "backup:verify": "node scripts/verify-backup.mjs",
     "backup:test-restore": "node scripts/restore-backup-to-test.mjs",
+    "migrate:v2": "node scripts/migrate-to-erp-v2.mjs",
+    "verify:v2": "node scripts/verify-erp-v2.mjs",
+    "probe:realtime": "node scripts/realtime-probe.mjs",
     "lint": "oxlint src",
     "lint:fix": "oxlint src --fix",
     "format": "oxfmt",
