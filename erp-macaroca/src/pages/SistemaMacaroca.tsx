@@ -52,6 +52,7 @@ type Area =
   | 'entregas'
   | 'producao-necessidades'
   | 'produtos'
+  | 'produto-guiado'
   | 'materias'
   | 'fornecedores'
   | 'clientes'
@@ -83,6 +84,7 @@ type FinanceCategory =
   | 'Despesa fixa'
   | 'Outro'
 type TimelineStatus = 'done' | 'current' | 'pending'
+type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
 type SyncStatus = 'Carregando' | 'Compartilhado' | 'Salvando' | 'Local' | 'Erro'
 
 type HelpGuide = {
@@ -120,6 +122,7 @@ type MaterialLine = {
   qty: number
   unit: string
   unitCost: number
+  expectedLoss?: number
 }
 
 type Product = {
@@ -130,6 +133,8 @@ type Product = {
   category: string
   description: string
   salePrice?: number
+  referenceImage?: string
+  active?: boolean
   materials: MaterialLine[]
   variations: ProductVariation[]
 }
@@ -137,6 +142,7 @@ type Product = {
 type ProductVariation = {
   id: string
   name: string
+  model?: string
   size: string
   color: string
   fabric: string
@@ -144,6 +150,9 @@ type ProductVariation = {
   technicalNotes: string
   referenceImage: string
   salePrice?: number
+  sheetVersion?: string
+  sheetResponsible?: string
+  sheetStatus?: TechnicalSheetStatus
   materials: MaterialLine[]
 }
 
@@ -166,12 +175,14 @@ type RawMaterial = {
   code?: string
   name: string
   category?: string
+  stockLocation?: string
   unit: string
   purchaseUnit: string
   purchaseToStockFactor: number
   avgCost: number
   supplier: string
   minimumStock: number
+  expectedLoss?: number
   lastPurchase?: string
 }
 
@@ -809,6 +820,14 @@ const nextProductCode = (products: Product[], brand: BrandName) => {
   return makeProductCode(brand, lastSequence + 1)
 }
 
+const nextRawMaterialCode = (materials: RawMaterial[]) => {
+  const lastSequence = materials.reduce((highest, material) => {
+    const match = material.code?.match(/^MP-(\d+)$/)
+    return Math.max(highest, match ? Number(match[1]) : 0)
+  }, 0)
+  return `MP-${String(lastSequence + 1).padStart(6, '0')}`
+}
+
 const mergeById = <T extends { id: string }>(defaults: T[], saved: T[] = []) => {
   const savedIds = new Set(saved.map((item) => item.id))
   return [...saved, ...defaults.filter((item) => !savedIds.has(item.id))]
@@ -820,6 +839,11 @@ const productVariation = (product: Product | undefined, variationId?: string) =>
 const productMaterials = (product: Product, variationId?: string) => {
   const variation = productVariation(product, variationId)
   return variation?.materials?.length ? variation.materials : product.materials
+}
+
+const productReadyForUse = (product: Product, variationId?: string) => {
+  const variation = productVariation(product, variationId)
+  return product.active !== false && (variation?.sheetStatus ?? 'Aprovada') === 'Aprovada'
 }
 
 const productDisplayName = (product: Product | undefined, variationId?: string) => {
@@ -890,7 +914,9 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
     ...material,
     code: material.code,
     category: material.category ?? 'Matéria-prima',
+    stockLocation: material.stockLocation ?? '',
     minimumStock: material.minimumStock ?? 0,
+    expectedLoss: material.expectedLoss ?? 0,
     purchaseUnit: material.purchaseUnit ?? material.unit,
     purchaseToStockFactor: material.purchaseToStockFactor ?? 1,
     lastPurchase: material.lastPurchase ?? '',
@@ -914,8 +940,9 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
           name: rawMaterial.name,
           unit: rawMaterial.unit,
           unitCost: rawMaterial.avgCost,
+          expectedLoss: material.expectedLoss ?? rawMaterial.expectedLoss ?? 0,
         }
-      : material
+      : { ...material, expectedLoss: material.expectedLoss ?? 0 }
   }
 
   return {
@@ -938,6 +965,8 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
         code: product.code || makeProductCode(product.brand, counters[product.brand]),
         description: product.description || 'Descrição técnica da peça.',
         salePrice: typeof product.salePrice === 'number' ? product.salePrice : undefined,
+        referenceImage: product.referenceImage ?? '',
+        active: product.active !== false,
         materials: product.materials.map(normalizeMaterialLine),
         variations: (product.variations?.length
           ? product.variations
@@ -957,6 +986,7 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
         ).map((variation) => ({
           ...variation,
           name: variation.name || `${variation.size || 'Tamanho'} · ${variation.color || 'Cor'}`,
+          model: variation.model ?? '',
           size: variation.size ?? '',
           color: variation.color ?? '',
           fabric: variation.fabric ?? '',
@@ -964,6 +994,9 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
           technicalNotes: variation.technicalNotes ?? '',
           referenceImage: variation.referenceImage ?? '',
           salePrice: typeof variation.salePrice === 'number' ? variation.salePrice : undefined,
+          sheetVersion: variation.sheetVersion ?? 'v1',
+          sheetResponsible: variation.sheetResponsible ?? 'Sistema',
+          sheetStatus: variation.sheetStatus ?? 'Aprovada',
           materials: (variation.materials?.length ? variation.materials : product.materials).map(normalizeMaterialLine),
         })),
       }
@@ -1227,8 +1260,16 @@ const readInitialState = () => {
   }
 }
 
+const materialLossFactor = (material: MaterialLine) => 1 + Math.max(0, material.expectedLoss ?? 0) / 100
+
+const materialPlannedQty = (material: MaterialLine, productQty = 1) =>
+  material.qty * materialLossFactor(material) * productQty
+
+const materialPlannedCost = (material: MaterialLine, productQty = 1) =>
+  materialPlannedQty(material, productQty) * material.unitCost
+
 const productCost = (product: Product, variationId?: string) =>
-  productMaterials(product, variationId).reduce((total, material) => total + material.qty * material.unitCost, 0)
+  productMaterials(product, variationId).reduce((total, material) => total + materialPlannedCost(material), 0)
 
 const rawMaterialBalanceFromState = (state: AppState, itemName: string) =>
   state.inventoryEntries.reduce((total, entry) => {
@@ -1241,7 +1282,7 @@ const rawMaterialBalanceFromState = (state: AppState, itemName: string) =>
 const productionOrderMissingMaterials = (state: AppState, product: Product, op: ProductionOrder) =>
   productMaterials(product, op.variationId)
     .map((material) => {
-      const needed = material.qty * Math.max(0, op.qty - op.produced)
+      const needed = materialPlannedQty(material, Math.max(0, op.qty - op.produced))
       const available = rawMaterialBalanceFromState(state, material.name)
 
       return {
@@ -1318,6 +1359,7 @@ const allAreas: Area[] = [
   'entregas',
   'producao-necessidades',
   'produtos',
+  'produto-guiado',
   'materias',
   'fornecedores',
   'clientes',
@@ -1344,6 +1386,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'modulo-vendas',
     'modulo-producao',
     'modulo-estoque',
+    'modulo-cadastros',
     'ajuda',
     'vendas',
     'entregas',
@@ -1352,6 +1395,8 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'producao',
     'producao-guiada',
     'estoque',
+    'produto-guiado',
+    'produtos',
     'clientes',
     'configuracoes',
     'pedidos',
@@ -1383,7 +1428,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
 
 const roleDescriptions: Record<UserRole, string> = {
   Admin: 'Acesso total: cadastros, preços, usuários, compras, estoque, produção e financeiro.',
-  Sócia: 'Rotina principal: pedidos, entregas, produção e consulta de estoque.',
+  Sócia: 'Rotina principal: pedidos, cadastro guiado de peças, entregas, produção e consulta de estoque.',
   Comercial: 'Foco em clientes, vendas, pedidos, entregas e consulta de disponibilidade.',
   Produção: 'Foco em ordens abertas, necessidades de produção, apontamentos e estoque.',
   Financeiro: 'Foco em compras, entradas e saídas, notas, fornecedores e financeiro.',
@@ -1549,15 +1594,15 @@ const helpGuides: HelpGuide[] = [
     title: 'Como cadastrar uma peça e sua ficha',
     summary: 'Crie produto, variações e os materiais consumidos em cada unidade.',
     keywords: ['produto', 'peça', 'ficha técnica', 'tamanho', 'cor', 'material'],
-    target: 'produtos',
+    target: 'produto-guiado',
     action: 'Cadastrar produto',
     steps: [
-      'Abra Cadastros e escolha Produtos e fichas.',
-      'Informe marca, nome, categoria e descrição da peça.',
-      'Cadastre tamanho, cor, tecido, medidas e referência.',
-      'Adicione somente matérias-primas já cadastradas.',
-      'Informe o consumo de cada material para produzir uma unidade.',
-      'Salve e confira o custo calculado antes de definir o preço.',
+      'Abra Cadastros e escolha Cadastrar peça passo a passo.',
+      'Informe marca, nome, categoria, descrição e uma foto ou referência.',
+      'Descreva o modelo, tamanho, cor, tecido e medidas dessa versão.',
+      'Escolha somente matérias-primas já cadastradas.',
+      'Informe o consumo e a perda prevista de cada material para uma peça.',
+      'Confira o resumo. A sócia salva como rascunho e o administrador pode aprovar e definir o preço.',
     ],
   },
   {
@@ -1621,6 +1666,35 @@ export default function SistemaMacaroca() {
   const [newProductBrand, setNewProductBrand] = useState<BrandName>('Schön Medical')
   const [newProductName, setNewProductName] = useState('Novo modelo')
   const [newProductCategory, setNewProductCategory] = useState('Peça sob demanda')
+  const [guidedProductStep, setGuidedProductStep] = useState(1)
+  const [guidedProductBrand, setGuidedProductBrand] = useState<BrandName>('Maçaroca')
+  const [guidedProductName, setGuidedProductName] = useState('')
+  const [guidedProductCategory, setGuidedProductCategory] = useState('Peça')
+  const [guidedProductDescription, setGuidedProductDescription] = useState('')
+  const [guidedProductReference, setGuidedProductReference] = useState('')
+  const [guidedProductModel, setGuidedProductModel] = useState('')
+  const [guidedProductSize, setGuidedProductSize] = useState('')
+  const [guidedProductColor, setGuidedProductColor] = useState('')
+  const [guidedProductFabric, setGuidedProductFabric] = useState('')
+  const [guidedProductMeasurements, setGuidedProductMeasurements] = useState('')
+  const [guidedProductNotes, setGuidedProductNotes] = useState('')
+  const [guidedProductPrice, setGuidedProductPrice] = useState(0)
+  const [guidedProductActive, setGuidedProductActive] = useState(true)
+  const [guidedSheetStatus, setGuidedSheetStatus] = useState<TechnicalSheetStatus>('Rascunho')
+  const [guidedProductMaterials, setGuidedProductMaterials] = useState<MaterialLine[]>(() => {
+    const material = state.rawMaterials[0]
+    return material
+      ? [{
+          id: `mat-guiado-${Date.now()}`,
+          rawMaterialId: material.id,
+          name: material.name,
+          qty: 1,
+          unit: material.unit,
+          unitCost: material.avgCost,
+          expectedLoss: material.expectedLoss ?? 0,
+        }]
+      : []
+  })
   const [newVariationSize, setNewVariationSize] = useState('M')
   const [newVariationColor, setNewVariationColor] = useState('Preto')
   const [newVariationFabric, setNewVariationFabric] = useState('Tecido principal')
@@ -1628,12 +1702,15 @@ export default function SistemaMacaroca() {
   const [newVariationNotes, setNewVariationNotes] = useState('Observação técnica da variação')
   const [newVariationReference, setNewVariationReference] = useState('')
   const [newMaterialName, setNewMaterialName] = useState('Nova matéria-prima')
+  const [newMaterialCode, setNewMaterialCode] = useState(() => nextRawMaterialCode(state.rawMaterials))
+  const [newMaterialStockLocation, setNewMaterialStockLocation] = useState('')
   const [newMaterialCategory, setNewMaterialCategory] = useState('Matéria-prima')
   const [newMaterialUnit, setNewMaterialUnit] = useState('m')
   const [newMaterialPurchaseUnit, setNewMaterialPurchaseUnit] = useState('kg')
   const [newMaterialPurchaseFactor, setNewMaterialPurchaseFactor] = useState(3)
   const [newMaterialCost, setNewMaterialCost] = useState(0)
   const [newMaterialMinimum, setNewMaterialMinimum] = useState(10)
+  const [newMaterialExpectedLoss, setNewMaterialExpectedLoss] = useState(0)
   const [newMaterialSupplier, setNewMaterialSupplier] = useState('Fornecedor de tecidos')
   const [newMaterialSimulationQty, setNewMaterialSimulationQty] = useState(1)
   const [newSupplierName, setNewSupplierName] = useState('Novo fornecedor')
@@ -2185,6 +2262,17 @@ export default function SistemaMacaroca() {
   const selectedCost = selectedProduct ? productCost(selectedProduct, activeVariationId) : 0
   const selectedPrice = idealPrice(selectedCost, state.tax, state.commission, state.fixedCost, state.profit)
   const selectedSalePrice = productSalePrice(selectedProduct, activeVariationId)
+  const guidedProductCost = guidedProductMaterials.reduce(
+    (total, material) => total + materialPlannedCost(material),
+    0,
+  )
+  const guidedSuggestedPrice = idealPrice(
+    guidedProductCost,
+    state.tax,
+    state.commission,
+    state.fixedCost,
+    state.profit,
+  )
   const selectedOrderPrice = selectedSalePrice ?? selectedPrice
   const finalOrderUnitPrice = orderUnitPriceInput > 0 ? orderUnitPriceInput : selectedOrderPrice
   const selectedVariationMaterials = selectedVariation ? productMaterials(selectedProduct, selectedVariation.id) : []
@@ -2364,7 +2452,7 @@ export default function SistemaMacaroca() {
           }
           required.set(material.name, {
             ...current,
-            qty: current.qty + material.qty * remaining,
+            qty: current.qty + materialPlannedQty(material, remaining),
           })
         })
       })
@@ -2427,6 +2515,7 @@ export default function SistemaMacaroca() {
               name: rawMaterial.name,
               unit: rawMaterial.unit,
               unitCost: rawMaterial.avgCost,
+              expectedLoss: material.expectedLoss ?? rawMaterial.expectedLoss ?? 0,
             }
           : material,
       ),
@@ -2466,17 +2555,23 @@ export default function SistemaMacaroca() {
       name: newProductName || 'Nova peça',
       category: newProductCategory || 'Peça sob demanda',
       description: 'Descreva aqui tamanho, medidas, cor, modelo, MG ou qualquer especificação da peça.',
+      referenceImage: newVariationReference,
+      active: true,
       materials: baseMaterials,
       variations: [
         {
           id: `var-${Date.now()}`,
           name: `${newVariationSize} · ${newVariationColor}`,
+          model: 'Padrão',
           size: newVariationSize,
           color: newVariationColor,
           fabric: newVariationFabric,
           measurements: newVariationMeasurements,
           technicalNotes: newVariationNotes,
           referenceImage: newVariationReference,
+          sheetVersion: 'v1',
+          sheetResponsible: currentUserName,
+          sheetStatus: 'Rascunho',
           materials: baseMaterials.map((material, index) => ({
             ...material,
             id: `mat-var-${Date.now()}-${index}`,
@@ -2488,6 +2583,154 @@ export default function SistemaMacaroca() {
     setSelectedProductId(product.id)
     setActiveArea('produtos')
     setMessage('Produto criado.')
+  }
+
+  const selectGuidedProductMaterial = (materialId: string, rawMaterialId: string) => {
+    const rawMaterial = state.rawMaterials.find((item) => item.id === rawMaterialId)
+    if (!rawMaterial) return
+    setGuidedProductMaterials((current) =>
+      current.map((material) =>
+        material.id === materialId
+          ? {
+              ...material,
+              rawMaterialId: rawMaterial.id,
+              name: rawMaterial.name,
+              unit: rawMaterial.unit,
+              unitCost: rawMaterial.avgCost,
+              expectedLoss: rawMaterial.expectedLoss ?? 0,
+            }
+          : material,
+      ),
+    )
+  }
+
+  const updateGuidedProductMaterial = (
+    materialId: string,
+    field: 'qty' | 'expectedLoss',
+    value: number,
+  ) => {
+    setGuidedProductMaterials((current) =>
+      current.map((material) =>
+        material.id === materialId ? { ...material, [field]: Math.max(0, value) } : material,
+      ),
+    )
+  }
+
+  const addGuidedProductMaterial = () => {
+    const rawMaterial = state.rawMaterials[0]
+    if (!rawMaterial) {
+      setMessage('Cadastre pelo menos uma matéria-prima antes de montar a peça.')
+      return
+    }
+    setGuidedProductMaterials((current) => [
+      ...current,
+      {
+        id: `mat-guiado-${Date.now()}`,
+        rawMaterialId: rawMaterial.id,
+        name: rawMaterial.name,
+        qty: 1,
+        unit: rawMaterial.unit,
+        unitCost: rawMaterial.avgCost,
+        expectedLoss: rawMaterial.expectedLoss ?? 0,
+      },
+    ])
+  }
+
+  const resetGuidedProduct = () => {
+    const rawMaterial = state.rawMaterials[0]
+    setGuidedProductStep(1)
+    setGuidedProductName('')
+    setGuidedProductCategory('Peça')
+    setGuidedProductDescription('')
+    setGuidedProductReference('')
+    setGuidedProductModel('')
+    setGuidedProductSize('')
+    setGuidedProductColor('')
+    setGuidedProductFabric('')
+    setGuidedProductMeasurements('')
+    setGuidedProductNotes('')
+    setGuidedProductPrice(0)
+    setGuidedProductActive(true)
+    setGuidedSheetStatus('Rascunho')
+    setGuidedProductMaterials(
+      rawMaterial
+        ? [{
+            id: `mat-guiado-${Date.now()}`,
+            rawMaterialId: rawMaterial.id,
+            name: rawMaterial.name,
+            qty: 1,
+            unit: rawMaterial.unit,
+            unitCost: rawMaterial.avgCost,
+            expectedLoss: rawMaterial.expectedLoss ?? 0,
+          }]
+        : [],
+    )
+  }
+
+  const createGuidedProduct = () => {
+    if (!guidedProductName.trim()) {
+      setGuidedProductStep(1)
+      setMessage('Informe o nome da peça antes de salvar.')
+      return
+    }
+    if (!guidedProductSize.trim() && !guidedProductModel.trim()) {
+      setGuidedProductStep(2)
+      setMessage('Informe ao menos o modelo ou o tamanho dessa versão.')
+      return
+    }
+    if (!guidedProductMaterials.length || guidedProductMaterials.some((material) => material.qty <= 0)) {
+      setGuidedProductStep(3)
+      setMessage('Inclua os materiais e informe quanto é usado em uma peça.')
+      return
+    }
+
+    const productId = `produto-${Date.now()}`
+    const variationId = `var-${Date.now()}`
+    const materials = guidedProductMaterials.map((material, index) => ({
+      ...material,
+      id: `mat-${productId}-${index + 1}`,
+    }))
+    const variationName = [guidedProductModel, guidedProductSize, guidedProductColor]
+      .filter(Boolean)
+      .join(' · ') || 'Padrão'
+    const product: Product = {
+      id: productId,
+      code: nextProductCode(state.products, guidedProductBrand),
+      brand: guidedProductBrand,
+      name: guidedProductName.trim(),
+      category: guidedProductCategory.trim() || 'Peça',
+      description: guidedProductDescription.trim() || guidedProductNotes.trim() || 'Sem descrição.',
+      salePrice: canSeeMoney && guidedProductPrice > 0 ? guidedProductPrice : undefined,
+      referenceImage: guidedProductReference.trim(),
+      active: guidedProductActive,
+      materials,
+      variations: [{
+        id: variationId,
+        name: variationName,
+        model: guidedProductModel.trim(),
+        size: guidedProductSize.trim(),
+        color: guidedProductColor.trim(),
+        fabric: guidedProductFabric.trim(),
+        measurements: guidedProductMeasurements.trim(),
+        technicalNotes: guidedProductNotes.trim(),
+        referenceImage: guidedProductReference.trim(),
+        salePrice: canSeeMoney && guidedProductPrice > 0 ? guidedProductPrice : undefined,
+        sheetVersion: 'v1',
+        sheetResponsible: currentUserName,
+        sheetStatus: userRole === 'Admin' ? guidedSheetStatus : 'Rascunho',
+        materials: materials.map((material, index) => ({
+          ...material,
+          id: `mat-${variationId}-${index + 1}`,
+        })),
+      }],
+    }
+
+    setState((current) => ({ ...current, products: [product, ...current.products] }))
+    setSelectedProductId(product.id)
+    setSelectedVariationId(variationId)
+    resetGuidedProduct()
+    setActiveArea('produtos')
+    setMessage(`${product.code} cadastrado. A ficha ficou ${product.variations[0].sheetStatus?.toLowerCase()}.`)
   }
 
   const addMaterial = () => {
@@ -2504,6 +2747,7 @@ export default function SistemaMacaroca() {
           qty: 1,
           unit: rawMaterial?.unit ?? 'un',
           unitCost: rawMaterial?.avgCost ?? 0,
+          expectedLoss: rawMaterial?.expectedLoss ?? 0,
         },
       ],
     }))
@@ -2569,6 +2813,7 @@ export default function SistemaMacaroca() {
               name: rawMaterial.name,
               unit: rawMaterial.unit,
               unitCost: rawMaterial.avgCost,
+              expectedLoss: material.expectedLoss ?? rawMaterial.expectedLoss ?? 0,
             }
           : material,
       ),
@@ -2588,6 +2833,7 @@ export default function SistemaMacaroca() {
           qty: 1,
           unit: rawMaterial?.unit ?? 'un',
           unitCost: rawMaterial?.avgCost ?? 0,
+          expectedLoss: rawMaterial?.expectedLoss ?? 0,
         },
       ],
     }))
@@ -2598,12 +2844,16 @@ export default function SistemaMacaroca() {
     const variation: ProductVariation = {
       id: `var-${Date.now()}`,
       name: `${newVariationSize} · ${newVariationColor}`,
+      model: 'Padrão',
       size: newVariationSize,
       color: newVariationColor,
       fabric: newVariationFabric,
       measurements: newVariationMeasurements,
       technicalNotes: newVariationNotes,
       referenceImage: newVariationReference,
+      sheetVersion: 'v1',
+      sheetResponsible: currentUserName,
+      sheetStatus: 'Rascunho',
       materials: productMaterials(selectedProduct, activeVariationId).map((material, index) => ({
         ...material,
         id: `mat-var-${Date.now()}-${index}`,
@@ -2621,14 +2871,17 @@ export default function SistemaMacaroca() {
   const createRawMaterial = () => {
     const material: RawMaterial = {
       id: `mp-${Date.now()}`,
+      code: newMaterialCode.trim() || nextRawMaterialCode(state.rawMaterials),
       name: newMaterialName || 'Matéria-prima',
       category: newMaterialCategory || 'Matéria-prima',
+      stockLocation: newMaterialStockLocation.trim(),
       unit: newMaterialUnit || 'un',
       purchaseUnit: newMaterialPurchaseUnit || newMaterialUnit || 'un',
       purchaseToStockFactor: newMaterialPurchaseFactor || 1,
       avgCost: newMaterialStockCost,
       supplier: newMaterialSupplier || 'Fornecedor',
       minimumStock: newMaterialMinimum,
+      expectedLoss: newMaterialExpectedLoss,
     }
 
     setState((current) => ({
@@ -2636,6 +2889,7 @@ export default function SistemaMacaroca() {
       rawMaterials: [material, ...current.rawMaterials],
     }))
     setActiveArea('materias')
+    setNewMaterialCode(nextRawMaterialCode([material, ...state.rawMaterials]))
     setMessage('Matéria-prima cadastrada.')
   }
 
@@ -2777,6 +3031,10 @@ export default function SistemaMacaroca() {
 
   const createOrder = () => {
     if (!selectedProduct || !selectedCustomer) return
+    if (!productReadyForUse(selectedProduct, activeVariationId)) {
+      setMessage('Ative o produto e aprove a ficha antes de registrar uma venda.')
+      return
+    }
     const price = finalOrderUnitPrice
     const documentType = orderDocumentType
     const order: Order = {
@@ -2829,6 +3087,11 @@ export default function SistemaMacaroca() {
 
   const createGuidedOrder = () => {
     if (!selectedProduct || !selectedCustomer) return
+    if (!productReadyForUse(selectedProduct, activeVariationId)) {
+      setGuidedOrderStep(2)
+      setMessage('Essa peça ainda está em rascunho ou desativada. Peça ao administrador para aprovar a ficha.')
+      return
+    }
     const price = finalOrderUnitPrice
     const documentType = orderDocumentType
     const orderId = nextDocumentId(state.orders, documentType)
@@ -3146,6 +3409,10 @@ export default function SistemaMacaroca() {
 
   const createStockProductionOrder = () => {
     if (!selectedProduct) return
+    if (!productReadyForUse(selectedProduct, activeVariationId)) {
+      setMessage('Ative o produto e aprove a ficha antes de criar uma produção.')
+      return
+    }
     const op: ProductionOrder = {
       id: nextProductionOrderId(state.productionOrders),
       productId: selectedProduct.id,
@@ -3222,7 +3489,7 @@ export default function SistemaMacaroca() {
     productMaterials(product, variationId)
       .map((material) => {
         const available = stock.rawItems.find((item) => item.item === material.name)?.qty ?? 0
-        const needed = material.qty * qty
+        const needed = materialPlannedQty(material, qty)
         return {
           item: material.name,
           unit: material.unit,
@@ -3306,9 +3573,9 @@ export default function SistemaMacaroca() {
           id: `EST-MP-${Date.now()}-${index}`,
           kind: 'Consumo MP' as InventoryKind,
           item: material.name,
-          qty: material.qty * producedAmount,
+          qty: materialPlannedQty(material, producedAmount),
           unit: material.unit,
-          value: material.qty * material.unitCost * producedAmount,
+          value: materialPlannedCost(material, producedAmount),
           source: op.id,
           createdBy: currentUserName,
         })),
@@ -3855,7 +4122,7 @@ export default function SistemaMacaroca() {
   const guidedMaterialConsumption = guidedProduct
     ? productMaterials(guidedProduct, guidedOp?.variationId).map((material) => ({
         ...material,
-        totalQty: material.qty * guidedLaunchQty,
+        totalQty: materialPlannedQty(material, guidedLaunchQty),
       }))
     : []
   const generalPlan = {
@@ -4215,7 +4482,8 @@ export default function SistemaMacaroca() {
       title: 'Cadastros',
       description: 'Organize as informações usadas nas vendas, fichas técnicas, produção e compras.',
       items: [
-        { key: 'produtos', title: 'Produtos e fichas', detail: 'Cadastre peças, variações e consumo de matéria-prima.', badge: `${state.products.length} produto(s)`, icon: <Shirt />, primary: true },
+        { key: 'produto-guiado', title: 'Cadastrar peça passo a passo', detail: 'Siga quatro passos simples para criar a peça e sua primeira ficha.', badge: 'Começar', icon: <Plus />, primary: true },
+        { key: 'produtos', title: 'Produtos e fichas', detail: 'Consulte peças, variações, versões e materiais cadastrados.', badge: `${state.products.length} produto(s)`, icon: <Shirt /> },
         { key: 'materias', title: 'Matérias-primas', detail: 'Defina unidade, conversão, custo e estoque mínimo.', badge: `${state.rawMaterials.length} material(is)`, icon: <Package /> },
         { key: 'clientes', title: 'Clientes', detail: 'Cadastre contatos e informações de entrega.', badge: `${state.customers.length} cliente(s)`, icon: <Store /> },
         { key: 'marcas', title: 'Marcas', detail: 'Configure Maçaroca, Schön e novos prefixos de produto.', badge: `${state.brands.length} marca(s)`, icon: <PackageCheck /> },
@@ -4339,7 +4607,11 @@ export default function SistemaMacaroca() {
     },
     produtos: {
       title: 'Produtos e fichas',
-      description: 'Cadastre peças, variações e ficha de matéria-prima.',
+      description: 'Consulte e mantenha peças, variações e fichas de matéria-prima.',
+    },
+    'produto-guiado': {
+      title: 'Cadastrar uma peça',
+      description: 'Siga os passos em linguagem simples. O código e o custo são calculados pelo sistema.',
     },
     materias: {
       title: 'Matérias-primas',
@@ -5918,8 +6190,8 @@ export default function SistemaMacaroca() {
                             className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
                           >
                             {state.products.map((product) => (
-                              <option value={product.id} key={product.id}>
-                                {product.code} · {product.name} · {product.brand}
+                              <option value={product.id} key={product.id} disabled={product.active === false || !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada')}>
+                                {product.code} · {product.name} · {product.brand}{product.active === false ? ' · desativado' : !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada') ? ' · aguardando aprovação' : ''}
                               </option>
                             ))}
                           </select>
@@ -5932,8 +6204,8 @@ export default function SistemaMacaroca() {
                             className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
                           >
                             {selectedProduct.variations.map((variation) => (
-                              <option key={variation.id} value={variation.id}>
-                                {variation.name} · {variation.fabric}
+                              <option key={variation.id} value={variation.id} disabled={(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada'}>
+                                {variation.name} · {variation.fabric}{(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada' ? ` · ${variation.sheetStatus}` : ''}
                               </option>
                             ))}
                           </select>
@@ -6246,6 +6518,213 @@ export default function SistemaMacaroca() {
               </section>
             )}
 
+            {activeArea === 'produto-guiado' && (
+              <section className="grid gap-5 xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)]">
+                <Panel title="Cadastro guiado">
+                  <div className="grid gap-2">
+                    <StepButton number={1} label="Qual é a peça?" active={guidedProductStep === 1} done={guidedProductStep > 1} onClick={() => setGuidedProductStep(1)} />
+                    <StepButton number={2} label="Tamanho e modelo" active={guidedProductStep === 2} done={guidedProductStep > 2} onClick={() => setGuidedProductStep(2)} />
+                    <StepButton number={3} label="O que ela usa?" active={guidedProductStep === 3} done={guidedProductStep > 3} onClick={() => setGuidedProductStep(3)} />
+                    <StepButton number={4} label="Conferir e salvar" active={guidedProductStep === 4} done={false} onClick={() => setGuidedProductStep(4)} />
+                  </div>
+                  <div className="mt-5 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm leading-6 text-black/60">
+                    O código é criado automaticamente. O custo vem dos materiais e considera a perda prevista.
+                  </div>
+                </Panel>
+
+                <div className="grid gap-5">
+                  {guidedProductStep === 1 && (
+                    <Panel title="1. Qual peça vamos cadastrar?">
+                      <div className="grid gap-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="grid gap-2">
+                            <FieldLabel>Marca</FieldLabel>
+                            <select value={guidedProductBrand} onChange={(event) => setGuidedProductBrand(event.target.value)} className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none">
+                              {state.brands.map((brand) => <option key={brand.id} value={brand.name}>{brand.name}</option>)}
+                            </select>
+                          </label>
+                          <ReadOnlyField label="Código que será criado" value={nextProductCode(state.products, guidedProductBrand)} />
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <SoftInput label="Nome da peça" value={guidedProductName} onChange={setGuidedProductName} />
+                          <SoftInput label="Categoria" value={guidedProductCategory} onChange={setGuidedProductCategory} />
+                        </div>
+                        <SoftTextarea label="Descrição simples" value={guidedProductDescription} onChange={setGuidedProductDescription} />
+                        <SoftInput label="Foto ou link de referência" value={guidedProductReference} onChange={setGuidedProductReference} />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!guidedProductName.trim()) {
+                              setMessage('Informe o nome da peça para continuar.')
+                              return
+                            }
+                            setGuidedProductStep(2)
+                          }}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                        >
+                          Próximo: tamanho e modelo
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </Panel>
+                  )}
+
+                  {guidedProductStep === 2 && (
+                    <Panel title="2. Como é essa versão da peça?">
+                      <div className="grid gap-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <SoftInput label="Modelo" value={guidedProductModel} onChange={setGuidedProductModel} />
+                          <SoftInput label="Tamanho" value={guidedProductSize} onChange={setGuidedProductSize} />
+                          <SoftInput label="Cor" value={guidedProductColor} onChange={setGuidedProductColor} />
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <SoftInput label="Tecido principal" value={guidedProductFabric} onChange={setGuidedProductFabric} />
+                          <SoftInput label="Medidas" value={guidedProductMeasurements} onChange={setGuidedProductMeasurements} />
+                        </div>
+                        <SoftTextarea label="Observação para quem vai produzir" value={guidedProductNotes} onChange={setGuidedProductNotes} />
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => setGuidedProductStep(1)} className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium">Voltar</button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!guidedProductModel.trim() && !guidedProductSize.trim()) {
+                                setMessage('Informe ao menos o modelo ou o tamanho para continuar.')
+                                return
+                              }
+                              setGuidedProductStep(3)
+                            }}
+                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                          >
+                            Próximo: materiais usados
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </Panel>
+                  )}
+
+                  {guidedProductStep === 3 && (
+                    <Panel title="3. O que é usado para fazer uma peça?">
+                      <div className="grid gap-4">
+                        <p className="text-sm leading-6 text-black/55">
+                          Escolha o material, informe a quantidade para uma peça e a sobra esperada no corte ou uso.
+                        </p>
+                        <div className="grid gap-3">
+                          {guidedProductMaterials.map((material) => (
+                            <div key={material.id} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4">
+                              <div className="grid gap-3 lg:grid-cols-[minmax(220px,1.4fr)_140px_140px_auto] lg:items-end">
+                                <label className="grid gap-2">
+                                  <FieldLabel>Matéria-prima</FieldLabel>
+                                  <select value={material.rawMaterialId ?? ''} onChange={(event) => selectGuidedProductMaterial(material.id, event.target.value)} className="h-11 min-w-0 rounded-md border border-black/10 bg-white px-3 text-sm outline-none">
+                                    {state.rawMaterials.map((rawMaterial) => (
+                                      <option key={rawMaterial.id} value={rawMaterial.id}>
+                                        {rawMaterial.code || rawMaterialCode(rawMaterial)} · {rawMaterial.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <SoftNumber label={`Quanto usa (${material.unit})`} value={material.qty} step="0.01" onChange={(value) => updateGuidedProductMaterial(material.id, 'qty', value)} />
+                                <SoftNumber label="Perda prevista (%)" value={material.expectedLoss ?? 0} step="0.1" onChange={(value) => updateGuidedProductMaterial(material.id, 'expectedLoss', value)} />
+                                <button type="button" aria-label={`Remover ${material.name}`} title="Remover material" onClick={() => setGuidedProductMaterials((current) => current.filter((item) => item.id !== material.id))} className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-rose-200 bg-white text-rose-700">
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                              <div className="grid gap-2 text-sm text-black/55 md:grid-cols-2">
+                                <span>Separar: <strong className="text-[#111827]">{materialPlannedQty(material).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} {material.unit}</strong></span>
+                                {canSeeMoney && <span>Custo nesta peça: <strong className="text-[#111827]">{money(materialPlannedCost(material))}</strong></span>}
+                              </div>
+                            </div>
+                          ))}
+                          {!guidedProductMaterials.length && <EmptyLine text="Adicione ao menos uma matéria-prima para montar a ficha." />}
+                        </div>
+                        <button type="button" onClick={addGuidedProductMaterial} className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-black/10 bg-white px-4 text-sm font-medium">
+                          <Plus className="h-4 w-4" />
+                          Adicionar outro material
+                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => setGuidedProductStep(2)} className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium">Voltar</button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!guidedProductMaterials.length || guidedProductMaterials.some((material) => material.qty <= 0)) {
+                                setMessage('Adicione os materiais e informe uma quantidade maior que zero.')
+                                return
+                              }
+                              setGuidedProductStep(4)
+                            }}
+                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                          >
+                            Conferir cadastro
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </Panel>
+                  )}
+
+                  {guidedProductStep === 4 && (
+                    <Panel title="4. Confira antes de salvar">
+                      <div className="grid gap-5">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <MiniRow title="Peça" detail={`${nextProductCode(state.products, guidedProductBrand)} · ${guidedProductName || 'Nome não informado'}`} />
+                          <MiniRow title="Marca e categoria" detail={`${guidedProductBrand} · ${guidedProductCategory}`} />
+                          <MiniRow title="Versão" detail={[guidedProductModel, guidedProductSize, guidedProductColor].filter(Boolean).join(' · ') || 'Padrão'} />
+                          <MiniRow title="Ficha" detail={`v1 · ${currentUserName} · ${userRole === 'Admin' ? guidedSheetStatus : 'Rascunho'}`} />
+                          <MiniRow title="Materiais" detail={`${guidedProductMaterials.length} item(ns) · custo calculado ${canSeeMoney ? money(guidedProductCost) : 'automaticamente'}`} />
+                          <MiniRow title="Situação da peça" detail={guidedProductActive ? 'Ativa para uso' : 'Desativada'} />
+                        </div>
+
+                        {canSeeMoney && (
+                          <section className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4">
+                            <div className="grid gap-3 md:grid-cols-3">
+                              <ReadOnlyField label="Custo da ficha" value={money(guidedProductCost)} />
+                              <ReadOnlyField label="Preço sugerido" value={money(guidedSuggestedPrice)} />
+                              <SoftNumber label="Preço oficial" value={guidedProductPrice} onChange={setGuidedProductPrice} />
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="grid gap-2">
+                                <FieldLabel>Situação da ficha</FieldLabel>
+                                <select value={guidedSheetStatus} onChange={(event) => setGuidedSheetStatus(event.target.value as TechnicalSheetStatus)} className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none">
+                                  <option>Rascunho</option>
+                                  <option>Aprovada</option>
+                                  <option>Desativada</option>
+                                </select>
+                              </label>
+                              <button type="button" onClick={() => setGuidedProductPrice(Math.round(guidedSuggestedPrice))} className="mt-auto inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium">Usar preço sugerido</button>
+                            </div>
+                          </section>
+                        )}
+
+                        {!canSeeMoney && (
+                          <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm leading-6 text-black/60">
+                            A peça será salva como rascunho. O administrador confere o custo, define o preço oficial e aprova a ficha.
+                          </div>
+                        )}
+
+                        <button type="button" role="switch" aria-checked={guidedProductActive} onClick={() => setGuidedProductActive((value) => !value)} className="flex min-h-11 items-center justify-between rounded-md border border-black/10 bg-white px-4 text-left text-sm">
+                          <span>
+                            <strong className="block">Produto ativo</strong>
+                            <span className="text-black/50">Pode ser usado em novos pedidos.</span>
+                          </span>
+                          <span className={`h-6 w-11 rounded-full p-1 ${guidedProductActive ? 'bg-[#111827]' : 'bg-[#d1d5db]'}`}>
+                            <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${guidedProductActive ? 'translate-x-5' : ''}`} />
+                          </span>
+                        </button>
+
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => setGuidedProductStep(3)} className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium">Voltar</button>
+                          <button type="button" onClick={createGuidedProduct} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white">
+                            Salvar peça e ficha
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </Panel>
+                  )}
+                </div>
+              </section>
+            )}
+
             {activeArea === 'produtos' && selectedProduct && (
               <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
                 <Panel title="Cadastro de produtos">
@@ -6346,6 +6825,32 @@ export default function SistemaMacaroca() {
                       }
                     />
                   </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                    <SoftInput
+                      label="Foto ou referência principal"
+                      value={selectedProduct.referenceImage ?? ''}
+                      onChange={(value) =>
+                        updateProduct(selectedProduct.id, (product) => ({ ...product, referenceImage: value }))
+                      }
+                    />
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={selectedProduct.active !== false}
+                      onClick={() =>
+                        updateProduct(selectedProduct.id, (product) => ({ ...product, active: product.active === false }))
+                      }
+                      className="flex min-h-11 items-center justify-between self-end rounded-md border border-black/10 bg-white px-4 text-left text-sm"
+                    >
+                      <span>
+                        <strong className="block">Produto {selectedProduct.active === false ? 'desativado' : 'ativo'}</strong>
+                        <span className="text-xs text-black/45">{selectedProduct.active === false ? 'Não aparece em novos pedidos' : 'Disponível para pedidos'}</span>
+                      </span>
+                      <span className={`h-6 w-11 rounded-full p-1 ${selectedProduct.active === false ? 'bg-[#d1d5db]' : 'bg-[#111827]'}`}>
+                        <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${selectedProduct.active === false ? '' : 'translate-x-5'}`} />
+                      </span>
+                    </button>
+                  </div>
 
                   <div className="mt-5 grid gap-4 rounded-md border border-[#3730a3]/20 bg-[#f9fafb] p-4">
                     <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
@@ -6393,7 +6898,12 @@ export default function SistemaMacaroca() {
                               Resumo visual da peça antes de editar a ficha técnica.
                             </p>
                           </div>
-                          <StatusBadge tone="blue">{selectedVariation.name}</StatusBadge>
+                          <div className="flex flex-wrap gap-2">
+                            <StatusBadge tone={selectedVariation.sheetStatus === 'Aprovada' ? 'green' : selectedVariation.sheetStatus === 'Desativada' ? 'rose' : 'amber'}>
+                              {selectedVariation.sheetStatus ?? 'Rascunho'}
+                            </StatusBadge>
+                            <StatusBadge tone="blue">{selectedVariation.sheetVersion ?? 'v1'} · {selectedVariation.name}</StatusBadge>
+                          </div>
                         </div>
 
                         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -6417,9 +6927,9 @@ export default function SistemaMacaroca() {
                           </div>
                           <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                             <span className="text-xs text-black/45">Ficha da variação</span>
-                            <strong className="mt-2 block text-lg">{money(selectedCost)}</strong>
+                            <strong className="mt-2 block text-lg">{canSeeMoney ? money(selectedCost) : `${selectedVariationMaterials.length} material(is)`}</strong>
                             <span className="mt-1 block text-xs text-black/45">
-                              {selectedVariationMaterials.length} material(is)
+                              {selectedVariation.sheetVersion ?? 'v1'} · {selectedVariation.sheetResponsible ?? 'Sistema'}
                             </span>
                           </div>
                         </div>
@@ -6457,7 +6967,8 @@ export default function SistemaMacaroca() {
                             Essas informações aparecem no pedido, na produção e nos documentos.
                           </p>
                         </div>
-                        <div className="grid gap-3 md:grid-cols-3">
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <SoftInput label="Modelo" value={selectedVariation.model ?? ''} onChange={(value) => updateVariationField(selectedVariation.id, 'model', value)} />
                           <SoftInput
                             label="Tamanho"
                             value={selectedVariation.size}
@@ -6491,6 +7002,18 @@ export default function SistemaMacaroca() {
                           value={selectedVariation.technicalNotes}
                           onChange={(value) => updateVariationField(selectedVariation.id, 'technicalNotes', value)}
                         />
+                        <div className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 md:grid-cols-3">
+                          <SoftInput label="Versão da ficha" value={selectedVariation.sheetVersion ?? 'v1'} onChange={(value) => updateVariationField(selectedVariation.id, 'sheetVersion', value)} />
+                          <SoftInput label="Responsável" value={selectedVariation.sheetResponsible ?? currentUserName} onChange={(value) => updateVariationField(selectedVariation.id, 'sheetResponsible', value)} />
+                          <label className="grid gap-2">
+                            <FieldLabel>Situação da ficha</FieldLabel>
+                            <select value={selectedVariation.sheetStatus ?? 'Rascunho'} disabled={userRole !== 'Admin'} onChange={(event) => updateVariation(selectedVariation.id, (variation) => ({ ...variation, sheetStatus: event.target.value as TechnicalSheetStatus }))} className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none disabled:bg-[#f3f4f6]">
+                              <option>Rascunho</option>
+                              <option>Aprovada</option>
+                              <option>Desativada</option>
+                            </select>
+                          </label>
+                        </div>
                       </section>
 
                       <section className="grid gap-4 border-t border-black/10 pt-5">
@@ -6501,11 +7024,11 @@ export default function SistemaMacaroca() {
                               Use materiais específicos quando tamanho, tecido ou cor mudarem o consumo.
                             </p>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 md:min-w-[360px]">
+                          {canSeeMoney && <div className="grid grid-cols-3 gap-2 md:min-w-[360px]">
                             <MiniStat label="Custo da ficha" value={money(selectedCost)} />
                             <MiniStat label="Preço sugerido" value={money(selectedPrice)} tone="green" />
                             <MiniStat label="Preço definido" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} tone={selectedSalePrice ? 'blue' : 'amber'} />
-                          </div>
+                          </div>}
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
                           {selectedVariation.materials.map((material) => (
@@ -6521,7 +7044,7 @@ export default function SistemaMacaroca() {
                                     {material.qty.toLocaleString('pt-BR', { maximumFractionDigits: 3 })} {material.unit} por peça
                                   </span>
                                 </div>
-                                <StatusBadge>{money(material.qty * material.unitCost)}</StatusBadge>
+                                {canSeeMoney && <StatusBadge>{money(materialPlannedCost(material))}</StatusBadge>}
                               </div>
                               <div className="grid gap-3">
                                 <label className="grid gap-2">
@@ -6543,7 +7066,7 @@ export default function SistemaMacaroca() {
                                     ))}
                                   </select>
                                 </label>
-                                <div className="grid grid-cols-[1fr_92px] gap-3">
+                                <div className="grid grid-cols-[1fr_110px_92px] gap-3">
                                   <SoftNumber
                                     label="Qtd. por peça"
                                     value={material.qty}
@@ -6552,9 +7075,13 @@ export default function SistemaMacaroca() {
                                       updateVariationMaterial(selectedVariation.id, material.id, 'qty', value)
                                     }
                                   />
+                                  <SoftNumber label="Perda (%)" value={material.expectedLoss ?? 0} step="0.1" onChange={(value) => updateVariationMaterial(selectedVariation.id, material.id, 'expectedLoss', value)} />
                                   <ReadOnlyField label="Un." value={material.unit} />
                                 </div>
-                                <ReadOnlyField label="Custo médio" value={money(material.unitCost)} />
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  {canSeeMoney && <ReadOnlyField label="Custo médio" value={money(material.unitCost)} />}
+                                  <ReadOnlyField label="Separar por peça" value={`${materialPlannedQty(material).toLocaleString('pt-BR', { maximumFractionDigits: 3 })} ${material.unit}`} />
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -6582,7 +7109,7 @@ export default function SistemaMacaroca() {
                           {selectedProduct.materials.map((material) => (
                             <div
                               key={material.id}
-                              className="grid gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-3 lg:grid-cols-[1.4fr_110px_90px_130px]"
+                              className="grid gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-3 lg:grid-cols-[1.4fr_110px_110px_90px_130px]"
                             >
                               <label className="grid gap-2">
                                 <FieldLabel>Matéria-prima</FieldLabel>
@@ -6607,8 +7134,9 @@ export default function SistemaMacaroca() {
                                 step="0.1"
                                 onChange={(value) => updateMaterial(material.id, 'qty', value)}
                               />
+                              <SoftNumber label="Perda (%)" value={material.expectedLoss ?? 0} step="0.1" onChange={(value) => updateMaterial(material.id, 'expectedLoss', value)} />
                               <ReadOnlyField label="Un." value={material.unit} />
-                              <ReadOnlyField label="Custo médio" value={money(material.unitCost)} />
+                              {canSeeMoney && <ReadOnlyField label="Custo médio" value={money(material.unitCost)} />}
                             </div>
                           ))}
                         </div>
@@ -6626,7 +7154,7 @@ export default function SistemaMacaroca() {
                   )}
                 </Panel>
 
-                <PricePanel
+                {canSeeMoney ? <PricePanel
                   cost={selectedCost}
                   price={selectedPrice}
                   tax={state.tax}
@@ -6637,7 +7165,13 @@ export default function SistemaMacaroca() {
                     setState((current) => ({ ...current, [field]: value }))
                     setMessage('Preço recalculado.')
                   }}
-                />
+                /> : (
+                  <Panel title="Conferência administrativa">
+                    <p className="text-sm leading-6 text-black/60">
+                      Custos, margem e preço oficial ficam visíveis somente para os perfis autorizados.
+                    </p>
+                  </Panel>
+                )}
               </section>
             )}
 
@@ -6744,7 +7278,11 @@ export default function SistemaMacaroca() {
                         <h3 className="text-sm font-semibold text-[#111827]">Identificação</h3>
                         <p className="mt-1 text-sm text-black/50">Nome, fornecedor e alerta mínimo para não faltar no ateliê.</p>
                       </div>
-                      <SoftInput label="Nome da matéria-prima" value={newMaterialName} onChange={setNewMaterialName} />
+                      <div className="grid gap-3 md:grid-cols-[160px_minmax(0,1fr)]">
+                        <SoftInput label="Código interno" value={newMaterialCode} onChange={setNewMaterialCode} />
+                        <SoftInput label="Nome da matéria-prima" value={newMaterialName} onChange={setNewMaterialName} />
+                      </div>
+                      <SoftInput label="Locação no estoque" value={newMaterialStockLocation} onChange={setNewMaterialStockLocation} />
                       <label className="grid min-w-0 gap-2">
                         <FieldLabel>Categoria</FieldLabel>
                         <select
@@ -6779,6 +7317,7 @@ export default function SistemaMacaroca() {
                         step="0.01"
                         onChange={setNewMaterialMinimum}
                       />
+                      <SoftNumber label="Perda prevista no uso (%)" value={newMaterialExpectedLoss} step="0.1" onChange={setNewMaterialExpectedLoss} />
                     </section>
 
                     <section className="grid gap-4 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
@@ -6866,8 +7405,8 @@ export default function SistemaMacaroca() {
                           key={material.id}
                           badge={isLow ? 'Baixo' : material.category ?? material.unit}
                           title={material.name}
-                          detail={`Código: ${rawMaterialCode(material)} · Fornecedor: ${material.supplier} · Atual: ${currentStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)} · Compra: 1 ${unitLabel(material.purchaseUnit)} = ${material.purchaseToStockFactor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)}${material.lastPurchase ? ` · Última compra: ${formatDate(material.lastPurchase)}` : ''}`}
-                          value={`Mín.: ${material.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${material.unit}`}
+                          detail={`Código: ${rawMaterialCode(material)}${material.stockLocation ? ` · Locação: ${material.stockLocation}` : ''} · Fornecedor: ${material.supplier} · Atual: ${currentStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)} · Compra: 1 ${unitLabel(material.purchaseUnit)} = ${material.purchaseToStockFactor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)} · Perda padrão: ${(material.expectedLoss ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%${material.lastPurchase ? ` · Última compra: ${formatDate(material.lastPurchase)}` : ''}`}
+                          value={`Mín.: ${material.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${material.unit} · ${money(material.avgCost)}/${material.unit}`}
                         />
                       )
                     })}
@@ -7220,8 +7759,8 @@ export default function SistemaMacaroca() {
                         className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
                       >
                         {state.products.map((product) => (
-                          <option value={product.id} key={product.id}>
-                            {product.code} · {product.name} · {product.brand}
+                          <option value={product.id} key={product.id} disabled={product.active === false || !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada')}>
+                            {product.code} · {product.name} · {product.brand}{product.active === false ? ' · desativado' : !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada') ? ' · aguardando aprovação' : ''}
                           </option>
                         ))}
                       </select>
@@ -7234,8 +7773,8 @@ export default function SistemaMacaroca() {
                         className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
                       >
                         {selectedProduct.variations.map((variation) => (
-                          <option key={variation.id} value={variation.id}>
-                            {variation.name} · {variation.fabric}
+                          <option key={variation.id} value={variation.id} disabled={(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada'}>
+                            {variation.name} · {variation.fabric}{(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada' ? ` · ${variation.sheetStatus}` : ''}
                           </option>
                         ))}
                       </select>
@@ -7412,8 +7951,8 @@ export default function SistemaMacaroca() {
                         className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
                       >
                         {state.products.map((product) => (
-                          <option value={product.id} key={product.id}>
-                            {product.code} · {product.name}
+                          <option value={product.id} key={product.id} disabled={product.active === false || !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada')}>
+                            {product.code} · {product.name}{product.active === false ? ' · desativado' : !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada') ? ' · aguardando aprovação' : ''}
                           </option>
                         ))}
                       </select>
@@ -7426,8 +7965,8 @@ export default function SistemaMacaroca() {
                         className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
                       >
                         {selectedProduct.variations.map((variation) => (
-                          <option key={variation.id} value={variation.id}>
-                            {variation.name} · {variation.fabric}
+                          <option key={variation.id} value={variation.id} disabled={(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada'}>
+                            {variation.name} · {variation.fabric}{(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada' ? ` · ${variation.sheetStatus}` : ''}
                           </option>
                         ))}
                       </select>
@@ -8988,7 +9527,7 @@ function ProductionOrderPreview({
                   <div key={material.id} className="grid grid-cols-[140px_1fr_90px_80px] px-2 py-1">
                     <span>{materialCode(material)}</span>
                     <span>{material.name}</span>
-                    <span>{(material.qty * op.qty).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
+                    <span>{materialPlannedQty(material, op.qty).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
                     <span>{material.unit.toUpperCase()}</span>
                   </div>
                 ))}
@@ -9108,7 +9647,7 @@ function ProductionOrderPrint({ op, state }: { op: ProductionOrder; state: AppSt
             <div key={material.id} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 80px 70px', padding: '4px 8px' }}>
               <span>{materialCode(material)}</span>
               <span>{material.name}</span>
-              <span>{(material.qty * op.qty).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
+              <span>{materialPlannedQty(material, op.qty).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
               <span>{material.unit.toUpperCase()}</span>
             </div>
           ))}

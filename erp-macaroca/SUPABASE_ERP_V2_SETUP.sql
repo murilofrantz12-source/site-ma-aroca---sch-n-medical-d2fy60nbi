@@ -125,7 +125,7 @@ begin
 
   if requested_action = 'write' then
     if profile_role = 'Sócia' then
-      return requested_entity in ('customer', 'order', 'production_order', 'inventory_entry');
+      return requested_entity in ('customer', 'product', 'order', 'production_order', 'inventory_entry');
     elsif profile_role = 'Comercial' then
       return requested_entity in ('customer', 'order');
     elsif profile_role = 'Produção' then
