@@ -305,8 +305,10 @@ type AppState = {
 }
 
 const storageKey = 'macaroca-erp-prototype-v2'
-const cloudStateTable = 'macaroca_app_state'
-const cloudStateId = 'main'
+const cloudStateTable = (import.meta.env.VITE_SUPABASE_STATE_TABLE as string | undefined) || 'macaroca_app_state'
+const cloudStateId = (import.meta.env.VITE_SUPABASE_STATE_ID as string | undefined) || 'main'
+const appEnvironment = (import.meta.env.VITE_APP_ENV as string | undefined) || 'production'
+const isTestEnvironment = appEnvironment === 'test'
 
 const defaultProducts: Product[] = [
   {
@@ -3949,6 +3951,11 @@ export default function SistemaMacaroca() {
     return (
       <div className="grid min-h-screen place-items-center bg-[#f8fafc] px-5 text-[#111827]">
         <div className="w-full max-w-md rounded-lg border border-[#d9c7bd] bg-[#ffffff] p-7 shadow-[0_22px_60px_rgba(49,35,30,0.10)]">
+          {isTestEnvironment && (
+            <div className="mb-5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-amber-900">
+              Ambiente de teste · dados separados
+            </div>
+          )}
           <div className="mb-7 flex items-center gap-4">
             <img src={companyLogo} alt={state.company.name} className="h-16 w-auto rounded-md object-contain" />
             <div>
@@ -4136,6 +4143,11 @@ export default function SistemaMacaroca() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                {isTestEnvironment && (
+                  <div className="flex h-9 items-center rounded-md border border-amber-300 bg-amber-50 px-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-amber-900">
+                    Ambiente de teste
+                  </div>
+                )}
                 <div className="flex h-9 items-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2.5 text-sm">
                   <ShieldCheck className="h-4 w-4 text-[#3730a3]" />
                   <span className="hidden text-black/55 xl:inline">{currentUserName}</span>
