@@ -96,7 +96,9 @@ type FinanceCategory =
   | 'Conta a pagar'
   | 'Compra de matéria-prima'
   | 'Despesa fixa'
+  | 'Comissão'
   | 'Outro'
+type FinanceView = 'resumo' | 'resultados' | 'caixa' | 'lancamentos'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
 type PriceApprovalStatus = 'Não necessária' | 'Pendente' | 'Aprovada' | 'Recusada'
@@ -389,6 +391,8 @@ type CashEntry = {
   dueDate?: string
   paid: boolean
   createdBy?: string
+  createdAt?: string
+  paidAt?: string
 }
 
 type AppUser = {
@@ -862,6 +866,8 @@ const initialState: AppState = {
       dueDate: '2026-06-23',
       paid: true,
       createdBy: 'Base Valora',
+      createdAt: '2026-06-23T12:00:00.000Z',
+      paidAt: '2026-06-23T12:00:00.000Z',
     },
     {
       id: 'CX-VALORA-COPIPUNTO',
@@ -873,6 +879,8 @@ const initialState: AppState = {
       dueDate: '2026-06-23',
       paid: true,
       createdBy: 'Base Valora',
+      createdAt: '2026-06-23T12:00:00.000Z',
+      paidAt: '2026-06-23T12:00:00.000Z',
     },
     {
       id: 'CX-002',
@@ -883,6 +891,8 @@ const initialState: AppState = {
       source: 'NF 0001',
       dueDate: '2026-07-20',
       paid: true,
+      createdAt: '2026-07-20T12:00:00.000Z',
+      paidAt: '2026-07-20T12:00:00.000Z',
     },
   ],
   tax: 5,
@@ -998,6 +1008,11 @@ const inferFinanceCategory = (entry: CashEntry): FinanceCategory => {
   if (entry.kind === 'Saída') return 'Despesa fixa'
   return 'Outro'
 }
+
+const financeEntryDate = (entry: CashEntry) =>
+  ((entry.paid ? entry.paidAt : undefined) ?? entry.dueDate ?? entry.createdAt ?? '').slice(0, 10)
+
+const isMonth = (date: string | undefined, month: string) => (date ?? '').startsWith(month)
 
 const normalizeState = (state: AppState, includePrototypeDefaults = true): AppState => {
   const counters: Record<string, number> = {}
@@ -1205,6 +1220,11 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
       category: inferFinanceCategory(entry),
       paid: entry.paid ?? true,
       createdBy: entry.createdBy ?? 'Sistema',
+      createdAt: entry.createdAt ?? (entry.dueDate ? `${entry.dueDate}T12:00:00.000Z` : ''),
+      paidAt:
+        entry.paid
+          ? entry.paidAt ?? (entry.dueDate ? `${entry.dueDate}T12:00:00.000Z` : entry.createdAt)
+          : undefined,
     })),
   }
 }
@@ -1994,6 +2014,40 @@ const helpGuides: HelpGuide[] = [
     ],
   },
   {
+    id: 'conferir-resultado',
+    category: 'Financeiro',
+    title: 'Como conferir se um pedido deu lucro',
+    summary: 'Compare o custo previsto com o material realmente utilizado na produção.',
+    keywords: ['lucro real', 'lucro estimado', 'pedido', 'margem', 'custo realizado'],
+    target: 'financeiro',
+    action: 'Ver resultados',
+    steps: [
+      'Abra Gestão e escolha Financeiro.',
+      'Entre na guia Pedidos e produtos.',
+      'Localize o pedido ou produto desejado.',
+      'Compare custo estimado, custo realizado, lucro previsto e lucro real.',
+      'Se aparecer Aguardando produção, registre a produção ou a entrega para formar o custo real.',
+      'Use a margem real para identificar quais produtos e negociações são mais saudáveis.',
+    ],
+  },
+  {
+    id: 'registrar-pagamento',
+    category: 'Financeiro',
+    title: 'Como registrar um pagamento ou recebimento',
+    summary: 'Atualize o caixa sem perder o vínculo com pedidos e compras.',
+    keywords: ['receber', 'pagar', 'conta', 'fluxo de caixa', 'vencimento', 'comissão'],
+    target: 'financeiro',
+    action: 'Abrir financeiro',
+    steps: [
+      'Abra Gestão e escolha Financeiro.',
+      'Na Visão geral, confira valores a receber e contas a pagar.',
+      'Use Marcar recebida ou Marcar paga no lançamento desejado.',
+      'Para uma despesa nova, abra Lançamentos e informe categoria, data e valor.',
+      'Use a categoria Comissão para pagamentos de comissão.',
+      'Confira o efeito na guia Fluxo de caixa e no mês correto.',
+    ],
+  },
+  {
     id: 'conferir-estoque',
     category: 'Estoque',
     title: 'Como conferir o estoque',
@@ -2273,6 +2327,8 @@ export default function SistemaMacaroca() {
   const [financeValue, setFinanceValue] = useState(250000)
   const [financeDueDate, setFinanceDueDate] = useState(currentDateValue())
   const [financePaid, setFinancePaid] = useState(true)
+  const [financeView, setFinanceView] = useState<FinanceView>('resumo')
+  const [financeMonth, setFinanceMonth] = useState(currentMonthValue())
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [moduleContext, setModuleContext] = useState<Area | null>(null)
@@ -2876,6 +2932,7 @@ export default function SistemaMacaroca() {
       state.cashEntries.filter((entry) => entry.category === category)
     const sum = (entries: CashEntry[]) => entries.reduce((total, entry) => total + entry.value, 0)
     const receivedSales = byCategory('Venda recebida').filter((entry) => entry.paid)
+    const receivableSales = byCategory('Venda recebida').filter((entry) => !entry.paid)
     const accountsPayable = state.cashEntries.filter(
       (entry) => entry.kind === 'Saída' && (!entry.paid || entry.category === 'Conta a pagar'),
     )
@@ -2885,42 +2942,159 @@ export default function SistemaMacaroca() {
         entry.source === 'Compra de matéria-prima',
     )
     const fixedExpenses = byCategory('Despesa fixa')
-    const estimatedProfitByOrder = state.orders.filter((order) => order.documentType === 'Pedido').map((order) => {
-      const product = state.products.find((item) => item.id === order.productId)
-      const pricing = orderPricingDetails(state, order)
-      const unitCost = pricing.cost
-      const price = orderUnitPrice(state, order)
-      const revenue = price * order.qty
-      const materialCost = unitCost * order.qty
-      const taxCost = revenue * (pricing.tax / 100)
-      const commissionCost = revenue * (pricing.commission / 100)
-      const fixedCostShare = revenue * (pricing.fixedCost / 100)
-      const profit = revenue - materialCost - taxCost - commissionCost - fixedCostShare
+    const orderResults = state.orders
+      .filter((order) => order.documentType === 'Pedido' && order.status !== 'Cancelado')
+      .map((order) => {
+        const product = state.products.find((item) => item.id === order.productId)
+        const pricing = orderPricingDetails(state, order)
+        const price = orderUnitPrice(state, order)
+        const revenue = price * order.qty
+        const estimatedMaterialCost = pricing.cost * order.qty
+        const taxCost = revenue * (pricing.tax / 100)
+        const commissionCost = revenue * (pricing.commission / 100)
+        const fixedCostShare = revenue * (pricing.fixedCost / 100)
+        const estimatedProfit =
+          revenue - estimatedMaterialCost - taxCost - commissionCost - fixedCostShare
+        const relatedOps = state.productionOrders.filter((op) => op.orderId === order.id)
+        const relatedOpIds = relatedOps.map((op) => op.id)
+        const productionEntries = state.inventoryEntries.filter((entry) =>
+          relatedOpIds.some((opId) => entry.source === opId || entry.source.startsWith(`${opId} ·`)),
+        )
+        const deliveryEntry = state.inventoryEntries.find(
+          (entry) => entry.kind === 'Saída PA' && entry.source === `Entrega ${order.id}`,
+        )
+        const finishedProductionCost = productionEntries
+          .filter((entry) => entry.kind === 'Entrada PA')
+          .reduce((total, entry) => total + entry.value, 0)
+        const abnormalLossCost = productionEntries
+          .filter(
+            (entry) =>
+              entry.kind === 'Consumo MP' &&
+              (entry.source.includes('Perda') || entry.source.includes('Defeito')),
+          )
+          .reduce((total, entry) => total + entry.value, 0)
+        const realizedMaterialCost =
+          (deliveryEntry?.value ?? finishedProductionCost) + abnormalLossCost
+        const hasRealizedCost = Boolean(deliveryEntry || finishedProductionCost || abnormalLossCost)
+        const realProfit = hasRealizedCost
+          ? revenue - realizedMaterialCost - taxCost - commissionCost - fixedCostShare
+          : 0
+        const realMargin = hasRealizedCost && revenue > 0 ? (realProfit / revenue) * 100 : 0
+        const resultDate =
+          order.status === 'Entregue'
+            ? order.deliveryDate || order.dueDate
+            : order.orderDate
 
-      return {
-        order,
-        product,
-        revenue,
-        materialCost,
-        profit,
-        margin: pricing.realMargin,
-      }
-    })
+        return {
+          order,
+          product,
+          revenue,
+          estimatedMaterialCost,
+          realizedMaterialCost,
+          estimatedProfit,
+          realProfit,
+          estimatedMargin: revenue > 0 ? (estimatedProfit / revenue) * 100 : 0,
+          realMargin,
+          taxCost,
+          commissionCost,
+          fixedCostShare,
+          hasRealizedCost,
+          resultDate,
+        }
+      })
+    const monthEntries = state.cashEntries.filter((entry) =>
+      isMonth(financeEntryDate(entry), financeMonth),
+    )
+    const monthReceived = monthEntries.filter((entry) => entry.kind === 'Entrada' && entry.paid)
+    const monthPaid = monthEntries.filter((entry) => entry.kind === 'Saída' && entry.paid)
+    const monthOrders = orderResults.filter((item) => isMonth(item.resultDate, financeMonth))
+    const monthRevenue = monthOrders.reduce((total, item) => total + item.revenue, 0)
+    const monthEstimatedCost = monthOrders.reduce(
+      (total, item) => total + item.estimatedMaterialCost,
+      0,
+    )
+    const monthRealizedCost = monthOrders.reduce(
+      (total, item) =>
+        total + (item.hasRealizedCost ? item.realizedMaterialCost : item.estimatedMaterialCost),
+      0,
+    )
+    const monthTaxes = monthOrders.reduce((total, item) => total + item.taxCost, 0)
+    const monthCommissions = monthOrders.reduce((total, item) => total + item.commissionCost, 0)
+    const monthFixedAllocation = monthOrders.reduce((total, item) => total + item.fixedCostShare, 0)
+    const monthFixedExpenses = fixedExpenses
+      .filter((entry) => entry.paid && isMonth(financeEntryDate(entry), financeMonth))
+      .reduce((total, entry) => total + entry.value, 0)
+    const fixedCostForResult = monthFixedExpenses || monthFixedAllocation
+    const monthEstimatedProfit =
+      monthRevenue - monthEstimatedCost - monthTaxes - monthCommissions - fixedCostForResult
+    const monthRealProfit =
+      monthRevenue - monthRealizedCost - monthTaxes - monthCommissions - fixedCostForResult
+    const productResults = Array.from(
+      orderResults.reduce((grouped, item) => {
+        const key = `${item.order.productId}:${item.order.variationId ?? ''}`
+        const current = grouped.get(key) ?? {
+          key,
+          product: item.product,
+          variationId: item.order.variationId,
+          orders: 0,
+          qty: 0,
+          revenue: 0,
+          estimatedProfit: 0,
+          realProfit: 0,
+          realizedOrders: 0,
+        }
+        current.orders += 1
+        current.qty += item.order.qty
+        current.revenue += item.revenue
+        current.estimatedProfit += item.estimatedProfit
+        if (item.hasRealizedCost) {
+          current.realProfit += item.realProfit
+          current.realizedOrders += 1
+        }
+        grouped.set(key, current)
+        return grouped
+      }, new Map<string, {
+        key: string
+        product?: Product
+        variationId?: string
+        orders: number
+        qty: number
+        revenue: number
+        estimatedProfit: number
+        realProfit: number
+        realizedOrders: number
+      }>()).values(),
+    ).sort((a, b) => b.realProfit - a.realProfit)
 
     return {
       receivedSales,
+      receivableSales,
       accountsPayable,
       rawMaterialPurchases,
       fixedExpenses,
       receivedSalesTotal: sum(receivedSales),
       receivedSalesMonthTotal: sum(receivedSales.filter((entry) => isCurrentMonth(entry.dueDate))),
+      receivableSalesTotal: sum(receivableSales),
       accountsPayableTotal: sum(accountsPayable.filter((entry) => !entry.paid)),
       rawMaterialPurchasesTotal: sum(rawMaterialPurchases),
       fixedExpensesTotal: sum(fixedExpenses),
-      estimatedProfitByOrder,
-      estimatedProfitTotal: estimatedProfitByOrder.reduce((total, item) => total + item.profit, 0),
+      orderResults,
+      productResults,
+      estimatedProfitTotal: orderResults.reduce((total, item) => total + item.estimatedProfit, 0),
+      monthEntries,
+      monthReceivedTotal: sum(monthReceived),
+      monthPaidTotal: sum(monthPaid),
+      monthCashBalance: sum(monthReceived) - sum(monthPaid),
+      monthRevenue,
+      monthEstimatedCost,
+      monthRealizedCost,
+      monthTaxes,
+      monthCommissions,
+      monthFixedCost: fixedCostForResult,
+      monthEstimatedProfit,
+      monthRealProfit,
     }
-  }, [state.cashEntries, state.commission, state.fixedCost, state.orders, state.products, state.profit, state.tax])
+  }, [financeMonth, state])
 
   const stock = useMemo(() => {
     const raw = new Map<string, { item: string; qty: number; unit: string; value: number }>()
@@ -3894,6 +4068,7 @@ export default function SistemaMacaroca() {
           dueDate,
           paid: false,
           createdBy: currentUserName,
+          createdAt: new Date().toISOString(),
         },
         ...current.cashEntries,
       ],
@@ -4193,6 +4368,8 @@ export default function SistemaMacaroca() {
                 dueDate: order.orderDate,
                 paid: orderPaymentStatus === 'Pago',
                 createdBy: currentUserName,
+                createdAt: now,
+                paidAt: orderPaymentStatus === 'Pago' ? now : undefined,
               },
               ...current.cashEntries,
             ]
@@ -4300,6 +4477,8 @@ export default function SistemaMacaroca() {
               dueDate: order.orderDate,
               paid: orderPaymentStatus === 'Pago',
               createdBy: currentUserName,
+              createdAt: now,
+              paidAt: orderPaymentStatus === 'Pago' ? now : undefined,
             },
             ...current.cashEntries,
           ]
@@ -4377,6 +4556,7 @@ export default function SistemaMacaroca() {
       return
     }
     const newOrderId = nextDocumentId(state.orders, 'Pedido')
+    const now = new Date().toISOString()
 
     setState((current) => ({
       ...current,
@@ -4389,7 +4569,7 @@ export default function SistemaMacaroca() {
               billed: true,
               status: 'Aberto',
               reservationStatus: 'Reservado',
-              reservedAt: new Date().toISOString(),
+              reservedAt: now,
               convertedFrom: order.id,
               history: [
                 ...(item.history ?? []),
@@ -4413,6 +4593,8 @@ export default function SistemaMacaroca() {
           dueDate: order.orderDate,
           paid: order.paymentStatus === 'Pago',
           createdBy: currentUserName,
+          createdAt: now,
+          paidAt: order.paymentStatus === 'Pago' ? now : undefined,
         },
         ...current.cashEntries.filter((entry) => entry.source !== order.id),
       ],
@@ -4638,6 +4820,7 @@ export default function SistemaMacaroca() {
       canApproveDiscount,
     )
     const approvedForRoutine = pricing.approvalStatus !== 'Pendente'
+    const now = new Date().toISOString()
     const existingCashEntry = state.cashEntries.find(
       (entry) => entry.source === orderId && entry.category === 'Venda recebida',
     )
@@ -4657,6 +4840,11 @@ export default function SistemaMacaroca() {
               dueDate: order.orderDate,
               paid: order.paymentStatus === 'Pago',
               createdBy: existingCashEntry?.createdBy ?? currentUserName,
+              createdAt: existingCashEntry?.createdAt ?? now,
+              paidAt:
+                order.paymentStatus === 'Pago'
+                  ? existingCashEntry?.paidAt ?? now
+                  : undefined,
             },
             ...cashEntriesWithoutSale,
           ]
@@ -4725,6 +4913,11 @@ export default function SistemaMacaroca() {
               dueDate: order.orderDate,
               paid: order.paymentStatus === 'Pago',
               createdBy: existingCashEntry?.createdBy ?? currentUserName,
+              createdAt: existingCashEntry?.createdAt ?? now,
+              paidAt:
+                order.paymentStatus === 'Pago'
+                  ? existingCashEntry?.paidAt ?? now
+                  : undefined,
             },
             ...cashEntriesWithoutSale,
           ]
@@ -5193,35 +5386,73 @@ export default function SistemaMacaroca() {
   }
 
   const addFinanceEntry = () => {
-    setState((current) => ({
-      ...current,
+    if (!canSeeMoney) {
+      setMessage('Somente Administração ou Financeiro pode registrar lançamentos.')
+      return
+    }
+    const now = new Date().toISOString()
+    const nextState: AppState = {
+      ...state,
       cashEntries: [
         {
           id: `CX-${Date.now()}`,
           kind: financeKind,
           category: financeCategory,
           description: financeDescription || 'Lançamento financeiro',
-          value: financeValue,
+          value: Math.max(0, financeValue),
           source: 'Manual',
           dueDate: financeDueDate,
           paid: financePaid,
           createdBy: currentUserName,
+          createdAt: now,
+          paidAt: financePaid ? now : undefined,
         },
-        ...current.cashEntries,
+        ...state.cashEntries,
       ],
-    }))
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, 'Lançamento financeiro salvo e sincronizado.')
+    setFinanceView('lancamentos')
     setActiveArea('financeiro')
     setMessage('Lançamento financeiro registrado.')
   }
 
   const updateFinancePaid = (entryId: string, paid: boolean) => {
-    setState((current) => ({
-      ...current,
-      cashEntries: current.cashEntries.map((entry) =>
-        entry.id === entryId ? { ...entry, paid } : entry,
+    if (!canSeeMoney) {
+      setMessage('Somente Administração ou Financeiro pode alterar pagamentos.')
+      return
+    }
+    const entry = state.cashEntries.find((item) => item.id === entryId)
+    if (!entry) return
+    const now = new Date().toISOString()
+    const nextState: AppState = {
+      ...state,
+      cashEntries: state.cashEntries.map((item) =>
+        item.id === entryId
+          ? { ...item, paid, paidAt: paid ? now : undefined }
+          : item,
       ),
-    }))
-    setMessage(paid ? 'Conta marcada como paga.' : 'Conta voltou para pendente.')
+      orders:
+        entry.category === 'Venda recebida'
+          ? state.orders.map((order) =>
+              order.id === entry.source
+                ? { ...order, paymentStatus: paid ? 'Pago' : 'Pendente' }
+                : order,
+            )
+          : state.orders,
+    }
+    setState(nextState)
+    void saveStateImmediately(
+      nextState,
+      paid ? 'Pagamento ou recebimento confirmado.' : 'Lançamento voltou para pendente.',
+    )
+    setMessage(
+      paid
+        ? entry.kind === 'Entrada'
+          ? 'Recebimento confirmado e pedido atualizado.'
+          : 'Conta marcada como paga.'
+        : 'Lançamento voltou para pendente.',
+    )
   }
 
   const login = async () => {
@@ -5677,7 +5908,11 @@ export default function SistemaMacaroca() {
       unidade: '',
       valor: entry.value,
       data: entry.dueDate ?? '',
-      extra: { criadoPor: entry.createdBy },
+      extra: {
+        criadoPor: entry.createdBy,
+        criadoEm: entry.createdAt,
+        realizadoEm: entry.paidAt,
+      },
     })),
   ]
 
@@ -6496,8 +6731,8 @@ export default function SistemaMacaroca() {
       description: 'Defina o valor oficial das peças e variações antes de registrar pedidos.',
     },
     financeiro: {
-      title: 'Financeiro',
-      description: 'Acompanhe entradas, saídas, contas a pagar e lucro estimado.',
+      title: 'Financeiro e resultados',
+      description: 'Veja caixa, contas e o lucro estimado e real de cada pedido e produto.',
     },
     usuarios: {
       title: 'Usuários',
@@ -11181,199 +11416,307 @@ export default function SistemaMacaroca() {
             )}
 
             {activeArea === 'financeiro' && (
-              <section className="grid gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
-                <Panel title="Lançamento financeiro">
-                  <div className="grid gap-4">
-                    <label className="grid gap-2">
-                      <FieldLabel>Categoria</FieldLabel>
-                      <select
-                        value={financeCategory}
-                        onChange={(event) => {
-                          const category = event.target.value as FinanceCategory
-                          setFinanceCategory(category)
-                          setFinanceKind(category === 'Venda recebida' ? 'Entrada' : 'Saída')
-                          setFinancePaid(category !== 'Conta a pagar')
-                        }}
-                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
+              <section className="grid gap-5">
+                <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+                  <nav
+                    aria-label="Áreas do financeiro"
+                    className="flex gap-2 overflow-x-auto pb-1 lg:pb-0"
+                  >
+                    {([
+                      ['resumo', 'Visão geral'],
+                      ['resultados', 'Pedidos e produtos'],
+                      ['caixa', 'Fluxo de caixa'],
+                      ['lancamentos', 'Lançamentos'],
+                    ] as [FinanceView, string][]).map(([view, label]) => (
+                      <button
+                        key={view}
+                        type="button"
+                        onClick={() => setFinanceView(view)}
+                        className={`min-h-10 shrink-0 rounded-md border px-3 text-sm font-medium transition ${
+                          financeView === view
+                            ? 'border-[#312e81] bg-[#312e81] text-white'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'
+                        }`}
                       >
-                        <option>Venda recebida</option>
-                        <option>Conta a pagar</option>
-                        <option>Compra de matéria-prima</option>
-                        <option>Despesa fixa</option>
-                        <option>Outro</option>
-                      </select>
-                    </label>
-                    <label className="grid gap-2">
-                      <FieldLabel>Tipo</FieldLabel>
-                      <select
-                        value={financeKind}
-                        onChange={(event) => setFinanceKind(event.target.value as CashKind)}
-                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                      >
-                        <option>Entrada</option>
-                        <option>Saída</option>
-                      </select>
-                    </label>
-                    <SoftInput label="Descrição" value={financeDescription} onChange={setFinanceDescription} />
-                    <SoftInput label="Vencimento / data" value={financeDueDate} onChange={setFinanceDueDate} />
-                    <SoftNumber label="Valor" value={financeValue} onChange={setFinanceValue} />
-                    <label className="flex items-center gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={financePaid}
-                        onChange={(event) => setFinancePaid(event.target.checked)}
-                        className="h-4 w-4 accent-[#3730a3]"
-                      />
-                      Já foi pago ou recebido
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addFinanceEntry}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
-                    >
-                      Registrar
-                    </button>
-                  </div>
-                </Panel>
+                        {label}
+                      </button>
+                    ))}
+                  </nav>
+                  <label className="grid gap-1.5 sm:w-48">
+                    <FieldLabel>Mês analisado</FieldLabel>
+                    <input
+                      type="month"
+                      value={financeMonth}
+                      onChange={(event) => setFinanceMonth(event.target.value || currentMonthValue())}
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#312e81]"
+                    />
+                  </label>
+                </div>
 
-                <div className="grid gap-5">
-                  <Panel title="Resumo financeiro">
+                {financeView === 'resumo' && (
+                  <>
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <Metric label="Vendas recebidas" value={money(financeSummary.receivedSalesTotal)} icon={<Banknote />} />
+                      <Metric label="Recebido no mês" value={money(financeSummary.monthReceivedTotal)} icon={<Banknote />} />
+                      <Metric label="Valores a receber" value={money(financeSummary.receivableSalesTotal)} icon={<ReceiptText />} />
                       <Metric label="Contas a pagar" value={money(financeSummary.accountsPayableTotal)} icon={<WalletCards />} />
-                      <Metric label="Compras de MP" value={money(financeSummary.rawMaterialPurchasesTotal)} icon={<Package />} />
-                      <Metric label="Lucro estimado" value={money(financeSummary.estimatedProfitTotal)} icon={<Calculator />} />
+                      <Metric label="Resultado real do mês" value={money(financeSummary.monthRealProfit)} icon={<Calculator />} />
                     </div>
-                  </Panel>
 
-                  <div className="grid gap-5 xl:grid-cols-2">
-                    <Panel title="Vendas recebidas">
+                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
+                      <Panel title="Resultado do mês">
+                        <div className="grid gap-2">
+                          <RecordRow badge="Receita" title="Vendas do período" detail="Pedidos considerados no resultado" value={money(financeSummary.monthRevenue)} />
+                          <RecordRow badge="Custo" title="Matéria-prima utilizada" detail={`Previsto: ${money(financeSummary.monthEstimatedCost)}`} value={`-${money(financeSummary.monthRealizedCost)}`} />
+                          <RecordRow badge="Variável" title="Impostos" detail="Conforme o percentual salvo em cada pedido" value={`-${money(financeSummary.monthTaxes)}`} />
+                          <RecordRow badge="Variável" title="Comissões" detail="Calculadas sobre as vendas do período" value={`-${money(financeSummary.monthCommissions)}`} />
+                          <RecordRow badge="Fixo" title="Despesas fixas" detail="Usa lançamentos pagos; sem lançamentos, usa o rateio configurado" value={`-${money(financeSummary.monthFixedCost)}`} />
+                          <div className={`mt-2 flex flex-col justify-between gap-2 rounded-md border p-4 sm:flex-row sm:items-center ${
+                            financeSummary.monthRealProfit >= 0
+                              ? 'border-emerald-200 bg-emerald-50'
+                              : 'border-rose-200 bg-rose-50'
+                          }`}>
+                            <div>
+                              <strong>Resultado real</strong>
+                              <p className="text-sm text-slate-500">
+                                Estimativa original: {money(financeSummary.monthEstimatedProfit)}
+                              </p>
+                            </div>
+                            <strong className="text-xl">{money(financeSummary.monthRealProfit)}</strong>
+                          </div>
+                        </div>
+                      </Panel>
+
+                      <Panel title="Caixa do mês">
+                        <div className="grid gap-3">
+                          <Metric label="Entradas realizadas" value={money(financeSummary.monthReceivedTotal)} icon={<Banknote />} />
+                          <Metric label="Saídas realizadas" value={money(financeSummary.monthPaidTotal)} icon={<WalletCards />} />
+                          <Metric label="Saldo do caixa" value={money(financeSummary.monthCashBalance)} icon={<Calculator />} />
+                          <button
+                            type="button"
+                            onClick={() => setFinanceView('caixa')}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800"
+                          >
+                            Conferir movimentações
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </Panel>
+                    </div>
+
+                    <div className="grid gap-5 xl:grid-cols-2">
+                      <Panel title="Valores a receber">
+                        <div className="grid gap-3">
+                          {financeSummary.receivableSales.length ? (
+                            financeSummary.receivableSales.map((entry) => (
+                              <div key={entry.id} className="flex flex-col justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
+                                <div>
+                                  <StatusBadge tone="amber">Pendente</StatusBadge>
+                                  <p className="mt-2 font-medium">{entry.description}</p>
+                                  <p className="text-sm text-slate-500">{entry.source} · {entry.dueDate ? formatDate(entry.dueDate) : 'Sem vencimento'}</p>
+                                </div>
+                                <div className="grid gap-2 sm:justify-items-end">
+                                  <strong>{money(entry.value)}</strong>
+                                  <button type="button" onClick={() => updateFinancePaid(entry.id, true)} className="h-9 rounded-md bg-[#111827] px-3 text-xs font-medium text-white">
+                                    Marcar recebida
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <EmptyLine text="Nenhum valor pendente de recebimento." />
+                          )}
+                        </div>
+                      </Panel>
+
+                      <Panel title="Contas a pagar">
+                        <div className="grid gap-3">
+                          {financeSummary.accountsPayable.filter((entry) => !entry.paid).length ? (
+                            financeSummary.accountsPayable.filter((entry) => !entry.paid).map((entry) => (
+                              <div key={entry.id} className="flex flex-col justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
+                                <div>
+                                  <StatusBadge tone="amber">Pendente</StatusBadge>
+                                  <p className="mt-2 font-medium">{entry.description}</p>
+                                  <p className="text-sm text-slate-500">{entry.dueDate ? `Vence em ${formatDate(entry.dueDate)}` : 'Sem vencimento'} · {entry.source}</p>
+                                </div>
+                                <div className="grid gap-2 sm:justify-items-end">
+                                  <strong>{money(entry.value)}</strong>
+                                  <button type="button" onClick={() => updateFinancePaid(entry.id, true)} className="h-9 rounded-md bg-[#111827] px-3 text-xs font-medium text-white">
+                                    Marcar paga
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <EmptyLine text="Nenhuma conta pendente." />
+                          )}
+                        </div>
+                      </Panel>
+                    </div>
+                  </>
+                )}
+
+                {financeView === 'resultados' && (
+                  <div className="grid gap-5">
+                    <Panel title="Lucro por pedido">
                       <div className="grid gap-3">
-                        {financeSummary.receivedSales.length ? (
-                          financeSummary.receivedSales.map((entry) => (
-                            <RecordRow
-                              key={entry.id}
-                              badge="Recebida"
-                              title={entry.description}
-                              detail={`${entry.source} · ${entry.dueDate ? formatDate(entry.dueDate) : 'Sem data'} · Por: ${entry.createdBy ?? 'Sistema'}`}
-                              value={money(entry.value)}
-                            />
+                        {financeSummary.orderResults.length ? (
+                          financeSummary.orderResults.map((item) => (
+                            <article key={item.order.id} className="grid gap-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+                              <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <StatusBadge tone={item.hasRealizedCost ? 'green' : 'amber'}>
+                                      {item.hasRealizedCost ? 'Custo realizado' : 'Aguardando produção/entrega'}
+                                    </StatusBadge>
+                                    <span className="text-xs text-slate-500">{item.order.status}</span>
+                                  </div>
+                                  <h3 className="mt-2 font-semibold">{item.order.id} · {item.order.client}</h3>
+                                  <p className="text-sm text-slate-500">{productDisplayName(item.product, item.order.variationId)} · {item.order.qty} un</p>
+                                </div>
+                                <strong className={item.hasRealizedCost && item.realProfit < 0 ? 'text-rose-700' : 'text-emerald-700'}>
+                                  {item.hasRealizedCost ? money(item.realProfit) : money(item.estimatedProfit)}
+                                </strong>
+                              </div>
+                              <div className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-5">
+                                <FinanceValue label="Venda" value={money(item.revenue)} />
+                                <FinanceValue label="Custo estimado" value={money(item.estimatedMaterialCost)} />
+                                <FinanceValue label="Custo realizado" value={item.hasRealizedCost ? money(item.realizedMaterialCost) : 'Ainda não formado'} />
+                                <FinanceValue label="Lucro estimado" value={money(item.estimatedProfit)} />
+                                <FinanceValue label="Lucro real" value={item.hasRealizedCost ? `${money(item.realProfit)} · ${item.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : 'Aguardando'} />
+                              </div>
+                            </article>
                           ))
                         ) : (
-                          <EmptyLine text="Nenhuma venda recebida registrada." />
+                          <EmptyLine text="Nenhum pedido confirmado para analisar." />
                         )}
                       </div>
                     </Panel>
 
-                    <Panel title="Contas a pagar">
+                    <Panel title="Produtos que mais dão resultado">
                       <div className="grid gap-3">
-                        {financeSummary.accountsPayable.length ? (
-                          financeSummary.accountsPayable.map((entry) => (
-                            <div
-                              key={entry.id}
-                              className="flex flex-col justify-between gap-3 rounded-md border border-black/10 bg-[#f9fafb] p-4 md:flex-row md:items-center"
-                            >
+                        {financeSummary.productResults.length ? (
+                          financeSummary.productResults.map((item) => (
+                            <RecordRow
+                              key={item.key}
+                              badge={`${item.orders} pedido(s)`}
+                              title={productDisplayName(item.product, item.variationId)}
+                              detail={`${item.qty} un vendidas · Receita ${money(item.revenue)} · ${item.realizedOrders} pedido(s) com custo real`}
+                              value={item.realizedOrders ? money(item.realProfit) : `Prev. ${money(item.estimatedProfit)}`}
+                            />
+                          ))
+                        ) : (
+                          <EmptyLine text="Os produtos aparecerão aqui após os primeiros pedidos." />
+                        )}
+                      </div>
+                    </Panel>
+                  </div>
+                )}
+
+                {financeView === 'caixa' && (
+                  <div className="grid gap-5">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <Metric label="Entradas recebidas" value={money(financeSummary.monthReceivedTotal)} icon={<Banknote />} />
+                      <Metric label="Saídas pagas" value={money(financeSummary.monthPaidTotal)} icon={<WalletCards />} />
+                      <Metric label="Saldo realizado" value={money(financeSummary.monthCashBalance)} icon={<Calculator />} />
+                    </div>
+                    <Panel title="Movimentações do mês">
+                      <div className="grid gap-3">
+                        {financeSummary.monthEntries.length ? (
+                          financeSummary.monthEntries.map((entry) => (
+                            <div key={entry.id} className="flex flex-col justify-between gap-3 rounded-md border border-slate-200 p-4 sm:flex-row sm:items-center">
                               <div>
-                                <StatusBadge tone={entry.paid ? 'green' : 'amber'}>
-                                  {entry.paid ? 'Paga' : 'Pendente'}
-                                </StatusBadge>
-                                <p className="mt-3 font-medium">{entry.description}</p>
-                                <p className="text-sm text-black/50">
-                                  {entry.dueDate ? `Vence em ${formatDate(entry.dueDate)}` : 'Sem vencimento'} · {entry.source} · Por: {entry.createdBy ?? 'Sistema'}
-                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  <StatusBadge tone={entry.paid ? 'green' : 'amber'}>{entry.paid ? 'Realizado' : 'Pendente'}</StatusBadge>
+                                  <StatusBadge>{entry.category}</StatusBadge>
+                                </div>
+                                <p className="mt-2 font-medium">{entry.description}</p>
+                                <p className="text-sm text-slate-500">{formatDate(financeEntryDate(entry))} · {entry.source} · Por: {entry.createdBy ?? 'Sistema'}</p>
+                              </div>
+                              <strong className={entry.kind === 'Saída' ? 'text-rose-700' : 'text-emerald-700'}>
+                                {entry.kind === 'Saída' ? '-' : '+'}{money(entry.value)}
+                              </strong>
+                            </div>
+                          ))
+                        ) : (
+                          <EmptyLine text="Nenhuma movimentação registrada neste mês." />
+                        )}
+                      </div>
+                    </Panel>
+                  </div>
+                )}
+
+                {financeView === 'lancamentos' && (
+                  <div className="grid gap-5 xl:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
+                    <Panel title="Novo lançamento">
+                      <div className="grid gap-4">
+                        <label className="grid gap-2">
+                          <FieldLabel>Categoria</FieldLabel>
+                          <select
+                            value={financeCategory}
+                            onChange={(event) => {
+                              const category = event.target.value as FinanceCategory
+                              setFinanceCategory(category)
+                              setFinanceKind(category === 'Venda recebida' ? 'Entrada' : 'Saída')
+                              setFinancePaid(category !== 'Conta a pagar')
+                            }}
+                            className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none"
+                          >
+                            <option>Venda recebida</option>
+                            <option>Conta a pagar</option>
+                            <option>Compra de matéria-prima</option>
+                            <option>Despesa fixa</option>
+                            <option>Comissão</option>
+                            <option>Outro</option>
+                          </select>
+                        </label>
+                        <label className="grid gap-2">
+                          <FieldLabel>Entrada ou saída</FieldLabel>
+                          <select value={financeKind} onChange={(event) => setFinanceKind(event.target.value as CashKind)} className="h-11 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none">
+                            <option>Entrada</option>
+                            <option>Saída</option>
+                          </select>
+                        </label>
+                        <SoftInput label="Descrição" value={financeDescription} onChange={setFinanceDescription} />
+                        <SoftInput label="Vencimento / data" value={financeDueDate} onChange={setFinanceDueDate} />
+                        <SoftNumber label="Valor" value={financeValue} onChange={setFinanceValue} />
+                        <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+                          <input type="checkbox" checked={financePaid} onChange={(event) => setFinancePaid(event.target.checked)} className="h-4 w-4 accent-[#3730a3]" />
+                          Já foi pago ou recebido
+                        </label>
+                        <button type="button" onClick={addFinanceEntry} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white">
+                          Registrar lançamento
+                        </button>
+                      </div>
+                    </Panel>
+
+                    <Panel title="Todos os lançamentos">
+                      <div className="grid gap-3">
+                        {state.cashEntries.length ? (
+                          state.cashEntries.map((entry) => (
+                            <div key={entry.id} className="flex flex-col justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center">
+                              <div>
+                                <div className="flex flex-wrap gap-2">
+                                  <StatusBadge tone={entry.paid ? 'green' : 'amber'}>{entry.paid ? 'Realizado' : 'Pendente'}</StatusBadge>
+                                  <StatusBadge>{entry.category}</StatusBadge>
+                                </div>
+                                <p className="mt-2 font-medium">{entry.description}</p>
+                                <p className="text-sm text-slate-500">{entry.dueDate ? formatDate(entry.dueDate) : 'Sem data'} · {entry.source} · Por: {entry.createdBy ?? 'Sistema'}</p>
                               </div>
                               <div className="grid gap-2 md:justify-items-end">
-                                <strong>{money(entry.value)}</strong>
-                                <button
-                                  type="button"
-                                  onClick={() => updateFinancePaid(entry.id, !entry.paid)}
-                                  className="inline-flex h-9 items-center justify-center rounded-md border border-black/10 bg-white px-3 text-xs font-medium"
-                                >
-                                  {entry.paid ? 'Voltar pendente' : 'Marcar paga'}
+                                <strong>{entry.kind === 'Saída' ? '-' : ''}{money(entry.value)}</strong>
+                                <button type="button" onClick={() => updateFinancePaid(entry.id, !entry.paid)} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium">
+                                  {entry.paid ? 'Voltar pendente' : entry.kind === 'Entrada' ? 'Marcar recebida' : 'Marcar paga'}
                                 </button>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <EmptyLine text="Nenhuma conta pendente." />
-                        )}
-                      </div>
-                    </Panel>
-
-                    <Panel title="Compras de matéria-prima">
-                      <div className="grid gap-3">
-                        {financeSummary.rawMaterialPurchases.length ? (
-                          financeSummary.rawMaterialPurchases.map((entry) => (
-                            <RecordRow
-                              key={entry.id}
-                              badge={entry.paid ? 'Paga' : 'Pendente'}
-                              title={entry.description}
-                              detail={`${entry.source} · ${entry.dueDate ? formatDate(entry.dueDate) : 'Sem data'} · Por: ${entry.createdBy ?? 'Sistema'}`}
-                              value={`-${money(entry.value)}`}
-                            />
-                          ))
-                        ) : (
-                          <EmptyLine text="Nenhuma compra de matéria-prima registrada." />
-                        )}
-                      </div>
-                    </Panel>
-
-                    <Panel title="Despesas fixas">
-                      <div className="grid gap-3">
-                        {financeSummary.fixedExpenses.length ? (
-                          financeSummary.fixedExpenses.map((entry) => (
-                            <RecordRow
-                              key={entry.id}
-                              badge={entry.paid ? 'Paga' : 'Pendente'}
-                              title={entry.description}
-                              detail={`${entry.source} · ${entry.dueDate ? formatDate(entry.dueDate) : 'Sem data'} · Por: ${entry.createdBy ?? 'Sistema'}`}
-                              value={`-${money(entry.value)}`}
-                            />
-                          ))
-                        ) : (
-                          <EmptyLine text="Nenhuma despesa fixa registrada." />
+                          <EmptyLine text="Nenhum lançamento financeiro registrado." />
                         )}
                       </div>
                     </Panel>
                   </div>
-
-                  <Panel title="Lucro estimado por pedido">
-                    <div className="grid gap-3">
-                      {financeSummary.estimatedProfitByOrder.length ? (
-                        financeSummary.estimatedProfitByOrder.map((item) => (
-                          <RecordRow
-                            key={item.order.id}
-                            badge={item.order.status}
-                            title={`${item.order.id} · ${item.order.client}`}
-                            detail={`${productDisplayName(item.product, item.order.variationId)} · Venda: ${money(item.revenue)} · Custo MP: ${money(item.materialCost)} · Margem: ${item.margin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
-                            value={money(item.profit)}
-                          />
-                        ))
-                      ) : (
-                        <EmptyLine text="Nenhum pedido para estimar lucro." />
-                      )}
-                    </div>
-                  </Panel>
-
-                  <Panel title="Todos os lançamentos">
-                    <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                      <Metric label="Entradas recebidas" value={money(totals.income)} icon={<Banknote />} />
-                      <Metric label="Saídas pagas" value={money(totals.expenses)} icon={<WalletCards />} />
-                      <Metric label="Saldo realizado" value={money(totals.balance)} icon={<Calculator />} />
-                    </div>
-                    <div className="grid gap-3">
-                      {state.cashEntries.map((entry) => (
-                        <RecordRow
-                          key={entry.id}
-                          badge={entry.category}
-                          title={entry.description}
-                          detail={`${entry.kind} · ${entry.paid ? 'Realizado' : 'Pendente'} · ${entry.source} · Por: ${entry.createdBy ?? 'Sistema'}`}
-                          value={`${entry.kind === 'Saída' ? '-' : ''}${money(entry.value)}`}
-                        />
-                      ))}
-                    </div>
-                  </Panel>
-                </div>
+                )}
               </section>
             )}
           </div>
@@ -11419,6 +11762,17 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="mb-5 text-[1.08rem] font-semibold leading-tight tracking-tight text-slate-950 md:text-[1.18rem]">{title}</h2>
       {children}
     </section>
+  )
+}
+
+function FinanceValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-md border border-slate-200 bg-white p-3">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        {label}
+      </span>
+      <strong className="mt-1 block break-words text-sm leading-5 text-slate-900">{value}</strong>
+    </div>
   )
 }
 
