@@ -81,7 +81,16 @@ type OpStatus = 'Não iniciada' | 'Em produção' | 'Pausada' | 'Finalizada'
 type ProductionPriority = 'Baixa' | 'Normal' | 'Alta' | 'Urgente'
 type ProductionEventType = 'Produção' | 'Perda' | 'Defeito' | 'Retrabalho'
 type CashKind = 'Entrada' | 'Saída'
-type InventoryKind = 'Entrada MP' | 'Consumo MP' | 'Entrada PA' | 'Saída PA'
+type InventoryCategory = 'Matéria-prima' | 'Produto acabado'
+type InventoryKind =
+  | 'Entrada MP'
+  | 'Consumo MP'
+  | 'Entrada PA'
+  | 'Saída PA'
+  | 'Ajuste entrada MP'
+  | 'Ajuste saída MP'
+  | 'Ajuste entrada PA'
+  | 'Ajuste saída PA'
 type FinanceCategory =
   | 'Venda recebida'
   | 'Conta a pagar'
@@ -329,6 +338,22 @@ type InventoryEntry = {
   value: number
   source: string
   createdBy?: string
+  createdAt?: string
+  reason?: string
+}
+
+type InventoryCount = {
+  id: string
+  date: string
+  category: InventoryCategory
+  item: string
+  unit: string
+  systemQty: number
+  countedQty: number
+  difference: number
+  notes: string
+  createdBy: string
+  createdAt: string
 }
 
 type CashEntry = {
@@ -372,6 +397,7 @@ type AppState = {
   orders: Order[]
   productionOrders: ProductionOrder[]
   inventoryEntries: InventoryEntry[]
+  inventoryCounts: InventoryCount[]
   cashEntries: CashEntry[]
   tax: number
   commission: number
@@ -799,6 +825,7 @@ const initialState: AppState = {
       source: 'Compra inicial',
     },
   ],
+  inventoryCounts: [],
   cashEntries: [
     {
       id: 'CX-VALORA-001',
@@ -1110,12 +1137,22 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
             ...entry,
             kind: 'Entrada PA' as InventoryKind,
             createdBy: entry.createdBy ?? 'Sistema',
+            createdAt: entry.createdAt ?? '',
+            reason: entry.reason ?? '',
           }
         : {
             ...entry,
             createdBy: entry.createdBy ?? 'Sistema',
+            createdAt: entry.createdAt ?? '',
+            reason: entry.reason ?? '',
           },
     ),
+    inventoryCounts: (state.inventoryCounts ?? []).map((count) => ({
+      ...count,
+      notes: count.notes ?? '',
+      createdBy: count.createdBy ?? 'Sistema',
+      createdAt: count.createdAt ?? `${count.date}T12:00:00.000Z`,
+    })),
     cashEntries: mergeById(includePrototypeDefaults ? initialState.cashEntries : [], state.cashEntries ?? []).map((entry) => ({
       ...entry,
       category: inferFinanceCategory(entry),
@@ -1159,6 +1196,7 @@ const auditEntityLabels: Record<string, string> = {
   order: 'Orçamento ou pedido',
   production_order: 'Ordem de produção',
   inventory_entry: 'Entrada ou saída de estoque',
+  inventory_count: 'Contagem de inventário',
   cash_entry: 'Lançamento financeiro',
   company: 'Empresa e documentos',
   pricing: 'Configuração de preços',
@@ -1411,11 +1449,31 @@ const materialPlannedCost = (material: MaterialLine, productQty = 1) =>
 const productCost = (product: Product, variationId?: string) =>
   productMaterials(product, variationId).reduce((total, material) => total + materialPlannedCost(material), 0)
 
+const inventoryKindSign = (kind: InventoryKind) =>
+  kind === 'Entrada MP' ||
+  kind === 'Entrada PA' ||
+  kind === 'Ajuste entrada MP' ||
+  kind === 'Ajuste entrada PA'
+    ? 1
+    : -1
+
+const inventoryKindCategory = (kind: InventoryKind): InventoryCategory =>
+  kind === 'Entrada MP' ||
+  kind === 'Consumo MP' ||
+  kind === 'Ajuste entrada MP' ||
+  kind === 'Ajuste saída MP'
+    ? 'Matéria-prima'
+    : 'Produto acabado'
+
+const inventoryKindDirection = (kind: InventoryKind) =>
+  inventoryKindSign(kind) > 0 ? 'Entrada' : 'Saída'
+
 const rawMaterialBalanceFromState = (state: AppState, itemName: string) =>
   state.inventoryEntries.reduce((total, entry) => {
     if (entry.item !== itemName) return total
-    if (entry.kind === 'Entrada MP') return total + entry.qty
-    if (entry.kind === 'Consumo MP') return total - entry.qty
+    if (inventoryKindCategory(entry.kind) === 'Matéria-prima') {
+      return total + entry.qty * inventoryKindSign(entry.kind)
+    }
     return total
   }, 0)
 
@@ -1887,6 +1945,60 @@ const helpGuides: HelpGuide[] = [
     ],
   },
   {
+    id: 'ajustar-estoque',
+    category: 'Estoque',
+    title: 'Como corrigir uma diferença de estoque',
+    summary: 'Registre uma correção justificada sem apagar o histórico anterior.',
+    keywords: ['ajuste', 'corrigir', 'diferença', 'entrada', 'saída', 'justificativa'],
+    target: 'movimentacoes',
+    action: 'Fazer ajuste',
+    steps: [
+      'O administrador abre Estoque e compras e entra em Entradas e saídas.',
+      'Escolha Novo ajuste.',
+      'Selecione matéria-prima ou produto acabado e depois o item.',
+      'Escolha Entrada para aumentar ou Saída para reduzir o saldo.',
+      'Informe a quantidade e descreva obrigatoriamente o motivo.',
+      'Confira o saldo físico atual e confirme o ajuste.',
+      'A correção ficará registrada com data, usuário e justificativa.',
+    ],
+  },
+  {
+    id: 'contar-inventario',
+    category: 'Estoque',
+    title: 'Como fazer uma contagem de inventário',
+    summary: 'Compare o saldo do sistema com a quantidade encontrada fisicamente.',
+    keywords: ['inventário', 'contagem', 'contar', 'físico', 'conferência', 'diferença'],
+    target: 'estoque',
+    action: 'Fazer inventário',
+    steps: [
+      'O administrador abre Estoque atual e escolhe a aba Inventário.',
+      'Selecione matéria-prima ou produto acabado e depois o item.',
+      'Conte fisicamente o item e informe a quantidade encontrada.',
+      'Confira a diferença calculada pelo sistema.',
+      'Se houver diferença, descreva obrigatoriamente o motivo.',
+      'Confirme a contagem para registrar o inventário e o ajuste correspondente.',
+      'A contagem ficará no histórico com o saldo anterior, o contado e a diferença.',
+    ],
+  },
+  {
+    id: 'historico-estoque',
+    category: 'Estoque',
+    title: 'Como descobrir por que o estoque mudou',
+    summary: 'Veja todas as entradas, saídas, produções, entregas e ajustes de um item.',
+    keywords: ['histórico', 'movimento', 'movimentação', 'quem alterou', 'saldo', 'rastrear'],
+    target: 'movimentacoes',
+    action: 'Ver histórico',
+    steps: [
+      'Abra Estoque e compras e entre em Entradas e saídas.',
+      'Mantenha selecionada a aba Histórico.',
+      'Escolha o item que deseja conferir.',
+      'Leia cada entrada ou saída em ordem, com data, origem e usuário.',
+      'Compras aumentam matéria-prima; produção consome material e adiciona produto pronto.',
+      'Entregas retiram produto acabado; ajustes mostram a justificativa informada.',
+      'Use essa sequência para explicar qualquer diferença encontrada no saldo.',
+    ],
+  },
+  {
     id: 'entregar-pedido',
     category: 'Vendas',
     title: 'Como separar e entregar um pedido',
@@ -2088,6 +2200,18 @@ export default function SistemaMacaroca() {
   const [guidedProductionQty, setGuidedProductionQty] = useState(1)
   const [guidedProductionType, setGuidedProductionType] = useState<ProductionEventType>('Produção')
   const [guidedProductionNotes, setGuidedProductionNotes] = useState('')
+  const [stockView, setStockView] = useState<'acabados' | 'materias' | 'inventario'>('acabados')
+  const [movementView, setMovementView] = useState<'historico' | 'ajuste'>('historico')
+  const [inventoryHistoryItem, setInventoryHistoryItem] = useState('Todos')
+  const [adjustmentCategory, setAdjustmentCategory] = useState<InventoryCategory>('Matéria-prima')
+  const [adjustmentItem, setAdjustmentItem] = useState(state.rawMaterials[0]?.name ?? '')
+  const [adjustmentDirection, setAdjustmentDirection] = useState<'Entrada' | 'Saída'>('Entrada')
+  const [adjustmentQty, setAdjustmentQty] = useState(1)
+  const [adjustmentReason, setAdjustmentReason] = useState('')
+  const [countCategory, setCountCategory] = useState<InventoryCategory>('Matéria-prima')
+  const [countItem, setCountItem] = useState(state.rawMaterials[0]?.name ?? '')
+  const [countedQty, setCountedQty] = useState(0)
+  const [countNotes, setCountNotes] = useState('')
   const [previewOpId, setPreviewOpId] = useState<string | null>(null)
   const [previewOrderId, setPreviewOrderId] = useState<string | null>(null)
   const [printOpId, setPrintOpId] = useState<string | null>(null)
@@ -2108,6 +2232,7 @@ export default function SistemaMacaroca() {
   const canApproveDiscount = userRole === 'Admin'
   const canManagePurchases = userRole === 'Admin' || userRole === 'Financeiro'
   const canDeleteRecords = userRole === 'Admin'
+  const canAdjustInventory = userRole === 'Admin'
   const canAccessArea = (area: Area) =>
     authProfile?.mustChangePassword
       ? area === 'configuracoes' || area === 'ajuda'
@@ -2691,24 +2816,13 @@ export default function SistemaMacaroca() {
     }
   }, [state.cashEntries, state.commission, state.fixedCost, state.orders, state.products, state.profit, state.tax])
 
-  const inventoryValue = useMemo(
-    () =>
-      state.inventoryEntries.reduce(
-        (sum, entry) => sum + (entry.kind === 'Consumo MP' || entry.kind === 'Saída PA' ? -entry.value : entry.value),
-        0,
-      ),
-    [state.inventoryEntries],
-  )
   const stock = useMemo(() => {
     const raw = new Map<string, { item: string; qty: number; unit: string; value: number }>()
     const finished = new Map<string, { item: string; qty: number; unit: string; value: number }>()
 
     state.inventoryEntries.forEach((entry) => {
-      const isRaw = entry.kind === 'Entrada MP' || entry.kind === 'Consumo MP'
-      const isFinished = entry.kind === 'Entrada PA' || entry.kind === 'Saída PA'
-      if (!isRaw && !isFinished) return
-
-      const sign = entry.kind === 'Consumo MP' || entry.kind === 'Saída PA' ? -1 : 1
+      const isRaw = inventoryKindCategory(entry.kind) === 'Matéria-prima'
+      const sign = inventoryKindSign(entry.kind)
       const group = isRaw ? raw : finished
       const current = group.get(entry.item) ?? {
         item: entry.item,
@@ -2772,32 +2886,83 @@ export default function SistemaMacaroca() {
 
     return { ordersToProduce, activeOps, producedUnits, lowRaw, lowFinished }
   }, [state.orders, state.productionOrders, state.rawMaterials, stock.finishedItems, stock.rawItems])
-  const productStock = useMemo(
+  const finishedCatalog = useMemo(
     () =>
-      state.products.map((product) => {
-        const physical = stock.finishedItems
-          .filter((item) => item.item === product.name || item.item.startsWith(`${product.name} ·`))
-          .reduce((sum, item) => sum + item.qty, 0)
-        const pending = state.orders
+      state.products.flatMap((product) =>
+        product.variations.length
+          ? product.variations.map((variation) => ({
+              key: `${product.id}:${variation.id}`,
+              product,
+              variationId: variation.id,
+              item: productFinishedItemName(product, variation.id),
+              label: productDisplayName(product, variation.id),
+            }))
+          : [{
+              key: product.id,
+              product,
+              variationId: undefined,
+              item: productFinishedItemName(product),
+              label: productDisplayName(product),
+            }],
+      ),
+    [state.products],
+  )
+  const finishedStockPositions = useMemo(
+    () =>
+      finishedCatalog.map((catalogItem) => {
+        const physical = stock.finishedItems.find((item) => item.item === catalogItem.item)?.qty ?? 0
+        const reserved = state.orders
           .filter(
             (order) =>
               orderIsReserved(order) &&
-              order.productId === product.id,
+              order.productId === catalogItem.product.id &&
+              (order.variationId ?? '') === (catalogItem.variationId ?? ''),
           )
           .reduce((sum, order) => sum + order.qty, 0)
         const producing = state.productionOrders
-          .filter((op) => op.productId === product.id && op.status !== 'Finalizada')
+          .filter(
+            (op) =>
+              op.productId === catalogItem.product.id &&
+              (op.variationId ?? '') === (catalogItem.variationId ?? '') &&
+              op.status !== 'Finalizada',
+          )
           .reduce((sum, op) => sum + Math.max(0, op.qty - op.produced), 0)
 
         return {
-          product,
+          ...catalogItem,
           physical,
-          pending,
+          reserved,
           producing,
-          available: physical - pending,
+          available: Math.max(0, physical - reserved),
+          shortage: Math.max(0, reserved - physical),
         }
       }),
-    [state.orders, state.productionOrders, state.products, stock.finishedItems],
+    [finishedCatalog, state.orders, state.productionOrders, stock.finishedItems],
+  )
+  const rawStockPositions = useMemo(
+    () =>
+      state.rawMaterials.map((material) => {
+        const physical = stock.rawItems.find((item) => item.item === material.name)?.qty ?? 0
+        const committed = state.productionOrders
+          .filter((op) => op.status !== 'Finalizada')
+          .reduce((total, op) => {
+            const product = state.products.find((item) => item.id === op.productId)
+            const line = product
+              ? productMaterials(product, op.variationId).find((item) => item.name === material.name)
+              : undefined
+            return total + (line ? materialPlannedQty(line, Math.max(0, op.qty - op.produced)) : 0)
+          }, 0)
+        return {
+          item: material.name,
+          unit: material.unit,
+          minimumStock: material.minimumStock,
+          physical,
+          committed,
+          available: Math.max(0, physical - committed),
+          shortage: Math.max(0, committed - physical),
+        }
+      }),
+    [state.productionOrders, state.products, state.rawMaterials, stock.rawItems],
   )
   const purchaseSuggestions = useMemo(() => {
     const required = new Map<string, { item: string; qty: number; unit: string }>()
@@ -2844,6 +3009,31 @@ export default function SistemaMacaroca() {
       })
       .filter((item) => item.suggested > 0)
   }, [state.productionOrders, state.products, state.rawMaterials, stock.rawItems])
+  const rawInventoryItems = state.rawMaterials.map((material) => ({
+    item: material.name,
+    unit: material.unit,
+  }))
+  const finishedInventoryItems = finishedCatalog.map((catalogItem) => ({
+    item: catalogItem.item,
+    unit: 'un',
+  }))
+  const adjustmentItems = adjustmentCategory === 'Matéria-prima' ? rawInventoryItems : finishedInventoryItems
+  const countItems = countCategory === 'Matéria-prima' ? rawInventoryItems : finishedInventoryItems
+  const adjustmentSelection =
+    adjustmentItems.find((item) => item.item === adjustmentItem) ?? adjustmentItems[0]
+  const countSelection = countItems.find((item) => item.item === countItem) ?? countItems[0]
+  const inventoryPhysicalQty = (category: InventoryCategory, item: string) => {
+    const collection = category === 'Matéria-prima' ? stock.rawItems : stock.finishedItems
+    return collection.find((entry) => entry.item === item)?.qty ?? 0
+  }
+  const countSystemQty = countSelection
+    ? inventoryPhysicalQty(countCategory, countSelection.item)
+    : 0
+  const countDifference = countedQty - countSystemQty
+  const inventoryHistoryItems = Array.from(new Set(state.inventoryEntries.map((entry) => entry.item))).sort()
+  const filteredInventoryEntries = state.inventoryEntries.filter(
+    (entry) => inventoryHistoryItem === 'Todos' || entry.item === inventoryHistoryItem,
+  )
 
   const updateProduct = (productId: string, updater: (product: Product) => Product) => {
     setState((current) => ({
@@ -3372,6 +3562,8 @@ export default function SistemaMacaroca() {
           value: total,
           source: `NF ${note.number}`,
           createdBy: currentUserName,
+          createdAt: new Date().toISOString(),
+          reason: `Compra recebida de ${note.supplier}`,
         },
         ...current.inventoryEntries,
       ],
@@ -3392,6 +3584,131 @@ export default function SistemaMacaroca() {
     }))
     setActiveArea('notas')
     setMessage('Compra registrada. Matéria-prima, estoque e financeiro atualizados.')
+  }
+
+  const inventoryItemUnitCost = (category: InventoryCategory, itemName: string) => {
+    if (category === 'Matéria-prima') {
+      return state.rawMaterials.find((material) => material.name === itemName)?.avgCost ?? 0
+    }
+    const catalogItem = finishedCatalog.find((item) => item.item === itemName)
+    return catalogItem ? productCost(catalogItem.product, catalogItem.variationId) : 0
+  }
+
+  const registerInventoryAdjustment = () => {
+    if (!canAdjustInventory) {
+      setMessage('Somente o perfil Admin pode ajustar o estoque.')
+      return
+    }
+    const selected = adjustmentSelection
+    if (!selected || adjustmentQty <= 0) {
+      setMessage('Escolha um item e informe uma quantidade maior que zero.')
+      return
+    }
+    if (!adjustmentReason.trim()) {
+      setMessage('Explique o motivo do ajuste para manter o estoque rastreável.')
+      return
+    }
+
+    const physical = inventoryPhysicalQty(adjustmentCategory, selected.item)
+    if (adjustmentDirection === 'Saída' && adjustmentQty > physical) {
+      setMessage(`A saída excede o saldo físico de ${physical.toLocaleString('pt-BR')} ${selected.unit}.`)
+      return
+    }
+
+    const kind: InventoryKind =
+      adjustmentCategory === 'Matéria-prima'
+        ? adjustmentDirection === 'Entrada' ? 'Ajuste entrada MP' : 'Ajuste saída MP'
+        : adjustmentDirection === 'Entrada' ? 'Ajuste entrada PA' : 'Ajuste saída PA'
+    const timestamp = Date.now()
+    const entry: InventoryEntry = {
+      id: `AJ-${timestamp}`,
+      kind,
+      item: selected.item,
+      qty: adjustmentQty,
+      unit: selected.unit,
+      value: inventoryItemUnitCost(adjustmentCategory, selected.item) * adjustmentQty,
+      source: 'Ajuste manual',
+      createdBy: currentUserName,
+      createdAt: new Date().toISOString(),
+      reason: adjustmentReason.trim(),
+    }
+    const nextState: AppState = {
+      ...state,
+      inventoryEntries: [entry, ...state.inventoryEntries],
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, `Ajuste de ${selected.item} registrado e sincronizado.`)
+    setAdjustmentQty(1)
+    setAdjustmentReason('')
+    setInventoryHistoryItem(selected.item)
+    setMovementView('historico')
+    setMessage(`Ajuste registrado por ${currentUserName}. O novo saldo já considera esta movimentação.`)
+  }
+
+  const registerInventoryCount = () => {
+    if (!canAdjustInventory) {
+      setMessage('Somente o perfil Admin pode concluir uma contagem física.')
+      return
+    }
+    const selected = countSelection
+    if (!selected || countedQty < 0) {
+      setMessage('Escolha um item e informe a quantidade contada.')
+      return
+    }
+    if (countDifference !== 0 && !countNotes.trim()) {
+      setMessage('Explique a diferença encontrada antes de concluir a contagem.')
+      return
+    }
+
+    const timestamp = Date.now()
+    const countId = `INV-${timestamp}`
+    const count: InventoryCount = {
+      id: countId,
+      date: currentDateValue(),
+      category: countCategory,
+      item: selected.item,
+      unit: selected.unit,
+      systemQty: countSystemQty,
+      countedQty,
+      difference: countDifference,
+      notes: countNotes.trim(),
+      createdBy: currentUserName,
+      createdAt: new Date().toISOString(),
+    }
+    const adjustmentEntry: InventoryEntry | null =
+      countDifference === 0
+        ? null
+        : {
+            id: `AJ-INV-${timestamp}`,
+            kind:
+              countCategory === 'Matéria-prima'
+                ? countDifference > 0 ? 'Ajuste entrada MP' : 'Ajuste saída MP'
+                : countDifference > 0 ? 'Ajuste entrada PA' : 'Ajuste saída PA',
+            item: selected.item,
+            qty: Math.abs(countDifference),
+            unit: selected.unit,
+            value: inventoryItemUnitCost(countCategory, selected.item) * Math.abs(countDifference),
+            source: countId,
+            createdBy: currentUserName,
+            createdAt: new Date().toISOString(),
+            reason: countNotes.trim() || 'Contagem física sem diferença',
+          }
+    const nextState: AppState = {
+      ...state,
+      inventoryCounts: [count, ...state.inventoryCounts],
+      inventoryEntries: adjustmentEntry
+        ? [adjustmentEntry, ...state.inventoryEntries]
+        : state.inventoryEntries,
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, `Inventário de ${selected.item} concluído e sincronizado.`)
+    setCountedQty(0)
+    setCountNotes('')
+    setMessage(
+      countDifference === 0
+        ? 'Contagem concluída sem diferença de estoque.'
+        : `Contagem concluída. Diferença de ${countDifference.toLocaleString('pt-BR')} ${selected.unit} ajustada e documentada.`,
+    )
   }
 
   const createOrder = () => {
@@ -3795,7 +4112,9 @@ export default function SistemaMacaroca() {
       productionOrders: state.productionOrders.filter((op) => op.orderId !== order.id),
       cashEntries: state.cashEntries.filter((entry) => entry.source !== order.id),
       inventoryEntries: state.inventoryEntries.filter(
-        (entry) => entry.source !== `Entrega ${order.id}` && !relatedOpIds.includes(entry.source),
+        (entry) =>
+          entry.source !== `Entrega ${order.id}` &&
+          !relatedOpIds.some((opId) => entry.source === opId || entry.source.startsWith(`${opId} ·`)),
       ),
     }
 
@@ -3879,6 +4198,8 @@ export default function SistemaMacaroca() {
                   value: productCost(product, order.variationId) * order.qty,
                   source: deliveredSource,
                   createdBy: currentUserName,
+                  createdAt: new Date().toISOString(),
+                  reason: `Entrega do pedido ${order.id}`,
                 },
                 ...current.inventoryEntries,
               ]
@@ -4094,7 +4415,9 @@ export default function SistemaMacaroca() {
     const nextState = {
         ...state,
         productionOrders: state.productionOrders.filter((item) => item.id !== op.id),
-        inventoryEntries: state.inventoryEntries.filter((entry) => entry.source !== op.id),
+        inventoryEntries: state.inventoryEntries.filter(
+          (entry) => entry.source !== op.id && !entry.source.startsWith(`${op.id} ·`),
+        ),
         orders: state.orders.map((order) => {
           if (!op.orderId || order.id !== op.orderId || hasAnotherOpForOrder) return order
           if (order.status === 'Entregue' || order.status === 'Cancelado') return order
@@ -4296,6 +4619,8 @@ export default function SistemaMacaroca() {
             value: unitCost * eventAmount,
             source: `${op.id} · ${eventType}`,
             createdBy: currentUserName,
+            createdAt: new Date().toISOString(),
+            reason: notes.trim() || `Peças prontas lançadas na ${op.id}`,
           }]
         : []),
       ...(consumesMaterials
@@ -4308,6 +4633,8 @@ export default function SistemaMacaroca() {
             value: materialPlannedCost(material, eventAmount),
             source: `${op.id} · ${eventType}`,
             createdBy: currentUserName,
+            createdAt: new Date().toISOString(),
+            reason: notes.trim() || `${eventType} registrada na ${op.id}`,
           }))
         : []),
     ]
@@ -4902,7 +5229,19 @@ export default function SistemaMacaroca() {
       unidade: entry.unit,
       valor: entry.value,
       data: '',
-      extra: { criadoPor: entry.createdBy },
+      extra: { criadoPor: entry.createdBy, dataHora: entry.createdAt, motivo: entry.reason },
+    })),
+    ...state.inventoryCounts.map((count) => ({
+      tabela: 'Inventários',
+      id: count.id,
+      nome: count.item,
+      descricao: count.notes,
+      status: count.category,
+      quantidade: count.countedQty,
+      unidade: count.unit,
+      valor: count.difference,
+      data: count.date,
+      extra: { sistema: count.systemQty, diferenca: count.difference, criadoPor: count.createdBy },
     })),
     ...state.cashEntries.map((entry) => ({
       tabela: 'Financeiro',
@@ -9827,93 +10166,295 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'estoque' && (
               <section className="grid gap-5">
-                <Panel title="Saldo por produto">
-                  <ProductStockTable rows={productStock} />
-                </Panel>
-
-                <Panel title="Compras sugeridas">
-                  {purchaseSuggestions.length ? (
-                    <div className="grid gap-3">
-                      {purchaseSuggestions.map((item) => (
-                        <RecordRow
-                          key={item.item}
-                          badge="Comprar"
-                          title={item.item}
-                          detail={`Produção: ${item.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} · Mínimo: ${item.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} · Atual: ${item.available.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`}
-                          value={`${item.suggested.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyLine text="Nenhuma compra sugerida no momento." />
-                  )}
-                </Panel>
-
-                <div className="grid gap-5 xl:grid-cols-2">
-                  <Panel title="Estoque de matéria-prima">
-                    <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                      <Metric
-                        label={canSeeMoney ? 'Valor em MP' : 'Itens de MP'}
-                        value={canSeeMoney ? money(stock.rawValue) : stock.rawItems.length.toString()}
-                        icon={<Package />}
-                      />
-                      <Metric label="Itens de MP" value={stock.rawItems.length.toString()} icon={<PackageCheck />} />
-                    </div>
-                    <StockTable
-                      emptyText="Nenhuma matéria-prima em estoque."
-                      rows={stock.rawItems}
-                      showValue={canSeeMoney}
-                    />
-                  </Panel>
-
-                  <Panel title="Estoque de produto acabado">
-                    <div className="mb-4 grid gap-3 sm:grid-cols-2">
-                      <Metric
-                        label={canSeeMoney ? 'Valor em PA' : 'Modelos prontos'}
-                        value={canSeeMoney ? money(stock.finishedValue) : stock.finishedItems.length.toString()}
-                        icon={<PackageCheck />}
-                      />
-                      <Metric label="Produtos" value={stock.finishedItems.length.toString()} icon={<Shirt />} />
-                    </div>
-                    <StockTable
-                      emptyText="Nenhum produto acabado em estoque."
-                      rows={stock.finishedItems}
-                      showValue={canSeeMoney}
-                    />
-                  </Panel>
+                <div className="flex gap-2 overflow-x-auto rounded-md border border-[#d1d5db] bg-white p-2">
+                  {([
+                    ['acabados', 'Produtos acabados'],
+                    ['materias', 'Matérias-primas'],
+                    ['inventario', 'Inventário'],
+                  ] as const).map(([view, label]) => (
+                    <button
+                      key={view}
+                      type="button"
+                      onClick={() => setStockView(view)}
+                      aria-pressed={stockView === view}
+                      className={`h-10 min-w-max rounded-md px-4 text-sm font-medium ${
+                        stockView === view
+                          ? 'bg-[#111827] text-white'
+                          : 'bg-white text-[#4b5563] hover:bg-[#f3f4f6]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
 
+                {stockView === 'acabados' && (
+                  <Panel title="Posição de produtos acabados">
+                    <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-[#e5e7eb] bg-[#e5e7eb] md:grid-cols-4">
+                      <StockSummary label="Físico" value={`${finishedStockPositions.reduce((sum, item) => sum + item.physical, 0)} un`} />
+                      <StockSummary label="Reservado" value={`${finishedStockPositions.reduce((sum, item) => sum + item.reserved, 0)} un`} />
+                      <StockSummary label="Disponível" value={`${finishedStockPositions.reduce((sum, item) => sum + item.available, 0)} un`} />
+                      <StockSummary label="Produzindo" value={`${finishedStockPositions.reduce((sum, item) => sum + item.producing, 0)} un`} />
+                    </div>
+                    <FinishedStockPositionTable rows={finishedStockPositions} />
+                  </Panel>
+                )}
+
+                {stockView === 'materias' && (
+                  <>
+                    <Panel title="Posição de matérias-primas">
+                      <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-[#e5e7eb] bg-[#e5e7eb] md:grid-cols-4">
+                        <StockSummary label="Itens cadastrados" value={rawStockPositions.length.toString()} />
+                        <StockSummary label="Abaixo do mínimo" value={rawStockPositions.filter((item) => item.physical <= item.minimumStock).length.toString()} />
+                        <StockSummary label="Com falta para OP" value={rawStockPositions.filter((item) => item.shortage > 0).length.toString()} />
+                        <StockSummary label="Valor físico" value={canSeeMoney ? money(stock.rawValue) : 'Restrito'} />
+                      </div>
+                      <RawStockPositionTable rows={rawStockPositions} />
+                    </Panel>
+
+                    <Panel title="O que precisa comprar">
+                      {purchaseSuggestions.length ? (
+                        <div className="grid gap-3">
+                          {purchaseSuggestions.map((item) => (
+                            <RecordRow
+                              key={item.item}
+                              badge="Comprar"
+                              title={item.item}
+                              detail={`Necessário nas OPs: ${item.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} · Mínimo: ${item.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} · Físico: ${item.available.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`}
+                              value={`${item.suggested.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <EmptyLine text="Nenhuma compra sugerida no momento." />
+                      )}
+                    </Panel>
+                  </>
+                )}
+
+                {stockView === 'inventario' && (
+                  <div className="grid gap-5 xl:grid-cols-[minmax(320px,0.7fr)_minmax(0,1.3fr)]">
+                    <Panel title="Nova contagem física">
+                      {canAdjustInventory ? (
+                        <div className="grid gap-4">
+                          <label className="grid gap-2">
+                            <FieldLabel>Tipo de estoque</FieldLabel>
+                            <select
+                              value={countCategory}
+                              onChange={(event) => {
+                                const category = event.target.value as InventoryCategory
+                                const nextItems = category === 'Matéria-prima' ? rawInventoryItems : finishedInventoryItems
+                                setCountCategory(category)
+                                setCountItem(nextItems[0]?.item ?? '')
+                                setCountedQty(0)
+                              }}
+                              className="h-11 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                            >
+                              <option>Matéria-prima</option>
+                              <option>Produto acabado</option>
+                            </select>
+                          </label>
+                          <label className="grid gap-2">
+                            <FieldLabel>Item que será contado</FieldLabel>
+                            <select
+                              value={countSelection?.item ?? ''}
+                              onChange={(event) => {
+                                setCountItem(event.target.value)
+                                setCountedQty(0)
+                              }}
+                              className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                            >
+                              {countItems.map((item) => (
+                                <option key={item.item} value={item.item}>{item.item}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-[#e5e7eb] bg-[#e5e7eb]">
+                            <StockSummary label="Saldo no sistema" value={`${countSystemQty.toLocaleString('pt-BR')} ${countSelection?.unit ?? ''}`} />
+                            <StockSummary
+                              label="Diferença"
+                              value={`${countDifference > 0 ? '+' : ''}${countDifference.toLocaleString('pt-BR')} ${countSelection?.unit ?? ''}`}
+                              tone={countDifference === 0 ? 'neutral' : 'attention'}
+                            />
+                          </div>
+                          <SoftNumber label="Quantidade contada fisicamente" value={countedQty} onChange={setCountedQty} />
+                          <label className="grid gap-2">
+                            <FieldLabel>Observação da contagem</FieldLabel>
+                            <textarea
+                              value={countNotes}
+                              onChange={(event) => setCountNotes(event.target.value)}
+                              rows={3}
+                              placeholder="Obrigatória quando houver diferença"
+                              className="min-h-24 rounded-md border border-[#d1d5db] bg-white px-3 py-2 text-sm outline-none focus:border-[#4f46e5]"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={registerInventoryCount}
+                            disabled={!countSelection || countedQty < 0 || (countDifference !== 0 && !countNotes.trim())}
+                            className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
+                          >
+                            Concluir contagem
+                          </button>
+                        </div>
+                      ) : (
+                        <EmptyLine text="A contagem física pode ser consultada por todos, mas somente o Admin pode concluí-la e ajustar diferenças." />
+                      )}
+                    </Panel>
+
+                    <Panel title="Contagens realizadas">
+                      <div className="grid gap-3">
+                        {state.inventoryCounts.length ? (
+                          state.inventoryCounts.map((count) => (
+                            <div key={count.id} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_repeat(3,110px)] md:items-center">
+                              <div>
+                                <strong className="block">{count.item}</strong>
+                                <span className="mt-1 block text-xs text-[#6b7280]">
+                                  {count.id} · {formatDate(count.date)} · {count.createdBy}
+                                  {count.notes ? ` · ${count.notes}` : ''}
+                                </span>
+                              </div>
+                              <StockCountValue label="Sistema" value={`${count.systemQty} ${count.unit}`} />
+                              <StockCountValue label="Contado" value={`${count.countedQty} ${count.unit}`} />
+                              <StockCountValue
+                                label="Diferença"
+                                value={`${count.difference > 0 ? '+' : ''}${count.difference} ${count.unit}`}
+                                attention={count.difference !== 0}
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <EmptyLine text="Nenhuma contagem física concluída." />
+                        )}
+                      </div>
+                    </Panel>
+                  </div>
+                )}
               </section>
             )}
 
             {activeArea === 'movimentacoes' && canAccessArea('movimentacoes') && (
               <section className="grid gap-5">
-                <Panel title="Histórico de entradas e saídas">
-                  <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                    <Metric label="Valor total" value={money(inventoryValue)} icon={<Package />} />
-                    <Metric
-                      label="Entradas"
-                      value={state.inventoryEntries.filter((entry) => entry.kind === 'Entrada MP' || entry.kind === 'Entrada PA').length.toString()}
-                      icon={<PackageCheck />}
-                    />
-                    <Metric
-                      label="Saídas"
-                      value={state.inventoryEntries.filter((entry) => entry.kind === 'Consumo MP' || entry.kind === 'Saída PA').length.toString()}
-                      icon={<Scissors />}
-                    />
-                  </div>
-                  <div className="grid gap-3">
-                    {state.inventoryEntries.map((entry) => (
-                      <RecordRow
-                        key={entry.id}
-                        badge={entry.kind}
-                        title={entry.item}
-                        detail={`${entry.qty} ${entry.unit} · ${entry.source} · Por: ${entry.createdBy ?? 'Sistema'}`}
-                        value={`${entry.kind === 'Consumo MP' || entry.kind === 'Saída PA' ? '-' : ''}${money(entry.value)}`}
+                <div className="flex gap-2 rounded-md border border-[#d1d5db] bg-white p-2">
+                  <button
+                    type="button"
+                    onClick={() => setMovementView('historico')}
+                    className={`h-10 rounded-md px-4 text-sm font-medium ${movementView === 'historico' ? 'bg-[#111827] text-white' : 'text-[#4b5563]'}`}
+                  >
+                    Histórico
+                  </button>
+                  {canAdjustInventory && (
+                    <button
+                      type="button"
+                      onClick={() => setMovementView('ajuste')}
+                      className={`h-10 rounded-md px-4 text-sm font-medium ${movementView === 'ajuste' ? 'bg-[#111827] text-white' : 'text-[#4b5563]'}`}
+                    >
+                      Novo ajuste
+                    </button>
+                  )}
+                </div>
+
+                {movementView === 'historico' && (
+                  <Panel title="Histórico por item">
+                    <div className="mb-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,150px)] sm:items-end">
+                      <label className="grid gap-2">
+                        <FieldLabel>Item para consultar</FieldLabel>
+                        <select
+                          value={inventoryHistoryItem}
+                          onChange={(event) => setInventoryHistoryItem(event.target.value)}
+                          className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                        >
+                          <option>Todos</option>
+                          {inventoryHistoryItems.map((item) => <option key={item}>{item}</option>)}
+                        </select>
+                      </label>
+                      <StockSummary label="Movimentos" value={filteredInventoryEntries.length.toString()} />
+                      <StockSummary
+                        label="Entradas"
+                        value={filteredInventoryEntries.filter((entry) => inventoryKindDirection(entry.kind) === 'Entrada').length.toString()}
                       />
-                    ))}
-                  </div>
-                </Panel>
+                      <StockSummary
+                        label="Saídas"
+                        value={filteredInventoryEntries.filter((entry) => inventoryKindDirection(entry.kind) === 'Saída').length.toString()}
+                      />
+                    </div>
+                    <div className="grid gap-3">
+                      {filteredInventoryEntries.length ? (
+                        filteredInventoryEntries.map((entry) => (
+                          <InventoryHistoryRow key={entry.id} entry={entry} showValue={canSeeMoney} />
+                        ))
+                      ) : (
+                        <EmptyLine text="Nenhuma movimentação encontrada para este item." />
+                      )}
+                    </div>
+                  </Panel>
+                )}
+
+                {movementView === 'ajuste' && canAdjustInventory && (
+                  <Panel title="Ajuste controlado de estoque">
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <label className="grid gap-2">
+                        <FieldLabel>Tipo de estoque</FieldLabel>
+                        <select
+                          value={adjustmentCategory}
+                          onChange={(event) => {
+                            const category = event.target.value as InventoryCategory
+                            const nextItems = category === 'Matéria-prima' ? rawInventoryItems : finishedInventoryItems
+                            setAdjustmentCategory(category)
+                            setAdjustmentItem(nextItems[0]?.item ?? '')
+                          }}
+                          className="h-11 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                        >
+                          <option>Matéria-prima</option>
+                          <option>Produto acabado</option>
+                        </select>
+                      </label>
+                      <label className="grid gap-2">
+                        <FieldLabel>Item</FieldLabel>
+                        <select
+                          value={adjustmentSelection?.item ?? ''}
+                          onChange={(event) => setAdjustmentItem(event.target.value)}
+                          className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                        >
+                          {adjustmentItems.map((item) => <option key={item.item}>{item.item}</option>)}
+                        </select>
+                      </label>
+                      <label className="grid gap-2">
+                        <FieldLabel>O ajuste aumenta ou reduz o saldo?</FieldLabel>
+                        <select
+                          value={adjustmentDirection}
+                          onChange={(event) => setAdjustmentDirection(event.target.value as 'Entrada' | 'Saída')}
+                          className="h-11 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                        >
+                          <option>Entrada</option>
+                          <option>Saída</option>
+                        </select>
+                      </label>
+                      <SoftNumber label={`Quantidade (${adjustmentSelection?.unit ?? ''})`} value={adjustmentQty} onChange={setAdjustmentQty} />
+                      <label className="grid gap-2 lg:col-span-2">
+                        <FieldLabel>Justificativa obrigatória</FieldLabel>
+                        <textarea
+                          value={adjustmentReason}
+                          onChange={(event) => setAdjustmentReason(event.target.value)}
+                          rows={3}
+                          placeholder="Ex.: correção após conferência física"
+                          className="min-h-24 rounded-md border border-[#d1d5db] bg-white px-3 py-2 text-sm outline-none focus:border-[#4f46e5]"
+                        />
+                      </label>
+                      <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm text-[#4b5563]">
+                        Saldo físico atual: <strong>{inventoryPhysicalQty(adjustmentCategory, adjustmentSelection?.item ?? '').toLocaleString('pt-BR')} {adjustmentSelection?.unit ?? ''}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={registerInventoryAdjustment}
+                        disabled={!adjustmentSelection || adjustmentQty <= 0 || !adjustmentReason.trim()}
+                        className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
+                      >
+                        Registrar ajuste
+                      </button>
+                    </div>
+                  </Panel>
+                )}
               </section>
             )}
 
@@ -11685,99 +12226,187 @@ function TotalLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-function StockTable({
-  rows,
-  emptyText,
-  showValue = true,
+function StockSummary({
+  label,
+  value,
+  tone = 'neutral',
 }: {
-  rows: { item: string; qty: number; unit: string; value: number }[]
-  emptyText: string
-  showValue?: boolean
+  label: string
+  value: string
+  tone?: 'neutral' | 'attention'
 }) {
-  if (!rows.length) {
-    return (
-      <div className="rounded-md border border-dashed border-[#d1d5db] bg-[#ffffff] p-5 text-sm text-black/50">
-        {emptyText}
-      </div>
-    )
-  }
-
   return (
-    <div className="overflow-hidden rounded-md border border-[#e5e7eb] bg-[#ffffff]">
-      <table className="w-full border-collapse text-sm">
-        <thead className="bg-[#f3f4f6]">
-          <tr>
-            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Item</th>
-            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Disponível</th>
-            {showValue && <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Valor</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={`${row.item}-${row.unit}`}>
-              <td className="border-b border-[#e5e7eb] px-3 py-2 font-medium">{row.item}</td>
-              <td className="border-b border-[#e5e7eb] px-3 py-2">
-                {row.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {row.unit}
-              </td>
-              {showValue && <td className="border-b border-[#e5e7eb] px-3 py-2">{money(row.value)}</td>}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className={`min-w-0 bg-white p-3 ${tone === 'attention' ? 'text-amber-900' : 'text-[#111827]'}`}>
+      <span className="block text-[11px] uppercase text-[#6b7280]">{label}</span>
+      <strong className="mt-1 block truncate text-base">{value}</strong>
     </div>
   )
 }
 
-function ProductStockTable({
+function StockCountValue({
+  label,
+  value,
+  attention = false,
+}: {
+  label: string
+  value: string
+  attention?: boolean
+}) {
+  return (
+    <div>
+      <span className="block text-[10px] uppercase text-[#6b7280]">{label}</span>
+      <strong className={`mt-1 block text-sm ${attention ? 'text-amber-800' : 'text-[#111827]'}`}>{value}</strong>
+    </div>
+  )
+}
+
+function FinishedStockPositionTable({
   rows,
 }: {
   rows: {
+    key: string
     product: Product
+    label: string
     physical: number
-    pending: number
+    reserved: number
     producing: number
     available: number
+    shortage: number
   }[]
 }) {
   return (
-    <div className="overflow-hidden rounded-md border border-[#e5e7eb] bg-[#ffffff]">
-      <table className="w-full border-collapse text-sm">
-        <thead className="bg-[#f3f4f6]">
-          <tr>
-            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Produto</th>
-            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Físico</th>
-            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Pendente</th>
-            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Produzindo</th>
-            <th className="border-b border-[#e5e7eb] px-3 py-2 text-left">Disponível</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.product.id}>
-              <td className="border-b border-[#e5e7eb] px-3 py-2">
-                <strong className="block">{row.product.code}</strong>
-                <span className="text-black/55">{row.product.name}</span>
-              </td>
-              <td className="border-b border-[#e5e7eb] px-3 py-2">{row.physical} un</td>
-              <td className="border-b border-[#e5e7eb] px-3 py-2">{row.pending} un</td>
-              <td className="border-b border-[#e5e7eb] px-3 py-2">{row.producing} un</td>
-              <td className="border-b border-[#e5e7eb] px-3 py-2">
-                <span
-                  className={`rounded-md px-2 py-1 text-xs font-medium ${
-                    row.available < 0
-                      ? 'bg-rose-100 text-rose-800'
-                      : row.available === 0
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-emerald-100 text-emerald-800'
-                  }`}
-                >
-                  {row.available} un
-                </span>
-              </td>
+    <>
+      <div className="grid gap-3 md:hidden">
+        {rows.map((row) => (
+          <div key={row.key} className="rounded-md border border-[#e5e7eb] bg-white p-4">
+            <strong className="block">{row.product.code}</strong>
+            <span className="mt-1 block text-sm text-[#6b7280]">{row.label}</span>
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+              <StockCountValue label="Físico" value={`${row.physical} un`} />
+              <StockCountValue label="Reservado" value={`${row.reserved} un`} />
+              <StockCountValue label="Disponível" value={`${row.available} un`} attention={row.shortage > 0} />
+              <StockCountValue label="Produzindo" value={`${row.producing} un`} />
+            </div>
+            {row.shortage > 0 && (
+              <p className="mt-3 border-t border-[#e5e7eb] pt-3 text-xs font-medium text-rose-700">
+                Faltam {row.shortage} un para atender as reservas.
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-hidden rounded-md border border-[#e5e7eb] bg-white md:block">
+        <table className="w-full border-collapse text-sm">
+          <thead className="bg-[#f3f4f6]">
+            <tr>
+              <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Produto e variação</th>
+              <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Físico</th>
+              <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Reservado</th>
+              <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Disponível</th>
+              <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Produzindo</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key}>
+                <td className="border-b border-[#e5e7eb] px-3 py-3">
+                  <strong className="block">{row.product.code}</strong>
+                  <span className="text-[#6b7280]">{row.label}</span>
+                </td>
+                <td className="border-b border-[#e5e7eb] px-3 py-3">{row.physical} un</td>
+                <td className="border-b border-[#e5e7eb] px-3 py-3">{row.reserved} un</td>
+                <td className="border-b border-[#e5e7eb] px-3 py-3">
+                  <strong className={row.shortage > 0 ? 'text-rose-700' : 'text-emerald-700'}>
+                    {row.available} un
+                  </strong>
+                  {row.shortage > 0 && <span className="ml-2 text-xs text-rose-600">Faltam {row.shortage}</span>}
+                </td>
+                <td className="border-b border-[#e5e7eb] px-3 py-3">{row.producing} un</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
+function RawStockPositionTable({
+  rows,
+}: {
+  rows: {
+    item: string
+    unit: string
+    minimumStock: number
+    physical: number
+    committed: number
+    available: number
+    shortage: number
+  }[]
+}) {
+  return (
+    <div className="grid gap-3">
+      {rows.map((row) => {
+        const minimumShortage = Math.max(row.minimumStock - row.physical, 0)
+        const purchaseShortage = Math.max(row.shortage, minimumShortage)
+        return (
+          <div key={row.item} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_repeat(4,120px)] md:items-center">
+            <div>
+              <strong className="block">{row.item}</strong>
+              <span className="mt-1 block text-xs text-[#6b7280]">
+                Mínimo: {row.minimumStock.toLocaleString('pt-BR')} {row.unit}
+              </span>
+            </div>
+            <StockCountValue label="Físico" value={`${row.physical.toLocaleString('pt-BR')} ${row.unit}`} />
+            <StockCountValue label="Necessário nas OPs" value={`${row.committed.toLocaleString('pt-BR')} ${row.unit}`} />
+            <StockCountValue label="Livre" value={`${row.available.toLocaleString('pt-BR')} ${row.unit}`} attention={row.shortage > 0} />
+            <StockCountValue
+              label={purchaseShortage > 0 ? 'Falta comprar' : 'Situação'}
+              value={purchaseShortage > 0 ? `${purchaseShortage.toLocaleString('pt-BR')} ${row.unit}` : 'Atendido'}
+              attention={purchaseShortage > 0}
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function InventoryHistoryRow({
+  entry,
+  showValue,
+}: {
+  entry: InventoryEntry
+  showValue: boolean
+}) {
+  const direction = inventoryKindDirection(entry.kind)
+  return (
+    <div className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[130px_minmax(0,1fr)_140px] md:items-center">
+      <div>
+        <span className={`inline-flex rounded-md px-2 py-1 text-xs font-medium ${
+          direction === 'Entrada' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'
+        }`}>
+          {entry.kind}
+        </span>
+        <span className="mt-2 block text-xs text-[#6b7280]">
+          {entry.createdAt ? formatDateTime(entry.createdAt) : 'Registro anterior'}
+        </span>
+      </div>
+      <div>
+        <strong className="block">{entry.item}</strong>
+        <span className="mt-1 block text-sm text-[#6b7280]">
+          {entry.source} · {entry.createdBy ?? 'Sistema'}
+        </span>
+        <span className="mt-1 block text-xs text-[#4b5563]">
+          {entry.reason || 'Sem observação no registro original'}
+        </span>
+      </div>
+      <div className="md:text-right">
+        <strong className={direction === 'Entrada' ? 'text-emerald-700' : 'text-rose-700'}>
+          {direction === 'Entrada' ? '+' : '-'}{entry.qty.toLocaleString('pt-BR')} {entry.unit}
+        </strong>
+        {showValue && <span className="mt-1 block text-xs text-[#6b7280]">{money(entry.value)}</span>}
+      </div>
     </div>
   )
 }

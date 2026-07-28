@@ -49,6 +49,7 @@ const collectionTypes = {
   orders: 'order',
   productionOrders: 'production_order',
   inventoryEntries: 'inventory_entry',
+  inventoryCounts: 'inventory_count',
   cashEntries: 'cash_entry',
 } as const
 
