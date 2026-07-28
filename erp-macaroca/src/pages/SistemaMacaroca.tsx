@@ -73,6 +73,10 @@ type BrandName = string
 type UserRole = 'Admin' | 'Sócia' | 'Comercial' | 'Produção' | 'Financeiro'
 type OrderDocumentType = 'Orçamento' | 'Pedido'
 type OrderStatus = 'Aberto' | 'Em produção' | 'Pronto' | 'Entregue' | 'Cancelado'
+type PaymentMethod = 'Pix' | 'Dinheiro' | 'Cartão' | 'Transferência' | 'Boleto' | 'A combinar'
+type PaymentStatus = 'Pendente' | 'Parcial' | 'Pago'
+type DeliveryMethod = 'Retirada' | 'Entrega local' | 'Transportadora' | 'Correios' | 'A combinar'
+type ReservationStatus = 'Não se aplica' | 'Reservado' | 'Liberado'
 type OpStatus = 'Não iniciada' | 'Em produção' | 'Pausada' | 'Finalizada'
 type ProductionPriority = 'Baixa' | 'Normal' | 'Alta' | 'Urgente'
 type CashKind = 'Entrada' | 'Saída'
@@ -231,6 +235,30 @@ type Order = {
   billed: boolean
   createdBy?: string
   pricing?: OrderPricing
+  paymentMethod?: PaymentMethod
+  paymentStatus?: PaymentStatus
+  paymentNotes?: string
+  deliveryMethod?: DeliveryMethod
+  deliveryAddress?: string
+  deliveryDate?: string
+  availabilityCheckedAt?: string
+  reservationStatus?: ReservationStatus
+  reservedAt?: string
+  cancelledAt?: string
+  cancelledBy?: string
+  cancellationReason?: string
+  convertedFrom?: string
+  duplicatedFrom?: string
+  createdAt?: string
+  history?: OrderHistoryEvent[]
+}
+
+type OrderHistoryEvent = {
+  id: string
+  type: 'Criação' | 'Disponibilidade' | 'Reserva' | 'Conversão' | 'Duplicação' | 'Cancelamento'
+  detail: string
+  date: string
+  user: string
 }
 
 type OrderPricing = {
@@ -1037,6 +1065,19 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
       unitPrice: typeof order.unitPrice === 'number' ? order.unitPrice : undefined,
       status: normalizeOrderStatus(order.status),
       createdBy: order.createdBy ?? 'Sistema',
+      paymentMethod: order.paymentMethod ?? 'A combinar',
+      paymentStatus: order.paymentStatus ?? (order.billed ? 'Pago' : 'Pendente'),
+      paymentNotes: order.paymentNotes ?? '',
+      deliveryMethod: order.deliveryMethod ?? 'A combinar',
+      deliveryAddress: order.deliveryAddress ?? order.address ?? '',
+      deliveryDate: order.deliveryDate ?? order.dueDate,
+      reservationStatus:
+        order.reservationStatus ??
+        (order.documentType === 'Pedido' && order.status !== 'Entregue' && order.status !== 'Cancelado'
+          ? 'Reservado'
+          : 'Não se aplica'),
+      createdAt: order.createdAt ?? `${order.orderDate ?? '2026-07-20'}T12:00:00.000Z`,
+      history: order.history ?? [],
       pricing: order.pricing
         ? {
             ...order.pricing,
@@ -1122,7 +1163,20 @@ const auditActionLabels: Record<AuditEvent['action'], string> = {
   DELETE: 'Excluiu',
 }
 
-const currentDateValue = () => new Date().toISOString().slice(0, 10)
+const dateInputValue = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const currentDateValue = () => dateInputValue(new Date())
+
+const datePlusDaysValue = (days: number) => {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return dateInputValue(date)
+}
 
 const currentMonthValue = () => currentDateValue().slice(0, 7)
 
@@ -1219,6 +1273,26 @@ const orderTimeline = (state: AppState, order: Order): OrderTimelineItem[] => {
       status: priceApproved ? 'done' : approvalStatus === 'Recusada' ? 'pending' : 'current',
     },
     {
+      label: order.documentType === 'Pedido' ? 'Estoque reservado' : 'Aguardando confirmação',
+      detail:
+        order.documentType === 'Orçamento'
+          ? 'Orçamentos não comprometem o estoque'
+          : order.reservationStatus === 'Liberado'
+            ? 'Reserva liberada'
+            : orderIsReserved(order)
+              ? `${order.qty} un comprometidas para este pedido`
+              : 'Aguardando liberação do preço',
+      date: order.reservedAt ?? order.availabilityCheckedAt,
+      status:
+        order.documentType === 'Orçamento'
+          ? 'pending'
+          : orderIsReserved(order)
+            ? 'done'
+            : order.reservationStatus === 'Liberado'
+              ? 'done'
+              : 'current',
+    },
+    {
       label: 'Produção gerada',
       detail: op ? `${op.id} criada para o pedido` : 'Aguardando criação da produção',
       date: op?.startedAt || order.orderDate,
@@ -1243,9 +1317,15 @@ const orderTimeline = (state: AppState, order: Order): OrderTimelineItem[] => {
       status: productionDone ? 'done' : productionStarted ? 'current' : 'pending',
     },
     {
-      label: 'Pedido entregue',
-      detail: delivered ? 'Produto saiu do estoque e pedido foi concluído' : 'Aguardando separação/entrega',
-      status: delivered ? 'done' : order.status === 'Pronto' ? 'current' : 'pending',
+      label: order.status === 'Cancelado' ? 'Pedido cancelado' : 'Pedido entregue',
+      detail:
+        order.status === 'Cancelado'
+          ? `${order.cancellationReason || 'Cancelado sem justificativa antiga'}${order.cancelledBy ? ` · por ${order.cancelledBy}` : ''}`
+          : delivered
+            ? 'Produto saiu do estoque e pedido foi concluído'
+            : 'Aguardando separação/entrega',
+      date: order.cancelledAt,
+      status: order.status === 'Cancelado' || delivered ? 'done' : order.status === 'Pronto' ? 'current' : 'pending',
     },
   ]
 }
@@ -1463,6 +1543,27 @@ const orderPricingDetails = (state: AppState, order: Order): OrderPricing => {
   }
 }
 
+const orderTotal = (state: AppState, order: Order) => order.qty * orderUnitPrice(state, order)
+
+const orderIsReserved = (order: Order) =>
+  order.documentType === 'Pedido' &&
+  order.status !== 'Entregue' &&
+  order.status !== 'Cancelado' &&
+  (order.reservationStatus ?? 'Reservado') === 'Reservado' &&
+  orderPriceApproved(order)
+
+const newOrderHistoryEvent = (
+  type: OrderHistoryEvent['type'],
+  detail: string,
+  user: string,
+): OrderHistoryEvent => ({
+  id: `HIS-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  type,
+  detail,
+  date: new Date().toISOString(),
+  user,
+})
+
 const documentBrand = (brand?: BrandName, company?: CompanySettings) => {
   const isSchon = brand?.toLowerCase().includes('sch')
   const companyName = company?.name || 'Maçaroca'
@@ -1594,10 +1695,10 @@ const helpGuides: HelpGuide[] = [
     action: 'Criar orçamento',
     steps: [
       'Abra Vendas e escolha Criar orçamento ou pedido.',
-      'Selecione Orçamento como tipo do documento.',
-      'Escolha o cliente, a peça e a variação correta.',
-      'Informe quantidade, prazo e o preço oferecido ao cliente.',
-      'Confira o resumo e salve.',
+      'Siga os passos Cliente, Produto, Quantidade e Preço.',
+      'Informe pagamento e entrega mesmo que ainda estejam A combinar.',
+      'Confira a disponibilidade. O orçamento não reservará o estoque.',
+      'Revise o resumo e escolha Salvar como orçamento.',
       'Use Prévia para revisar e depois imprimir ou baixar o documento.',
     ],
   },
@@ -1611,11 +1712,44 @@ const helpGuides: HelpGuide[] = [
     action: 'Registrar pedido',
     steps: [
       'Abra Vendas e escolha Criar orçamento ou pedido.',
-      'Selecione Pedido e escolha o cliente.',
-      'Escolha produto, tamanho, cor ou outra variação.',
-      'Informe quantidade, prazo e preço unitário negociado.',
+      'Escolha o cliente, o produto e a variação.',
+      'Informe quantidade e preço unitário negociado.',
+      'Defina pagamento, entrega, endereço e prazo.',
       'Confira disponível, reservado e quantidade que falta produzir.',
-      'Salve o pedido e siga a próxima ação indicada pelo sistema.',
+      'Revise o resumo e escolha Confirmar como pedido.',
+      'O estoque será reservado e o sistema mostrará a próxima ação.',
+    ],
+  },
+  {
+    id: 'duplicar-orcamento',
+    category: 'Vendas',
+    title: 'Como duplicar ou transformar um orçamento',
+    summary: 'Reaproveite uma proposta e confirme a venda quando o cliente aprovar.',
+    keywords: ['duplicar', 'copiar', 'transformar', 'virar pedido', 'aprovar orçamento'],
+    target: 'pedidos',
+    action: 'Ver orçamentos',
+    steps: [
+      'Abra Vendas e entre em Acompanhar vendas.',
+      'Localize o orçamento desejado.',
+      'Use Duplicar orçamento para criar uma nova proposta sem alterar a original.',
+      'Use Virar pedido quando o cliente confirmar a compra.',
+      'Ao virar pedido, o sistema registra o financeiro e reserva o estoque disponível.',
+    ],
+  },
+  {
+    id: 'cancelar-pedido',
+    category: 'Vendas',
+    title: 'Como cancelar um orçamento ou pedido',
+    summary: 'Cancele sem apagar o histórico e libere o estoque reservado.',
+    keywords: ['cancelar', 'cancelamento', 'motivo', 'justificativa', 'liberar reserva'],
+    target: 'pedidos',
+    action: 'Ver vendas',
+    steps: [
+      'Abra Vendas e localize o documento.',
+      'Escolha Cancelar com motivo.',
+      'Explique por que o documento está sendo cancelado.',
+      'Confirme o cancelamento.',
+      'O financeiro será retirado, a reserva será liberada e o motivo ficará no histórico.',
     ],
   },
   {
@@ -1901,11 +2035,19 @@ export default function SistemaMacaroca() {
   const [noteUnitCost, setNoteUnitCost] = useState(55500)
   const [selectedCustomerId, setSelectedCustomerId] = useState(state.customers[0]?.id ?? '')
   const [orderDocumentType, setOrderDocumentType] = useState<OrderDocumentType>('Pedido')
-  const [orderDate, setOrderDate] = useState('2026-07-20')
+  const [orderDate, setOrderDate] = useState(currentDateValue())
   const [orderQty, setOrderQty] = useState(10)
   const [orderUnitPriceInput, setOrderUnitPriceInput] = useState(0)
-  const [orderDueDate, setOrderDueDate] = useState('2026-08-15')
+  const [orderDueDate, setOrderDueDate] = useState(datePlusDaysValue(15))
   const [orderNotes, setOrderNotes] = useState('Observações do pedido')
+  const [orderPaymentMethod, setOrderPaymentMethod] = useState<PaymentMethod>('Pix')
+  const [orderPaymentStatus, setOrderPaymentStatus] = useState<PaymentStatus>('Pendente')
+  const [orderPaymentNotes, setOrderPaymentNotes] = useState('')
+  const [orderDeliveryMethod, setOrderDeliveryMethod] = useState<DeliveryMethod>('Retirada')
+  const [orderDeliveryAddress, setOrderDeliveryAddress] = useState('')
+  const [orderDeliveryDate, setOrderDeliveryDate] = useState(datePlusDaysValue(15))
+  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
+  const [cancellationReason, setCancellationReason] = useState('')
   const [productionDecisionOrderId, setProductionDecisionOrderId] = useState<string | null>(null)
   const [productionDecisionQty, setProductionDecisionQty] = useState(1)
   const [stockOpQty, setStockOpQty] = useState(12)
@@ -2562,6 +2704,24 @@ export default function SistemaMacaroca() {
 
     return { rawItems, finishedItems, rawValue, finishedValue }
   }, [state.inventoryEntries])
+  const draftFinishedName = selectedProduct
+    ? productFinishedItemName(selectedProduct, activeVariationId)
+    : ''
+  const draftPhysicalStock = draftFinishedName
+    ? stock.finishedItems.find((item) => item.item === draftFinishedName)?.qty ?? 0
+    : 0
+  const draftReservedStock = selectedProduct
+    ? state.orders
+        .filter(
+          (order) =>
+            orderIsReserved(order) &&
+            order.productId === selectedProduct.id &&
+            (order.variationId ?? '') === (activeVariationId ?? ''),
+        )
+        .reduce((sum, order) => sum + order.qty, 0)
+    : 0
+  const draftAvailableStock = Math.max(0, draftPhysicalStock - draftReservedStock)
+  const draftMissingStock = Math.max(0, orderQty - draftAvailableStock)
   const dashboard = useMemo(() => {
     const ordersToProduce = state.orders.filter(
       (order) =>
@@ -2594,10 +2754,8 @@ export default function SistemaMacaroca() {
         const pending = state.orders
           .filter(
             (order) =>
-              order.documentType === 'Pedido' &&
-              order.productId === product.id &&
-              order.status !== 'Entregue' &&
-              order.status !== 'Cancelado',
+              orderIsReserved(order) &&
+              order.productId === product.id,
           )
           .reduce((sum, order) => sum + order.qty, 0)
         const producing = state.productionOrders
@@ -3226,6 +3384,8 @@ export default function SistemaMacaroca() {
       canApproveDiscount,
     )
     const approvedForRoutine = pricing.approvalStatus !== 'Pendente'
+    const now = new Date().toISOString()
+    const willReserve = documentType === 'Pedido' && approvedForRoutine
     const order: Order = {
       id: nextDocumentId(state.orders, documentType),
       documentType,
@@ -3244,6 +3404,27 @@ export default function SistemaMacaroca() {
       billed: documentType === 'Pedido' && approvedForRoutine,
       createdBy: currentUserName,
       pricing,
+      paymentMethod: orderPaymentMethod,
+      paymentStatus: orderPaymentStatus,
+      paymentNotes: orderPaymentNotes,
+      deliveryMethod: orderDeliveryMethod,
+      deliveryAddress: orderDeliveryAddress || selectedCustomer.address || selectedCustomer.city,
+      deliveryDate: orderDeliveryDate || orderDueDate,
+      availabilityCheckedAt: now,
+      reservationStatus: willReserve ? 'Reservado' : 'Não se aplica',
+      reservedAt: willReserve ? now : undefined,
+      createdAt: now,
+      history: [
+        newOrderHistoryEvent('Criação', `${documentType} registrado`, currentUserName),
+        newOrderHistoryEvent(
+          'Disponibilidade',
+          `${draftAvailableStock} un disponíveis; ${draftMissingStock} un precisam de produção`,
+          currentUserName,
+        ),
+        ...(willReserve
+          ? [newOrderHistoryEvent('Reserva', `${orderQty} un reservadas para o pedido`, currentUserName)]
+          : []),
+      ],
     }
 
     setState((current) => ({
@@ -3260,7 +3441,7 @@ export default function SistemaMacaroca() {
                 value: order.qty * price,
                 source: order.id,
                 dueDate: order.orderDate,
-                paid: true,
+                paid: orderPaymentStatus === 'Pago',
                 createdBy: currentUserName,
               },
               ...current.cashEntries,
@@ -3277,7 +3458,7 @@ export default function SistemaMacaroca() {
     )
   }
 
-  const createGuidedOrder = () => {
+  const createGuidedOrder = (requestedDocumentType?: OrderDocumentType) => {
     if (!selectedProduct || !selectedCustomer) return
     if (!productReadyForUse(selectedProduct, activeVariationId)) {
       setGuidedOrderStep(2)
@@ -3285,7 +3466,7 @@ export default function SistemaMacaroca() {
       return
     }
     const price = finalOrderUnitPrice
-    const documentType = orderDocumentType
+    const documentType = requestedDocumentType ?? orderDocumentType
     const orderId = nextDocumentId(state.orders, documentType)
     const pricing = makeOrderPricing(
       state,
@@ -3296,6 +3477,8 @@ export default function SistemaMacaroca() {
       canApproveDiscount,
     )
     const approvedForRoutine = pricing.approvalStatus !== 'Pendente'
+    const now = new Date().toISOString()
+    const willReserve = documentType === 'Pedido' && approvedForRoutine
     const order: Order = {
       id: orderId,
       documentType,
@@ -3314,6 +3497,27 @@ export default function SistemaMacaroca() {
       billed: documentType === 'Pedido' && approvedForRoutine,
       createdBy: currentUserName,
       pricing,
+      paymentMethod: orderPaymentMethod,
+      paymentStatus: orderPaymentStatus,
+      paymentNotes: orderPaymentNotes,
+      deliveryMethod: orderDeliveryMethod,
+      deliveryAddress: orderDeliveryAddress || selectedCustomer.address || selectedCustomer.city,
+      deliveryDate: orderDeliveryDate || orderDueDate,
+      availabilityCheckedAt: now,
+      reservationStatus: willReserve ? 'Reservado' : 'Não se aplica',
+      reservedAt: willReserve ? now : undefined,
+      createdAt: now,
+      history: [
+        newOrderHistoryEvent('Criação', `${documentType} registrado`, currentUserName),
+        newOrderHistoryEvent(
+          'Disponibilidade',
+          `${draftAvailableStock} un disponíveis; ${draftMissingStock} un precisam de produção`,
+          currentUserName,
+        ),
+        ...(willReserve
+          ? [newOrderHistoryEvent('Reserva', `${orderQty} un reservadas para o pedido`, currentUserName)]
+          : []),
+      ],
     }
 
     if (documentType === 'Orçamento') {
@@ -3344,7 +3548,7 @@ export default function SistemaMacaroca() {
               value: order.qty * price,
               source: order.id,
               dueDate: order.orderDate,
-              paid: true,
+              paid: orderPaymentStatus === 'Pago',
               createdBy: currentUserName,
             },
             ...current.cashEntries,
@@ -3422,7 +3626,6 @@ export default function SistemaMacaroca() {
       setMessage('Este orçamento precisa de aprovação administrativa antes de virar pedido.')
       return
     }
-    const price = orderUnitPrice(state, order)
     const newOrderId = nextDocumentId(state.orders, 'Pedido')
 
     setState((current) => ({
@@ -3435,6 +3638,14 @@ export default function SistemaMacaroca() {
               documentType: 'Pedido',
               billed: true,
               status: 'Aberto',
+              reservationStatus: 'Reservado',
+              reservedAt: new Date().toISOString(),
+              convertedFrom: order.id,
+              history: [
+                ...(item.history ?? []),
+                newOrderHistoryEvent('Conversão', `Orçamento ${order.id} convertido no pedido ${newOrderId}`, currentUserName),
+                newOrderHistoryEvent('Reserva', `${item.qty} un reservadas após a confirmação`, currentUserName),
+              ],
             }
           : item,
       ),
@@ -3447,10 +3658,10 @@ export default function SistemaMacaroca() {
           kind: 'Entrada',
           category: 'Venda recebida',
           description: `Pedido ${order.client}`,
-          value: order.qty * price,
+          value: orderTotal(state, order),
           source: newOrderId,
           dueDate: order.orderDate,
-          paid: true,
+          paid: order.paymentStatus === 'Pago',
           createdBy: currentUserName,
         },
         ...current.cashEntries.filter((entry) => entry.source !== order.id),
@@ -3459,6 +3670,85 @@ export default function SistemaMacaroca() {
     setPreviewOrderId((current) => (current === order.id ? newOrderId : current))
     setPrintOrderId((current) => (current === order.id ? newOrderId : current))
     setMessage(`Orçamento ${order.id} virou pedido ${newOrderId}.`)
+  }
+
+  const duplicateBudget = (order: Order) => {
+    if (order.documentType !== 'Orçamento') return
+    const newId = nextDocumentId(state.orders, 'Orçamento')
+    const duplicate: Order = {
+      ...order,
+      id: newId,
+      status: 'Aberto',
+      billed: false,
+      reservationStatus: 'Não se aplica',
+      reservedAt: undefined,
+      cancelledAt: undefined,
+      cancelledBy: undefined,
+      cancellationReason: undefined,
+      duplicatedFrom: order.id,
+      createdAt: new Date().toISOString(),
+      orderDate: currentDateValue(),
+      history: [
+        newOrderHistoryEvent('Criação', `Orçamento criado a partir de ${order.id}`, currentUserName),
+        newOrderHistoryEvent('Duplicação', `Conteúdo duplicado de ${order.id}`, currentUserName),
+      ],
+    }
+    const nextState = { ...state, orders: [duplicate, ...state.orders] }
+    setState(nextState)
+    void saveStateImmediately(nextState, `Orçamento ${newId} duplicado e sincronizado.`)
+    setPreviewOrderId(newId)
+    setMessage(`Orçamento ${newId} criado como cópia de ${order.id}.`)
+  }
+
+  const requestOrderCancellation = (order: Order) => {
+    if (order.status === 'Entregue') {
+      setMessage('Um pedido entregue não pode ser cancelado. Registre uma devolução no estoque e financeiro.')
+      return
+    }
+    setCancelOrderId(order.id)
+    setCancellationReason('')
+  }
+
+  const confirmOrderCancellation = () => {
+    const order = state.orders.find((item) => item.id === cancelOrderId)
+    const reason = cancellationReason.trim()
+    if (!order) return
+    if (reason.length < 3) {
+      setMessage('Informe uma justificativa para cancelar.')
+      return
+    }
+    const now = new Date().toISOString()
+    const nextState = {
+      ...state,
+      orders: state.orders.map((item) =>
+        item.id === order.id
+          ? {
+              ...item,
+              status: 'Cancelado' as OrderStatus,
+              billed: false,
+              reservationStatus: 'Liberado' as ReservationStatus,
+              cancelledAt: now,
+              cancelledBy: currentUserName,
+              cancellationReason: reason,
+              history: [
+                ...(item.history ?? []),
+                newOrderHistoryEvent('Cancelamento', reason, currentUserName),
+              ],
+            }
+          : item,
+      ),
+      productionOrders: state.productionOrders.map((op) =>
+        op.orderId === order.id && op.status !== 'Finalizada'
+          ? { ...op, status: 'Pausada' as OpStatus, notes: `${op.notes}\nPedido cancelado: ${reason}`.trim() }
+          : op,
+      ),
+      cashEntries: state.cashEntries.filter((entry) => entry.source !== order.id),
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, `${order.documentType} ${order.id} cancelado e sincronizado.`)
+    setCancelOrderId(null)
+    setCancellationReason('')
+    setMessage(`${order.documentType} ${order.id} cancelado. A reserva foi liberada e o motivo ficou no histórico.`)
   }
 
   const deleteOrder = (order: Order) => {
@@ -3496,6 +3786,10 @@ export default function SistemaMacaroca() {
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
     const order = state.orders.find((item) => item.id === orderId)
+    if (status === 'Cancelado' && order) {
+      requestOrderCancellation(order)
+      return
+    }
     if (
       order &&
       !orderPriceApproved(order) &&
@@ -3527,7 +3821,16 @@ export default function SistemaMacaroca() {
 
     setState((current) => ({
       ...current,
-      orders: current.orders.map((order) => (order.id === orderId ? { ...order, status } : order)),
+      orders: current.orders.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              status,
+              reservationStatus:
+                status === 'Entregue' ? 'Liberado' : order.reservationStatus,
+            }
+          : order,
+      ),
       inventoryEntries:
         status === 'Entregue' && order
           ? (() => {
@@ -3598,7 +3901,7 @@ export default function SistemaMacaroca() {
               value: safePrice * order.qty,
               source: order.id,
               dueDate: order.orderDate,
-              paid: existingCashEntry?.paid ?? true,
+              paid: order.paymentStatus === 'Pago',
               createdBy: existingCashEntry?.createdBy ?? currentUserName,
             },
             ...cashEntriesWithoutSale,
@@ -3614,6 +3917,12 @@ export default function SistemaMacaroca() {
               unitPrice: safePrice,
               pricing,
               billed: item.documentType === 'Pedido' && approvedForRoutine,
+              reservationStatus:
+                item.documentType === 'Pedido' && approvedForRoutine ? 'Reservado' : 'Não se aplica',
+              reservedAt:
+                item.documentType === 'Pedido' && approvedForRoutine
+                  ? item.reservedAt ?? new Date().toISOString()
+                  : undefined,
             }
           : item,
       ),
@@ -3660,7 +3969,7 @@ export default function SistemaMacaroca() {
               value: order.qty * order.pricing.negotiatedPrice,
               source: order.id,
               dueDate: order.orderDate,
-              paid: existingCashEntry?.paid ?? true,
+              paid: order.paymentStatus === 'Pago',
               createdBy: existingCashEntry?.createdBy ?? currentUserName,
             },
             ...cashEntriesWithoutSale,
@@ -3673,12 +3982,23 @@ export default function SistemaMacaroca() {
           ? {
               ...item,
               billed: approved && item.documentType === 'Pedido',
+              reservationStatus:
+                approved && item.documentType === 'Pedido' ? 'Reservado' : 'Não se aplica',
+              reservedAt:
+                approved && item.documentType === 'Pedido' ? now : undefined,
               pricing: {
                 ...item.pricing!,
                 approvalStatus: decision,
                 approvedBy: currentUserName,
                 approvedAt: now,
               },
+              history:
+                approved && item.documentType === 'Pedido'
+                  ? [
+                      ...(item.history ?? []),
+                      newOrderHistoryEvent('Reserva', `${item.qty} un reservadas após a aprovação do preço`, currentUserName),
+                    ]
+                  : item.history,
             }
           : item,
       ),
@@ -4524,10 +4844,8 @@ export default function SistemaMacaroca() {
     const pending = state.orders
       .filter(
         (item) =>
-          item.documentType === 'Pedido' &&
-          sameProductDemand(item, order.productId, order.variationId) &&
-          item.status !== 'Entregue' &&
-          item.status !== 'Cancelado',
+          orderIsReserved(item) &&
+          sameProductDemand(item, order.productId, order.variationId),
       )
       .reduce((sum, item) => sum + item.qty, 0)
     const producing = state.productionOrders
@@ -4904,6 +5222,7 @@ export default function SistemaMacaroca() {
   const previewOrder = state.orders.find((order) => order.id === previewOrderId)
   const printOp = state.productionOrders.find((op) => op.id === printOpId)
   const printOrder = state.orders.find((order) => order.id === printOrderId)
+  const cancellationOrder = state.orders.find((order) => order.id === cancelOrderId)
   const pageIntro: Record<Area, { title: string; description: string }> = {
     inicio: {
       title: 'Escolha uma área',
@@ -5122,6 +5441,18 @@ export default function SistemaMacaroca() {
           onClose={() => setPreviewOrderId(null)}
           onPrint={() => printOrderBudget(previewOrder.id)}
           onDownloadPdf={() => downloadOrderBudgetPdf(previewOrder.id)}
+        />
+      )}
+      {cancellationOrder && (
+        <OrderCancellationDialog
+          order={cancellationOrder}
+          reason={cancellationReason}
+          onReasonChange={setCancellationReason}
+          onClose={() => {
+            setCancelOrderId(null)
+            setCancellationReason('')
+          }}
+          onConfirm={confirmOrderCancellation}
         />
       )}
       {previewOp && (
@@ -5924,6 +6255,15 @@ export default function SistemaMacaroca() {
                                 >
                                   Nova venda
                                 </button>
+                                {order.status !== 'Entregue' && order.status !== 'Cancelado' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => requestOrderCancellation(order)}
+                                    className="inline-flex h-10 items-center justify-center rounded-md border border-amber-200 bg-amber-50 px-3 text-sm font-medium text-amber-900"
+                                  >
+                                    Cancelar com motivo
+                                  </button>
+                                )}
                                 {canDeleteRecords && (
                                   <button
                                     type="button"
@@ -6531,246 +6871,253 @@ export default function SistemaMacaroca() {
             )}
 
             {activeArea === 'pedido-guiado' && selectedProduct && (
-              <section className="grid gap-5 xl:grid-cols-[minmax(300px,320px)_minmax(0,1fr)]">
+              <section className="grid gap-5">
                 <Panel title="Novo orçamento ou pedido">
-                  <div className="grid gap-2">
-                    <StepButton number={1} label="Cliente" active={guidedOrderStep === 1} done={guidedOrderStep > 1} onClick={() => setGuidedOrderStep(1)} />
-                    <StepButton number={2} label="Peça" active={guidedOrderStep === 2} done={guidedOrderStep > 2} onClick={() => setGuidedOrderStep(2)} />
-                    <StepButton number={3} label="Preço e prazo" active={guidedOrderStep === 3} done={guidedOrderStep > 3} onClick={() => setGuidedOrderStep(3)} />
-                    <StepButton number={4} label="Confirmar" active={guidedOrderStep === 4} done={false} onClick={() => setGuidedOrderStep(4)} />
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                    {[
+                      'Cliente',
+                      'Produto',
+                      'Quantidade',
+                      'Preço',
+                      'Pagamento',
+                      'Disponibilidade',
+                      'Resumo',
+                      'Salvar',
+                    ].map((label, index) => (
+                      <StepButton
+                        key={label}
+                        number={index + 1}
+                        label={label}
+                        active={guidedOrderStep === index + 1}
+                        done={guidedOrderStep > index + 1}
+                        onClick={() => setGuidedOrderStep(index + 1)}
+                      />
+                    ))}
                   </div>
                 </Panel>
 
-                <div className="grid gap-5">
-                  {guidedOrderStep === 1 && (
-                    <Panel title="1. Escolher cliente">
-                      <div className="grid gap-4">
-                        <label className="grid gap-2">
-                          <FieldLabel>Cliente do pedido</FieldLabel>
-                          <select
-                            value={selectedCustomerId}
-                            onChange={(event) => setSelectedCustomerId(event.target.value)}
-                            className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                          >
-                            {state.customers.map((customer) => (
-                              <option key={customer.id} value={customer.id}>
-                                {customer.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        {selectedCustomer && (
-                          <div className="grid gap-1 rounded-md border border-black/10 bg-[#f9fafb] p-4 text-sm text-black/60">
-                            <strong className="text-[#111827]">{selectedCustomer.name}</strong>
-                            <span>{selectedCustomer.phone}</span>
-                            <span>{selectedCustomer.city}</span>
-                            <span>{selectedCustomer.notes}</span>
-                          </div>
-                        )}
+                {guidedOrderStep === 1 && (
+                  <Panel title="1. Quem está comprando?">
+                    <div className="grid gap-4">
+                      <label className="grid gap-2">
+                        <FieldLabel>Cliente</FieldLabel>
+                        <select
+                          value={selectedCustomerId}
+                          onChange={(event) => {
+                            const customer = state.customers.find((item) => item.id === event.target.value)
+                            setSelectedCustomerId(event.target.value)
+                            setOrderDeliveryAddress(customer?.address || customer?.city || '')
+                          }}
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
+                        >
+                          {state.customers.map((customer) => (
+                            <option key={customer.id} value={customer.id}>{customer.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      {selectedCustomer && (
+                        <div className="grid gap-1 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm text-black/60">
+                          <strong className="text-[#111827]">{selectedCustomer.name}</strong>
+                          <span>{selectedCustomer.phone || 'Telefone não informado'}</span>
+                          <span>{selectedCustomer.address || selectedCustomer.city || 'Endereço não informado'}</span>
+                        </div>
+                      )}
+                      <FlowButtons onBack={null} onNext={() => setGuidedOrderStep(2)} nextLabel="Escolher produto" />
+                    </div>
+                  </Panel>
+                )}
+
+                {guidedOrderStep === 2 && (
+                  <Panel title="2. Qual peça e variação?">
+                    <div className="grid gap-4">
+                      <label className="grid gap-2">
+                        <FieldLabel>Produto</FieldLabel>
+                        <select
+                          value={selectedProductId}
+                          onChange={(event) => setSelectedProductId(event.target.value)}
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
+                        >
+                          {state.products.map((product) => (
+                            <option
+                              value={product.id}
+                              key={product.id}
+                              disabled={product.active === false || !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada')}
+                            >
+                              {product.code} · {product.name} · {product.brand}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-2">
+                        <FieldLabel>Variação</FieldLabel>
+                        <select
+                          value={activeVariationId ?? ''}
+                          onChange={(event) => setSelectedVariationId(event.target.value)}
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
+                        >
+                          {selectedProduct.variations.map((variation) => (
+                            <option key={variation.id} value={variation.id} disabled={(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada'}>
+                              {variation.name} · {variation.fabric || 'tecido não informado'}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm text-black/60">
+                        <strong className="block text-[#111827]">{selectedProduct.code} · {productDisplayName(selectedProduct, activeVariationId)}</strong>
+                        <span className="mt-1 block">{selectedVariation?.measurements || selectedProduct.description}</span>
+                      </div>
+                      <FlowButtons onBack={() => setGuidedOrderStep(1)} onNext={() => setGuidedOrderStep(3)} nextLabel="Informar quantidade" />
+                    </div>
+                  </Panel>
+                )}
+
+                {guidedOrderStep === 3 && (
+                  <Panel title="3. Quantas peças?">
+                    <div className="grid gap-4">
+                      <SoftNumber label="Quantidade" value={orderQty} onChange={(value) => setOrderQty(Math.max(1, Math.floor(value)))} />
+                      <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm text-black/60">
+                        {productDisplayName(selectedProduct, activeVariationId)} · {orderQty} un
+                      </div>
+                      <FlowButtons onBack={() => setGuidedOrderStep(2)} onNext={() => setGuidedOrderStep(4)} nextLabel="Definir preço" />
+                    </div>
+                  </Panel>
+                )}
+
+                {guidedOrderStep === 4 && (
+                  <Panel title="4. Qual foi o preço combinado?">
+                    <div className="grid gap-4">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <MiniStat label="Mínimo" value={money(selectedMinimumPrice)} tone="amber" />
+                        <MiniStat label="Sugerido" value={money(selectedPrice)} />
+                        <MiniStat label="Oficial" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                        <SoftNumber label="Preço por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
                         <button
                           type="button"
-                          onClick={() => setGuidedOrderStep(2)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                          onClick={() => setOrderUnitPriceInput(Math.round(selectedOrderPrice))}
+                          className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
                         >
-                          Próximo: escolher peça
-                          <ArrowRight className="h-4 w-4" />
+                          Usar preço {selectedSalePrice ? 'oficial' : 'sugerido'}
                         </button>
                       </div>
-                    </Panel>
-                  )}
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <MiniStat
+                          label="Margem real"
+                          value={`${money(currentOrderPricing.realProfit)} · ${currentOrderPricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                          tone={currentOrderNeedsApproval ? 'rose' : 'green'}
+                        />
+                        <MiniStat label="Total" value={money(orderQty * finalOrderUnitPrice)} tone="green" />
+                      </div>
+                      {currentOrderNeedsApproval && (
+                        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm leading-5 text-rose-900">
+                          Preço abaixo do mínimo. {canApproveDiscount ? 'Sua autorização será registrada ao confirmar.' : 'O pedido precisará da aprovação de um administrador.'}
+                        </div>
+                      )}
+                      <FlowButtons onBack={() => setGuidedOrderStep(3)} onNext={() => setGuidedOrderStep(5)} nextLabel="Pagamento e entrega" />
+                    </div>
+                  </Panel>
+                )}
 
-                  {guidedOrderStep === 2 && (
-                    <Panel title="2. Escolher peça">
-                      <div className="grid gap-4">
+                {guidedOrderStep === 5 && (
+                  <Panel title="5. Como será o pagamento e a entrega?">
+                    <div className="grid gap-4">
+                      <div className="grid gap-3 md:grid-cols-2">
                         <label className="grid gap-2">
-                          <FieldLabel>Peça / produto</FieldLabel>
-                          <select
-                            value={selectedProductId}
-                            onChange={(event) => setSelectedProductId(event.target.value)}
-                            className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                          >
-                            {state.products.map((product) => (
-                              <option value={product.id} key={product.id} disabled={product.active === false || !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada')}>
-                                {product.code} · {product.name} · {product.brand}{product.active === false ? ' · desativado' : !product.variations.some((variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada') ? ' · aguardando aprovação' : ''}
-                              </option>
-                            ))}
+                          <FieldLabel>Forma de pagamento</FieldLabel>
+                          <select value={orderPaymentMethod} onChange={(event) => setOrderPaymentMethod(event.target.value as PaymentMethod)} className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none">
+                            {(['Pix', 'Dinheiro', 'Cartão', 'Transferência', 'Boleto', 'A combinar'] as PaymentMethod[]).map((value) => <option key={value}>{value}</option>)}
                           </select>
                         </label>
                         <label className="grid gap-2">
-                          <FieldLabel>Variação</FieldLabel>
-                          <select
-                            value={activeVariationId ?? ''}
-                            onChange={(event) => setSelectedVariationId(event.target.value)}
-                            className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                          >
-                            {selectedProduct.variations.map((variation) => (
-                              <option key={variation.id} value={variation.id} disabled={(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada'}>
-                                {variation.name} · {variation.fabric}{(variation.sheetStatus ?? 'Aprovada') !== 'Aprovada' ? ` · ${variation.sheetStatus}` : ''}
-                              </option>
-                            ))}
+                          <FieldLabel>Situação do pagamento</FieldLabel>
+                          <select value={orderPaymentStatus} onChange={(event) => setOrderPaymentStatus(event.target.value as PaymentStatus)} className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none">
+                            {(['Pendente', 'Parcial', 'Pago'] as PaymentStatus[]).map((value) => <option key={value}>{value}</option>)}
                           </select>
                         </label>
-                        <div className="rounded-md border border-black/10 bg-[#f9fafb] p-4 text-sm text-black/60">
-                          <strong className="block text-[#111827]">
-                            {selectedProduct.code} · {productDisplayName(selectedProduct, activeVariationId)}
-                          </strong>
-                          <span className="mt-1 block">{selectedVariation?.measurements || selectedProduct.description}</span>
-                          {selectedVariation?.technicalNotes && (
-                            <span className="mt-1 block">{selectedVariation.technicalNotes}</span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setGuidedOrderStep(1)}
-                            className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium"
-                          >
-                            Voltar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setGuidedOrderStep(3)}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
-                          >
-                            Próximo: preço e prazo
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </Panel>
-                  )}
-
-                  {guidedOrderStep === 3 && (
-                    <Panel title="3. Quantidade, prazo e preço">
-                      <div className="grid gap-4">
-                        <div className="grid gap-3 md:grid-cols-3">
-                          <SoftNumber label="Quantidade" value={orderQty} onChange={setOrderQty} />
-                          <SoftInput label="Data do pedido" value={orderDate} onChange={setOrderDate} />
-                          <SoftInput label="Prazo" value={orderDueDate} onChange={setOrderDueDate} />
-                        </div>
-                        {canNegotiatePrice && (
-                          <div className="grid gap-3 rounded-md border border-[#d1d5db] bg-white p-4">
-                            <div className="grid gap-3 sm:grid-cols-3">
-                              <MiniStat label="Preço mínimo" value={money(selectedMinimumPrice)} tone="amber" />
-                              <MiniStat label="Preço sugerido" value={money(selectedPrice)} />
-                              <MiniStat label="Preço oficial" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
-                            </div>
-                            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                            <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
-                            <button
-                              type="button"
-                              onClick={() => setOrderUnitPriceInput(Math.round(selectedOrderPrice))}
-                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-[#ffffff] px-3 text-sm font-medium"
-                            >
-                              {selectedSalePrice ? 'Usar tabela' : 'Usar sugerido'}
-                            </button>
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <MiniStat
-                                label="Margem real"
-                                value={`${money(currentOrderPricing.realProfit)} · ${currentOrderPricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
-                                tone={currentOrderNeedsApproval ? 'rose' : currentOrderPricing.realMargin >= 0 ? 'green' : 'amber'}
-                              />
-                              <MiniStat
-                                label="Situação do preço"
-                                value={currentOrderNeedsApproval ? 'Precisa de aprovação' : 'Dentro do limite'}
-                                tone={currentOrderNeedsApproval ? 'rose' : 'green'}
-                              />
-                            </div>
-                            {currentOrderNeedsApproval && (
-                              <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm leading-5 text-rose-900">
-                                {canApproveDiscount
-                                  ? `O valor negociado está abaixo do mínimo de ${money(selectedMinimumPrice)}. Como você é administrador, a autorização será registrada ao confirmar o documento.`
-                                  : `O valor negociado está abaixo do mínimo de ${money(selectedMinimumPrice)}. O documento será salvo, mas financeiro e produção ficarão aguardando aprovação do administrador.`}
-                              </div>
-                            )}
-                          </div>
-                        )}
                         <label className="grid gap-2">
-                          <FieldLabel>O que você quer criar?</FieldLabel>
-                          <select
-                            value={orderDocumentType}
-                            onChange={(event) => setOrderDocumentType(event.target.value as OrderDocumentType)}
-                            className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                          >
-                            <option value="Orçamento">Orçamento - não entra no financeiro</option>
-                            <option value="Pedido">Pedido - entra no financeiro e pode gerar produção</option>
+                          <FieldLabel>Forma de entrega</FieldLabel>
+                          <select value={orderDeliveryMethod} onChange={(event) => setOrderDeliveryMethod(event.target.value as DeliveryMethod)} className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none">
+                            {(['Retirada', 'Entrega local', 'Transportadora', 'Correios', 'A combinar'] as DeliveryMethod[]).map((value) => <option key={value}>{value}</option>)}
                           </select>
                         </label>
-                        <SoftInput label="Observação do pedido" value={orderNotes} onChange={setOrderNotes} />
-                        {canNegotiatePrice && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * finalOrderUnitPrice)} />}
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setGuidedOrderStep(2)}
-                            className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium"
-                          >
-                            Voltar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setGuidedOrderStep(4)}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
-                          >
-                            Conferir pedido
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
+                        <SoftInput label="Endereço de entrega" value={orderDeliveryAddress} onChange={setOrderDeliveryAddress} />
+                        <SoftInput label="Data da venda" value={orderDate} onChange={setOrderDate} />
+                        <SoftInput label="Prazo de entrega" value={orderDeliveryDate} onChange={(value) => { setOrderDeliveryDate(value); setOrderDueDate(value) }} />
                       </div>
-                    </Panel>
-                  )}
+                      <SoftInput label="Condição ou observação do pagamento" value={orderPaymentNotes} onChange={setOrderPaymentNotes} />
+                      <SoftInput label="Observações do pedido" value={orderNotes} onChange={setOrderNotes} />
+                      <FlowButtons onBack={() => setGuidedOrderStep(4)} onNext={() => setGuidedOrderStep(6)} nextLabel="Ver disponibilidade" />
+                    </div>
+                  </Panel>
+                )}
 
-                  {guidedOrderStep === 4 && (
-                    <Panel title="4. Confirmar">
-                      <div className="grid gap-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <MiniRow title="Cliente" detail={selectedCustomer?.name ?? 'Sem cliente'} />
-                          <MiniRow title="Tipo" detail={orderDocumentType} />
-                          <MiniRow title="Peça" detail={`${selectedProduct.code} · ${productDisplayName(selectedProduct, activeVariationId)}`} />
-                          <MiniRow title="Quantidade" detail={`${orderQty} un`} />
-                          {canNegotiatePrice && <MiniRow title="Preço combinado" detail={`${money(finalOrderUnitPrice)} por peça · total ${money(orderQty * finalOrderUnitPrice)}`} />}
-                          {canNegotiatePrice && <MiniRow title="Margem real" detail={`${money(currentOrderPricing.realProfit)} por peça · ${currentOrderPricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} />}
-                          {canNegotiatePrice && (
-                            <MiniRow
-                              title="Autorização"
-                              detail={
-                                currentOrderNeedsApproval
-                                  ? canApproveDiscount
-                                    ? 'Será aprovada por você ao confirmar'
-                                    : 'Aguardará aprovação administrativa'
-                                  : 'Não necessária'
-                              }
-                            />
-                          )}
-                          <MiniRow title="Prazo" detail={formatDate(orderDueDate)} />
-                        </div>
-                        {orderNotes && <MiniRow title="Observação" detail={orderNotes} />}
-                        <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-4 text-sm text-[#1f2937]">
-                          {orderDocumentType === 'Pedido'
-                            ? 'Ao confirmar, o sistema registra o pedido e leva para o PCP conferir estoque antes de criar produção.'
-                            : 'Ao confirmar, o sistema salva apenas o orçamento. Ele não mexe no financeiro nem cria produção até virar pedido.'}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setGuidedOrderStep(3)}
-                            className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium"
-                          >
-                            Voltar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={createGuidedOrder}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
-                          >
-                            {orderDocumentType === 'Pedido' ? 'Registrar pedido e ir para PCP' : 'Salvar orçamento'}
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
+                {guidedOrderStep === 6 && (
+                  <Panel title="6. Tem estoque suficiente?">
+                    <div className="grid gap-4">
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <MiniStat label="Estoque físico" value={`${draftPhysicalStock} un`} />
+                        <MiniStat label="Já reservado" value={`${draftReservedStock} un`} />
+                        <MiniStat label="Livre agora" value={`${draftAvailableStock} un`} tone={draftAvailableStock >= orderQty ? 'green' : 'amber'} />
+                        <MiniStat label="Falta produzir" value={`${draftMissingStock} un`} tone={draftMissingStock > 0 ? 'rose' : 'green'} />
                       </div>
-                    </Panel>
-                  )}
-                </div>
+                      <div className={`rounded-md border p-4 text-sm leading-6 ${draftMissingStock > 0 ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+                        {draftMissingStock > 0
+                          ? `O pedido pode ser confirmado. ${Math.min(orderQty, draftAvailableStock)} un serão atendidas pelo estoque e o PCP verá que precisa produzir ${draftMissingStock} un.`
+                          : `Há estoque livre para atender as ${orderQty} un. Ao confirmar como pedido, essa quantidade ficará reservada.`}
+                      </div>
+                      <FlowButtons onBack={() => setGuidedOrderStep(5)} onNext={() => setGuidedOrderStep(7)} nextLabel="Conferir resumo" />
+                    </div>
+                  </Panel>
+                )}
+
+                {guidedOrderStep === 7 && (
+                  <Panel title="7. Confira antes de salvar">
+                    <div className="grid gap-4">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <MiniRow title="Cliente" detail={selectedCustomer?.name ?? 'Sem cliente'} />
+                        <MiniRow title="Produto" detail={`${selectedProduct.code} · ${productDisplayName(selectedProduct, activeVariationId)}`} />
+                        <MiniRow title="Quantidade e valor" detail={`${orderQty} un · ${money(finalOrderUnitPrice)} por peça · ${money(orderQty * finalOrderUnitPrice)} total`} />
+                        <MiniRow title="Pagamento" detail={`${orderPaymentMethod} · ${orderPaymentStatus}${orderPaymentNotes ? ` · ${orderPaymentNotes}` : ''}`} />
+                        <MiniRow title="Entrega" detail={`${orderDeliveryMethod} · ${formatDate(orderDeliveryDate)} · ${orderDeliveryAddress || 'endereço não informado'}`} />
+                        <MiniRow title="Estoque" detail={draftMissingStock > 0 ? `${draftMissingStock} un precisarão de produção` : `${orderQty} un poderão ser reservadas`} />
+                        <MiniRow title="Margem" detail={`${money(currentOrderPricing.realProfit)} por peça · ${currentOrderPricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} />
+                        <MiniRow title="Aprovação" detail={currentOrderNeedsApproval ? (canApproveDiscount ? 'Será aprovada por você' : 'Aguardará administrador') : 'Não necessária'} />
+                      </div>
+                      <FlowButtons onBack={() => setGuidedOrderStep(6)} onNext={() => setGuidedOrderStep(8)} nextLabel="Escolher como salvar" />
+                    </div>
+                  </Panel>
+                )}
+
+                {guidedOrderStep === 8 && (
+                  <Panel title="8. Salvar orçamento ou confirmar pedido">
+                    <div className="grid gap-4">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => createGuidedOrder('Orçamento')}
+                          className="grid min-h-32 gap-2 rounded-md border border-[#d1d5db] bg-white p-5 text-left transition hover:border-[#3730a3]"
+                        >
+                          <ReceiptText className="h-5 w-5 text-[#3730a3]" />
+                          <strong>Salvar como orçamento</strong>
+                          <span className="text-sm leading-5 text-black/55">Não reserva estoque e não entra no financeiro. Pode ser impresso, duplicado ou convertido depois.</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => createGuidedOrder('Pedido')}
+                          className="grid min-h-32 gap-2 rounded-md bg-[#111827] p-5 text-left text-white transition hover:bg-[#3730a3]"
+                        >
+                          <PackageCheck className="h-5 w-5" />
+                          <strong>Confirmar como pedido</strong>
+                          <span className="text-sm leading-5 text-white/70">Reserva o estoque disponível, registra o financeiro e mostra ao PCP o que falta produzir.</span>
+                        </button>
+                      </div>
+                      <button type="button" onClick={() => setGuidedOrderStep(7)} className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium">
+                        Voltar ao resumo
+                      </button>
+                    </div>
+                  </Panel>
+                )}
               </section>
             )}
 
@@ -8338,6 +8685,9 @@ export default function SistemaMacaroca() {
                                 </p>
                               )}
                               {order.notes && <p>Obs.: {order.notes}</p>}
+                              {order.paymentMethod && <p>Pagamento: {order.paymentMethod} · {order.paymentStatus}</p>}
+                              {order.deliveryMethod && <p>Entrega: {order.deliveryMethod} · {formatDate(order.deliveryDate ?? order.dueDate)}</p>}
+                              {order.cancellationReason && <p>Cancelamento: {order.cancellationReason}</p>}
                             </div>
                             <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
                               <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">
@@ -8371,14 +8721,23 @@ export default function SistemaMacaroca() {
                               Analisar produção
                             </button>
                             {order.documentType === 'Orçamento' && (
-                              <button
-                                type="button"
-                                onClick={() => convertBudgetToOrder(order)}
-                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#3730a3] px-4 text-sm font-medium text-white"
-                                disabled={!orderPriceApproved(order)}
-                              >
-                                Virar pedido
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => convertBudgetToOrder(order)}
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#3730a3] px-4 text-sm font-medium text-white"
+                                  disabled={!orderPriceApproved(order)}
+                                >
+                                  Virar pedido
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => duplicateBudget(order)}
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
+                                >
+                                  Duplicar orçamento
+                                </button>
+                              </>
                             )}
                             <button
                               type="button"
@@ -8426,6 +8785,15 @@ export default function SistemaMacaroca() {
                             >
                               Marcar entregue
                             </button>
+                            {order.status !== 'Entregue' && order.status !== 'Cancelado' && (
+                              <button
+                                type="button"
+                                onClick={() => requestOrderCancellation(order)}
+                                className="inline-flex h-10 items-center justify-center rounded-md border border-amber-200 bg-amber-50 px-4 text-sm font-medium text-amber-900"
+                              >
+                                Cancelar com motivo
+                              </button>
+                            )}
                             {canDeleteRecords && (
                               <button
                                 type="button"
@@ -9574,6 +9942,38 @@ function StepButton({
   )
 }
 
+function FlowButtons({
+  onBack,
+  onNext,
+  nextLabel,
+}: {
+  onBack: (() => void) | null
+  onNext: () => void
+  nextLabel: string
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
+        >
+          Voltar
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onNext}
+        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+      >
+        {nextLabel}
+        <ArrowRight className="h-4 w-4" />
+      </button>
+    </div>
+  )
+}
+
 function QuickTaskButton({
   icon,
   title,
@@ -10199,6 +10599,50 @@ function ProductionOrderPrint({ op, state }: { op: ProductionOrder; state: AppSt
   )
 }
 
+function OrderCancellationDialog({
+  order,
+  reason,
+  onReasonChange,
+  onClose,
+  onConfirm,
+}: {
+  order: Order
+  reason: string
+  onReasonChange: (value: string) => void
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4 backdrop-blur-sm print:hidden">
+      <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-sm text-black/50">Cancelamento com histórico</span>
+            <h2 className="mt-1 font-serif text-2xl">Cancelar {order.documentType.toLowerCase()} {order.id}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#d1d5db]" aria-label="Fechar cancelamento">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="mt-4 text-sm leading-6 text-black/58">
+          A reserva será liberada, o lançamento financeiro será removido e produções abertas ficarão pausadas. O pedido continuará visível no histórico.
+        </p>
+        <div className="mt-4">
+          <SoftTextarea label="Por que está sendo cancelado?" value={reason} onChange={onReasonChange} />
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={onClose} className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium">
+            Voltar
+          </button>
+          <button type="button" onClick={onConfirm} disabled={reason.trim().length < 3} className="inline-flex h-11 items-center justify-center rounded-md bg-rose-700 px-4 text-sm font-medium text-white disabled:opacity-40">
+            Confirmar cancelamento
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function OrderBudgetPreview({
   order,
   state,
@@ -10284,6 +10728,7 @@ function OrderBudgetPreview({
                   <StatusBadge tone={orderStatusTone(order.status)}>{order.status}</StatusBadge>
                   <StatusBadge>{product.brand}</StatusBadge>
                   {relatedOp && <StatusBadge tone="blue">{relatedOp.id}</StatusBadge>}
+                  {orderIsReserved(order) && <StatusBadge tone="green">Estoque reservado</StatusBadge>}
                 </div>
               </div>
               <div className="grid gap-2 text-sm md:text-right">
@@ -10296,11 +10741,13 @@ function OrderBudgetPreview({
               </div>
             </header>
 
-            <section className="grid gap-3 border-b border-black/20 px-6 py-4 text-sm md:grid-cols-4">
+            <section className="grid gap-3 border-b border-black/20 px-6 py-4 text-sm md:grid-cols-3">
               <OpField label="Cliente" value={order.client} />
               <OpField label="Telefone" value={order.phone || customer?.phone || '-'} />
               <OpField label="Cidade" value={order.city || customer?.city || '-'} />
               <OpField label="Prazo" value={formatDate(order.dueDate)} />
+              <OpField label="Pagamento" value={`${order.paymentMethod ?? 'A combinar'} · ${order.paymentStatus ?? 'Pendente'}`} />
+              <OpField label="Entrega" value={`${order.deliveryMethod ?? 'A combinar'} · ${order.deliveryAddress || '-'}`} />
             </section>
 
             <section className="grid gap-2 border-b border-black/20 px-6 py-4 text-sm md:grid-cols-[120px_1fr_100px]">
@@ -10333,6 +10780,16 @@ function OrderBudgetPreview({
                 <strong className="mt-4 block">CONDIÇÕES:</strong>
                 <p className="mt-2 whitespace-pre-wrap text-black/55">{budgetTerms}</p>
                 <p className="mt-2 text-black/55">Orçamento válido por {state.company.budgetValidityDays} dia(s) a partir da emissão.</p>
+                {!!order.history?.length && (
+                  <>
+                    <strong className="mt-4 block">HISTÓRICO:</strong>
+                    <div className="mt-2 grid gap-1 text-black/55">
+                      {order.history.slice().reverse().map((event) => (
+                        <span key={event.id}>{formatDateTime(event.date)} · {event.type} · {event.user}</span>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
               <div className="rounded-md border border-[#111827] p-4 text-sm">
                 <div className="flex justify-between border-b border-black/10 pb-3">
@@ -10405,11 +10862,13 @@ function OrderBudgetPrint({ order, state }: { order: Order; state: AppState }) {
         </div>
       </header>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, borderBottom: '1px solid #111', padding: '10px 0', fontSize: 13 }}>
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, borderBottom: '1px solid #111', padding: '10px 0', fontSize: 13 }}>
         <PrintField label="Cliente" value={order.client} />
         <PrintField label="Telefone" value={order.phone || customer?.phone || '-'} />
         <PrintField label="Cidade" value={order.city || customer?.city || '-'} />
         <PrintField label="Prazo" value={formatDate(order.dueDate)} />
+        <PrintField label="Pagamento" value={`${order.paymentMethod ?? 'A combinar'} · ${order.paymentStatus ?? 'Pendente'}`} />
+        <PrintField label="Entrega" value={`${order.deliveryMethod ?? 'A combinar'} · ${order.deliveryAddress || '-'}`} />
       </section>
 
       <section style={{ display: 'grid', gridTemplateColumns: '120px 1fr 80px', gap: 10, borderBottom: '1px solid #111', padding: '10px 0', fontSize: 13 }}>
@@ -10442,6 +10901,16 @@ function OrderBudgetPrint({ order, state }: { order: Order; state: AppState }) {
           <strong style={{ display: 'block', marginTop: 12 }}>CONDIÇÕES:</strong>
           <p style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}>{budgetTerms}</p>
           <p style={{ margin: '8px 0 0' }}>Orçamento válido por {state.company.budgetValidityDays} dia(s) a partir da emissão.</p>
+          {!!order.history?.length && (
+            <>
+              <strong style={{ display: 'block', marginTop: 12 }}>HISTÓRICO:</strong>
+              <div style={{ display: 'grid', gap: 4, marginTop: 8 }}>
+                {order.history.slice().reverse().map((event) => (
+                  <span key={event.id}>{formatDateTime(event.date)} · {event.type} · {event.user}</span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
         <div style={{ border: '1px solid #111', padding: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ddd', paddingBottom: 8 }}>
