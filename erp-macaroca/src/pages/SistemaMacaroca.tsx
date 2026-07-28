@@ -85,6 +85,7 @@ type FinanceCategory =
   | 'Outro'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
+type PriceApprovalStatus = 'Não necessária' | 'Pendente' | 'Aprovada' | 'Recusada'
 type SyncStatus = 'Carregando' | 'Compartilhado' | 'Salvando' | 'Local' | 'Erro'
 
 type HelpGuide = {
@@ -229,6 +230,27 @@ type Order = {
   status: OrderStatus
   billed: boolean
   createdBy?: string
+  pricing?: OrderPricing
+}
+
+type OrderPricing = {
+  cost: number
+  minimumPrice: number
+  suggestedPrice: number
+  officialPrice: number
+  negotiatedPrice: number
+  tax: number
+  commission: number
+  fixedCost: number
+  desiredProfit: number
+  realProfit: number
+  realMargin: number
+  discountPercent: number
+  approvalStatus: PriceApprovalStatus
+  requestedBy?: string
+  requestedAt?: string
+  approvedBy?: string
+  approvedAt?: string
 }
 
 type OrderStockPosition = {
@@ -1015,6 +1037,14 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
       unitPrice: typeof order.unitPrice === 'number' ? order.unitPrice : undefined,
       status: normalizeOrderStatus(order.status),
       createdBy: order.createdBy ?? 'Sistema',
+      pricing: order.pricing
+        ? {
+            ...order.pricing,
+            approvalStatus: (['Não necessária', 'Pendente', 'Aprovada', 'Recusada'].includes(order.pricing.approvalStatus)
+              ? order.pricing.approvalStatus
+              : 'Não necessária') as PriceApprovalStatus,
+          }
+        : undefined,
     })),
     productionOrders: (state.productionOrders ?? []).map((op) => ({
       ...op,
@@ -1165,6 +1195,8 @@ const orderTimeline = (state: AppState, order: Order): OrderTimelineItem[] => {
   )
   const productionStarted = Boolean(op?.startedAt || firstLaunch || op?.status === 'Em produção' || op?.status === 'Pausada' || op?.status === 'Finalizada')
   const productionDone = Boolean(op && (op.status === 'Finalizada' || op.produced >= op.qty || order.status === 'Pronto' || delivered))
+  const approvalStatus = orderApprovalStatus(order)
+  const priceApproved = orderPriceApproved(order)
 
   return [
     {
@@ -1174,10 +1206,23 @@ const orderTimeline = (state: AppState, order: Order): OrderTimelineItem[] => {
       status: 'done',
     },
     {
+      label: 'Preço conferido',
+      detail:
+        approvalStatus === 'Pendente'
+          ? 'Aguardando aprovação administrativa'
+          : approvalStatus === 'Recusada'
+            ? 'Preço recusado; precisa de nova negociação'
+            : approvalStatus === 'Aprovada'
+              ? `Desconto aprovado por ${order.pricing?.approvedBy ?? 'Admin'}`
+              : 'Preço dentro do limite',
+      date: order.pricing?.approvedAt ?? order.pricing?.requestedAt,
+      status: priceApproved ? 'done' : approvalStatus === 'Recusada' ? 'pending' : 'current',
+    },
+    {
       label: 'Produção gerada',
       detail: op ? `${op.id} criada para o pedido` : 'Aguardando criação da produção',
       date: op?.startedAt || order.orderDate,
-      status: op ? 'done' : order.status === 'Aberto' ? 'current' : 'pending',
+      status: op ? 'done' : priceApproved && order.status === 'Aberto' ? 'current' : 'pending',
     },
     {
       label: 'Produção iniciada',
@@ -1300,6 +1345,54 @@ const idealPrice = (cost: number, tax: number, commission: number, fixedCost: nu
   return divider > 0 ? cost / divider : 0
 }
 
+const priceBreakdown = (
+  cost: number,
+  negotiatedPrice: number,
+  tax: number,
+  commission: number,
+  fixedCost: number,
+  desiredProfit: number,
+  officialPrice = 0,
+) => {
+  const variableRate = Math.max(0, tax + commission + fixedCost)
+  const minimumPrice = idealPrice(cost, tax, commission, fixedCost, 0)
+  const suggestedPrice = idealPrice(cost, tax, commission, fixedCost, desiredProfit)
+  const price = Math.max(0, negotiatedPrice)
+  const variableValue = price * (variableRate / 100)
+  const realProfit = price - cost - variableValue
+  const realMargin = price > 0 ? (realProfit / price) * 100 : 0
+  const discountPercent = officialPrice > 0
+    ? Math.max(0, ((officialPrice - price) / officialPrice) * 100)
+    : 0
+
+  return {
+    cost,
+    minimumPrice,
+    suggestedPrice,
+    officialPrice,
+    negotiatedPrice: price,
+    tax,
+    commission,
+    fixedCost,
+    desiredProfit,
+    realProfit,
+    realMargin,
+    discountPercent,
+  }
+}
+
+const priceNeedsApproval = (price: number, minimumPrice: number) =>
+  price > 0 && price + 0.01 < minimumPrice
+
+const orderApprovalStatus = (order: Order): PriceApprovalStatus =>
+  order.pricing?.approvalStatus ?? 'Não necessária'
+
+const orderPriceApproved = (order: Order) =>
+  !priceNeedsApproval(
+    order.pricing?.negotiatedPrice ?? order.unitPrice ?? 0,
+    order.pricing?.minimumPrice ?? 0,
+  ) || orderApprovalStatus(order) === 'Aprovada'
+
 const productSalePrice = (product?: Product, variationId?: string) => {
   if (!product) return undefined
   const variation = productVariation(product, variationId)
@@ -1308,10 +1401,66 @@ const productSalePrice = (product?: Product, variationId?: string) => {
   return undefined
 }
 
+const makeOrderPricing = (
+  state: AppState,
+  product: Product,
+  variationId: string | undefined,
+  negotiatedPrice: number,
+  userName: string,
+  canApprove: boolean,
+): OrderPricing => {
+  const officialPrice = productSalePrice(product, variationId) ?? 0
+  const breakdown = priceBreakdown(
+    productCost(product, variationId),
+    negotiatedPrice,
+    state.tax,
+    state.commission,
+    state.fixedCost,
+    state.profit,
+    officialPrice,
+  )
+  const needsApproval = priceNeedsApproval(negotiatedPrice, breakdown.minimumPrice)
+  const approvalStatus: PriceApprovalStatus = needsApproval
+    ? canApprove
+      ? 'Aprovada'
+      : 'Pendente'
+    : 'Não necessária'
+  const now = new Date().toISOString()
+
+  return {
+    ...breakdown,
+    approvalStatus,
+    requestedBy: needsApproval ? userName : undefined,
+    requestedAt: needsApproval ? now : undefined,
+    approvedBy: needsApproval && canApprove ? userName : undefined,
+    approvedAt: needsApproval && canApprove ? now : undefined,
+  }
+}
+
 const orderUnitPrice = (state: AppState, order: Order) => {
   if (typeof order.unitPrice === 'number' && Number.isFinite(order.unitPrice)) return order.unitPrice
   const product = state.products.find((item) => item.id === order.productId)
   return productSalePrice(product, order.variationId) ?? (product ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit) : 0)
+}
+
+const orderPricingDetails = (state: AppState, order: Order): OrderPricing => {
+  if (order.pricing) return order.pricing
+  const product = state.products.find((item) => item.id === order.productId)
+  const negotiatedPrice = orderUnitPrice(state, order)
+  const breakdown = priceBreakdown(
+    product ? productCost(product, order.variationId) : 0,
+    negotiatedPrice,
+    state.tax,
+    state.commission,
+    state.fixedCost,
+    state.profit,
+    productSalePrice(product, order.variationId) ?? 0,
+  )
+
+  return {
+    ...breakdown,
+    approvalStatus: 'Não necessária',
+  }
 }
 
 const documentBrand = (brand?: BrandName, company?: CompanySettings) => {
@@ -1482,8 +1631,24 @@ const helpGuides: HelpGuide[] = [
       'Abra Gestão e entre em Preços de venda.',
       'Escolha a peça e a variação.',
       'Revise custo, comissão, custos fixos e lucro desejado.',
-      'Compare preço mínimo, preço ideal e preço oficial.',
+      'Compare preço mínimo, preço sugerido e preço oficial.',
       'Salve o preço oficial. No pedido ele ainda poderá ser negociado.',
+    ],
+  },
+  {
+    id: 'aprovar-desconto',
+    category: 'Preços',
+    title: 'Como aprovar um desconto abaixo do mínimo',
+    summary: 'Revise a margem antes de liberar o pedido para financeiro e produção.',
+    keywords: ['aprovação', 'desconto', 'abaixo do mínimo', 'margem', 'negociação'],
+    target: 'pedidos',
+    action: 'Revisar pedidos',
+    steps: [
+      'Abra Vendas e entre em Orçamentos e pedidos.',
+      'Localize o documento marcado como Preço aguardando aprovação.',
+      'Confira preço mínimo, preço negociado, desconto e margem real.',
+      'Escolha Aprovar preço para liberar o fluxo ou Recusar para devolver à negociação.',
+      'Se o preço for alterado para um valor acima do mínimo, a autorização deixa de ser necessária.',
     ],
   },
   {
@@ -1777,6 +1942,9 @@ export default function SistemaMacaroca() {
   const userRole = normalizeUserRole(loggedUser?.role)
   const currentUserName = loggedUser?.name ?? 'Sistema'
   const canSeeMoney = userRole === 'Admin' || userRole === 'Financeiro'
+  const canNegotiatePrice =
+    userRole === 'Admin' || userRole === 'Financeiro' || userRole === 'Comercial' || userRole === 'Sócia'
+  const canApproveDiscount = userRole === 'Admin'
   const canManagePurchases = userRole === 'Admin' || userRole === 'Financeiro'
   const canDeleteRecords = userRole === 'Admin'
   const canAccessArea = (area: Area) =>
@@ -2261,6 +2429,7 @@ export default function SistemaMacaroca() {
   const newMaterialSimulationCost = newMaterialSimulationQty * newMaterialStockCost
   const selectedCost = selectedProduct ? productCost(selectedProduct, activeVariationId) : 0
   const selectedPrice = idealPrice(selectedCost, state.tax, state.commission, state.fixedCost, state.profit)
+  const selectedMinimumPrice = idealPrice(selectedCost, state.tax, state.commission, state.fixedCost, 0)
   const selectedSalePrice = productSalePrice(selectedProduct, activeVariationId)
   const guidedProductCost = guidedProductMaterials.reduce(
     (total, material) => total + materialPlannedCost(material),
@@ -2275,6 +2444,16 @@ export default function SistemaMacaroca() {
   )
   const selectedOrderPrice = selectedSalePrice ?? selectedPrice
   const finalOrderUnitPrice = orderUnitPriceInput > 0 ? orderUnitPriceInput : selectedOrderPrice
+  const currentOrderPricing = priceBreakdown(
+    selectedCost,
+    finalOrderUnitPrice,
+    state.tax,
+    state.commission,
+    state.fixedCost,
+    state.profit,
+    selectedSalePrice ?? 0,
+  )
+  const currentOrderNeedsApproval = priceNeedsApproval(finalOrderUnitPrice, selectedMinimumPrice)
   const selectedVariationMaterials = selectedVariation ? productMaterials(selectedProduct, selectedVariation.id) : []
   const openProductionOrders = state.productionOrders.filter((op) => op.status !== 'Finalizada')
   const guidedOp = openProductionOrders.find((op) => op.id === guidedOpId) ?? openProductionOrders[0]
@@ -2308,13 +2487,14 @@ export default function SistemaMacaroca() {
     const fixedExpenses = byCategory('Despesa fixa')
     const estimatedProfitByOrder = state.orders.filter((order) => order.documentType === 'Pedido').map((order) => {
       const product = state.products.find((item) => item.id === order.productId)
-      const unitCost = product ? productCost(product, order.variationId) : 0
+      const pricing = orderPricingDetails(state, order)
+      const unitCost = pricing.cost
       const price = orderUnitPrice(state, order)
       const revenue = price * order.qty
       const materialCost = unitCost * order.qty
-      const taxCost = revenue * (state.tax / 100)
-      const commissionCost = revenue * (state.commission / 100)
-      const fixedCostShare = revenue * (state.fixedCost / 100)
+      const taxCost = revenue * (pricing.tax / 100)
+      const commissionCost = revenue * (pricing.commission / 100)
+      const fixedCostShare = revenue * (pricing.fixedCost / 100)
       const profit = revenue - materialCost - taxCost - commissionCost - fixedCostShare
 
       return {
@@ -2323,7 +2503,7 @@ export default function SistemaMacaroca() {
         revenue,
         materialCost,
         profit,
-        margin: revenue > 0 ? (profit / revenue) * 100 : 0,
+        margin: pricing.realMargin,
       }
     })
 
@@ -3037,6 +3217,15 @@ export default function SistemaMacaroca() {
     }
     const price = finalOrderUnitPrice
     const documentType = orderDocumentType
+    const pricing = makeOrderPricing(
+      state,
+      selectedProduct,
+      activeVariationId,
+      price,
+      currentUserName,
+      canApproveDiscount,
+    )
+    const approvedForRoutine = pricing.approvalStatus !== 'Pendente'
     const order: Order = {
       id: nextDocumentId(state.orders, documentType),
       documentType,
@@ -3052,15 +3241,16 @@ export default function SistemaMacaroca() {
       dueDate: orderDueDate,
       notes: orderNotes,
       status: 'Aberto',
-      billed: documentType === 'Pedido',
+      billed: documentType === 'Pedido' && approvedForRoutine,
       createdBy: currentUserName,
+      pricing,
     }
 
     setState((current) => ({
       ...current,
       orders: [order, ...current.orders],
       cashEntries:
-        documentType === 'Pedido'
+        documentType === 'Pedido' && approvedForRoutine
           ? [
               {
                 id: `CX-${Date.now()}`,
@@ -3079,7 +3269,9 @@ export default function SistemaMacaroca() {
     }))
     setActiveArea('vendas')
     setMessage(
-      documentType === 'Pedido'
+      pricing.approvalStatus === 'Pendente'
+        ? `${documentType} registrado com preço abaixo do mínimo. Aguarde a aprovação administrativa.`
+        : documentType === 'Pedido'
         ? 'Pedido registrado. Confira o estoque e crie a produção se faltar peça pronta.'
         : 'Orçamento registrado. Você pode imprimir ou transformar em pedido quando for aprovado.',
     )
@@ -3095,6 +3287,15 @@ export default function SistemaMacaroca() {
     const price = finalOrderUnitPrice
     const documentType = orderDocumentType
     const orderId = nextDocumentId(state.orders, documentType)
+    const pricing = makeOrderPricing(
+      state,
+      selectedProduct,
+      activeVariationId,
+      price,
+      currentUserName,
+      canApproveDiscount,
+    )
+    const approvedForRoutine = pricing.approvalStatus !== 'Pendente'
     const order: Order = {
       id: orderId,
       documentType,
@@ -3110,8 +3311,9 @@ export default function SistemaMacaroca() {
       dueDate: orderDueDate,
       notes: orderNotes,
       status: 'Aberto',
-      billed: documentType === 'Pedido',
+      billed: documentType === 'Pedido' && approvedForRoutine,
       createdBy: currentUserName,
+      pricing,
     }
 
     if (documentType === 'Orçamento') {
@@ -3121,36 +3323,52 @@ export default function SistemaMacaroca() {
       }))
       setGuidedOrderStep(1)
       setActiveArea('pedidos')
-      setMessage(`Orçamento ${order.id} registrado. Quando aprovado, transforme em pedido.`)
+      setMessage(
+        pricing.approvalStatus === 'Pendente'
+          ? `Orçamento ${order.id} salvo. O preço abaixo do mínimo aguarda aprovação administrativa.`
+          : `Orçamento ${order.id} registrado. Quando aprovado, transforme em pedido.`,
+      )
       return
     }
 
     setState((current) => ({
       ...current,
       orders: [order, ...current.orders],
-      cashEntries: [
-        {
-          id: `CX-${Date.now()}`,
-          kind: 'Entrada',
-          category: 'Venda recebida',
-          description: `Pedido ${order.client}`,
-          value: order.qty * price,
-          source: order.id,
-          dueDate: order.orderDate,
-          paid: true,
-          createdBy: currentUserName,
-        },
-        ...current.cashEntries,
-      ],
+      cashEntries: approvedForRoutine
+        ? [
+            {
+              id: `CX-${Date.now()}`,
+              kind: 'Entrada',
+              category: 'Venda recebida',
+              description: `Pedido ${order.client}`,
+              value: order.qty * price,
+              source: order.id,
+              dueDate: order.orderDate,
+              paid: true,
+              createdBy: currentUserName,
+            },
+            ...current.cashEntries,
+          ]
+        : current.cashEntries,
     }))
     setGuidedOrderStep(1)
-    setActiveArea('producao-necessidades')
-    setMessage(`Pedido ${order.id} registrado. Agora o PCP confere estoque e decide a quantidade para produção.`)
+    setActiveArea(approvedForRoutine ? 'producao-necessidades' : 'pedidos')
+    setMessage(
+      approvedForRoutine
+        ? `Pedido ${order.id} registrado. Agora o PCP confere estoque e decide a quantidade para produção.`
+        : `Pedido ${order.id} salvo. O preço abaixo do mínimo precisa de aprovação antes do financeiro e da produção.`,
+    )
   }
 
   const generateProductionOrder = (order: Order, requestedQty?: number) => {
     if (order.documentType === 'Orçamento') {
       setMessage('Transforme o orçamento em pedido antes de criar produção.')
+      return
+    }
+
+    if (!orderPriceApproved(order)) {
+      setMessage('O preço deste pedido está abaixo do mínimo e ainda aguarda aprovação administrativa.')
+      setActiveArea('pedidos')
       return
     }
 
@@ -3200,6 +3418,10 @@ export default function SistemaMacaroca() {
 
   const convertBudgetToOrder = (order: Order) => {
     if (order.documentType !== 'Orçamento') return
+    if (!orderPriceApproved(order)) {
+      setMessage('Este orçamento precisa de aprovação administrativa antes de virar pedido.')
+      return
+    }
     const price = orderUnitPrice(state, order)
     const newOrderId = nextDocumentId(state.orders, 'Pedido')
 
@@ -3274,6 +3496,15 @@ export default function SistemaMacaroca() {
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
     const order = state.orders.find((item) => item.id === orderId)
+    if (
+      order &&
+      !orderPriceApproved(order) &&
+      status !== 'Aberto' &&
+      status !== 'Cancelado'
+    ) {
+      setMessage('A aprovação do preço é necessária antes de avançar este pedido.')
+      return
+    }
     if (status === 'Entregue' && order) {
       const product = state.products.find((item) => item.id === order.productId)
       const deliveredSource = `Entrega ${order.id}`
@@ -3328,31 +3559,156 @@ export default function SistemaMacaroca() {
   }
 
   const updateOrderUnitPrice = (orderId: string, unitPrice: number) => {
+    if (!canNegotiatePrice) {
+      setMessage('Seu perfil não pode alterar preços de venda.')
+      return
+    }
     const safePrice = Math.max(0, unitPrice)
     const order = state.orders.find((item) => item.id === orderId)
     if (!order) return
+    if (order.status !== 'Aberto' || state.productionOrders.some((op) => op.orderId === orderId)) {
+      setMessage('O preço só pode ser alterado enquanto o documento estiver aberto e antes da produção.')
+      return
+    }
+    const product = state.products.find((item) => item.id === order.productId)
+    if (!product) return
+    const pricing = makeOrderPricing(
+      state,
+      product,
+      order.variationId,
+      safePrice,
+      currentUserName,
+      canApproveDiscount,
+    )
+    const approvedForRoutine = pricing.approvalStatus !== 'Pendente'
+    const existingCashEntry = state.cashEntries.find(
+      (entry) => entry.source === orderId && entry.category === 'Venda recebida',
+    )
+    const cashEntriesWithoutSale = state.cashEntries.filter(
+      (entry) => !(entry.source === orderId && entry.category === 'Venda recebida'),
+    )
+    const nextCashEntries =
+      order.documentType === 'Pedido' && approvedForRoutine
+        ? [
+            {
+              id: existingCashEntry?.id ?? `CX-${Date.now()}`,
+              kind: 'Entrada' as CashKind,
+              category: 'Venda recebida' as FinanceCategory,
+              description: `Pedido ${order.client}`,
+              value: safePrice * order.qty,
+              source: order.id,
+              dueDate: order.orderDate,
+              paid: existingCashEntry?.paid ?? true,
+              createdBy: existingCashEntry?.createdBy ?? currentUserName,
+            },
+            ...cashEntriesWithoutSale,
+          ]
+        : cashEntriesWithoutSale
 
     const nextState = {
       ...state,
       orders: state.orders.map((item) =>
-        item.id === orderId ? { ...item, unitPrice: safePrice } : item,
+        item.id === orderId
+          ? {
+              ...item,
+              unitPrice: safePrice,
+              pricing,
+              billed: item.documentType === 'Pedido' && approvedForRoutine,
+            }
+          : item,
       ),
-      cashEntries: state.cashEntries.map((entry) =>
-        entry.source === orderId && entry.category === 'Venda recebida'
-          ? { ...entry, value: safePrice * order.qty }
-          : entry,
-      ),
+      cashEntries: nextCashEntries,
     }
 
     setState(nextState)
-    void saveStateImmediately(nextState, `Preço do ${order.documentType.toLowerCase()} ${order.id} sincronizado.`)
-    setMessage(`Preço do ${order.documentType.toLowerCase()} ${order.id} atualizado.`)
+    void saveStateImmediately(
+      nextState,
+      pricing.approvalStatus === 'Pendente'
+        ? `Preço de ${order.id} enviado para aprovação.`
+        : `Preço do ${order.documentType.toLowerCase()} ${order.id} sincronizado.`,
+    )
+    setMessage(
+      pricing.approvalStatus === 'Pendente'
+        ? `Preço abaixo do mínimo. ${order.id} ficou aguardando aprovação administrativa.`
+        : `Preço do ${order.documentType.toLowerCase()} ${order.id} atualizado com margem de ${pricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%.`,
+    )
+  }
+
+  const reviewOrderPrice = (orderId: string, decision: 'Aprovada' | 'Recusada') => {
+    if (!canApproveDiscount) {
+      setMessage('Somente o administrador pode aprovar descontos abaixo do mínimo.')
+      return
+    }
+    const order = state.orders.find((item) => item.id === orderId)
+    if (!order?.pricing || order.pricing.approvalStatus !== 'Pendente') return
+    const approved = decision === 'Aprovada'
+    const now = new Date().toISOString()
+    const existingCashEntry = state.cashEntries.find(
+      (entry) => entry.source === orderId && entry.category === 'Venda recebida',
+    )
+    const cashEntriesWithoutSale = state.cashEntries.filter(
+      (entry) => !(entry.source === orderId && entry.category === 'Venda recebida'),
+    )
+    const nextCashEntries =
+      approved && order.documentType === 'Pedido'
+        ? [
+            {
+              id: existingCashEntry?.id ?? `CX-${Date.now()}`,
+              kind: 'Entrada' as CashKind,
+              category: 'Venda recebida' as FinanceCategory,
+              description: `Pedido ${order.client}`,
+              value: order.qty * order.pricing.negotiatedPrice,
+              source: order.id,
+              dueDate: order.orderDate,
+              paid: existingCashEntry?.paid ?? true,
+              createdBy: existingCashEntry?.createdBy ?? currentUserName,
+            },
+            ...cashEntriesWithoutSale,
+          ]
+        : cashEntriesWithoutSale
+    const nextState = {
+      ...state,
+      orders: state.orders.map((item) =>
+        item.id === orderId
+          ? {
+              ...item,
+              billed: approved && item.documentType === 'Pedido',
+              pricing: {
+                ...item.pricing!,
+                approvalStatus: decision,
+                approvedBy: currentUserName,
+                approvedAt: now,
+              },
+            }
+          : item,
+      ),
+      cashEntries: nextCashEntries,
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `Preço de ${order.id} ${decision.toLowerCase()} e sincronizado.`)
+    setMessage(
+      approved
+        ? `Preço de ${order.id} aprovado. O pedido está liberado para financeiro e produção.`
+        : `Preço de ${order.id} recusado. Edite o valor para solicitar uma nova análise.`,
+    )
   }
 
   const updateProductSalePrice = (productId: string, variationId: string | undefined, salePrice: number) => {
+    if (!canSeeMoney) {
+      setMessage('Seu perfil não pode alterar o preço oficial.')
+      return
+    }
     const safePrice = Math.max(0, Math.round(salePrice))
     const product = state.products.find((item) => item.id === productId)
     if (!product) return
+    const minimumPrice = idealPrice(
+      productCost(product, variationId),
+      state.tax,
+      state.commission,
+      state.fixedCost,
+      0,
+    )
 
     const nextState = {
       ...state,
@@ -3372,7 +3728,11 @@ export default function SistemaMacaroca() {
     setState(nextState)
     void saveStateImmediately(nextState, `Preço de venda de ${product.name} sincronizado.`)
     setOrderUnitPriceInput(safePrice)
-    setMessage(`Preço de venda de ${product.name} atualizado.`)
+    setMessage(
+      priceNeedsApproval(safePrice, minimumPrice)
+        ? `Preço oficial de ${product.name} atualizado, mas está abaixo do mínimo de ${money(minimumPrice)}.`
+        : `Preço oficial de ${product.name} atualizado.`,
+    )
   }
 
   const deleteProductionOrder = (op: ProductionOrder) => {
@@ -4202,6 +4562,12 @@ export default function SistemaMacaroca() {
       return
     }
 
+    if (!orderPriceApproved(order)) {
+      setMessage('O preço deste pedido precisa de aprovação administrativa antes da produção.')
+      setActiveArea('pedidos')
+      return
+    }
+
     if (hasProductionOrder(order.id)) {
       setMessage('Esse pedido já possui produção criada.')
       return
@@ -4223,7 +4589,9 @@ export default function SistemaMacaroca() {
     delivered: state.orders.filter((order) => order.documentType === 'Pedido' && order.status === 'Entregue'),
     active: state.orders.filter((order) => order.documentType === 'Pedido' && order.status !== 'Entregue' && order.status !== 'Cancelado'),
   }
-  const ordersWaitingProductionOrder = salesFlow.open.filter((order) => !hasProductionOrder(order.id))
+  const ordersWaitingProductionOrder = salesFlow.open.filter(
+    (order) => orderPriceApproved(order) && !hasProductionOrder(order.id),
+  )
   const productionNeedRows = productStock
     .map((row) => ({
       ...row,
@@ -4254,6 +4622,17 @@ export default function SistemaMacaroca() {
     })
     .filter((item) => item.missing.length > 0)
   const smartAlerts: SmartAlert[] = [
+    ...state.orders
+      .filter((order) => order.pricing?.approvalStatus === 'Pendente')
+      .map((order) => ({
+        id: `preco-pendente-${order.id}`,
+        badge: 'Preço em aprovação',
+        title: `${order.id} · ${order.client}`,
+        detail: `Negociado em ${money(order.pricing!.negotiatedPrice)}; mínimo ${money(order.pricing!.minimumPrice)}. Financeiro e produção estão aguardando.`,
+        tone: 'rose' as const,
+        actionLabel: canApproveDiscount ? 'Revisar preço' : 'Ver pedido',
+        onClick: () => setActiveArea('pedidos'),
+      })),
     ...overdueSmartOrders.map((order) => ({
       id: `prazo-vencido-${order.id}`,
       badge: 'Prazo vencido',
@@ -4315,6 +4694,7 @@ export default function SistemaMacaroca() {
     })),
   ]
   const visibleSmartAlerts = smartAlerts.filter((alert) => {
+    if (alert.id.startsWith('preco-pendente')) return canAccessArea('pedidos')
     if (alert.id.startsWith('prazo-vencido')) return canAccessArea('vendas')
     if (alert.id.startsWith('falta-mp')) return canAccessArea('estoque')
     if (alert.id.startsWith('producao-parada')) return canAccessArea('producao')
@@ -5399,6 +5779,7 @@ export default function SistemaMacaroca() {
                         const product = state.products.find((item) => item.id === order.productId)
                         const stockPosition = orderStockPosition(order)
                         const unitPrice = orderUnitPrice(state, order)
+                        const pricing = orderPricingDetails(state, order)
                         const relatedOp = state.productionOrders.find((op) => op.orderId === order.id)
                         const timeline = orderTimeline(state, order)
                         const hasOp = hasProductionOrder(order.id)
@@ -5410,7 +5791,13 @@ export default function SistemaMacaroca() {
                           setActiveArea(relatedOp ? 'producao-guiada' : 'producao')
                         }
                         const nextAction =
-                          order.status === 'Aberto' && missingQty > 0 && !hasOp
+                          !orderPriceApproved(order)
+                            ? {
+                                label: canApproveDiscount ? 'Revisar preço' : 'Aguardar aprovação',
+                                detail: `O preço negociado de ${money(unitPrice)} está abaixo do mínimo de ${money(pricing.minimumPrice)}.`,
+                                onClick: () => setActiveArea('pedidos'),
+                              }
+                            : order.status === 'Aberto' && missingQty > 0 && !hasOp
                             ? {
                                 label: 'Gerar produção',
                                 detail: `PCP sugere produzir ${missingQty} un depois de conferir estoque e reservas.`,
@@ -5457,15 +5844,18 @@ export default function SistemaMacaroca() {
                                   <strong>{order.id} · {order.client}</strong>
                                   <StatusBadge tone={orderStatusTone(order.status)}>{order.status}</StatusBadge>
                                   {hasOp && <StatusBadge tone="blue">{relatedOp?.id ?? 'Produção criada'}</StatusBadge>}
+                                  {pricing.approvalStatus === 'Pendente' && <StatusBadge tone="rose">Preço em aprovação</StatusBadge>}
+                                  {pricing.approvalStatus === 'Recusada' && <StatusBadge tone="rose">Preço recusado</StatusBadge>}
                                 </div>
                                 <p className="mt-2 text-sm text-black/62">
                                   {productDisplayName(product, order.variationId)} · {order.qty} un · prazo {formatDate(order.dueDate)}
                                 </p>
-                                <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                                   <MiniStat label="Pronto" value={`${stockPosition.physical} un`} />
                                   <MiniStat label="Reservado" value={`${stockPosition.pending} un`} />
                                   <MiniStat label="Falta" value={`${missingQty} un`} tone={missingQty > 0 ? 'rose' : 'green'} />
-                                  {canSeeMoney && <MiniStat label="Venda" value={money(unitPrice * order.qty)} tone="green" />}
+                                  {canNegotiatePrice && <MiniStat label="Venda" value={money(unitPrice * order.qty)} tone="green" />}
+                                  {canNegotiatePrice && <MiniStat label="Margem real" value={`${pricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} tone={orderPriceApproved(order) ? 'green' : 'rose'} />}
                                 </div>
                                 <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
                                   <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">Ver detalhes da venda</summary>
@@ -5506,16 +5896,26 @@ export default function SistemaMacaroca() {
                                   <ReceiptText className="h-4 w-4" />
                                   Ver pedido
                                 </button>
-                                {canSeeMoney && (
+                                {canNegotiatePrice && (
                                   <label className="grid gap-1 rounded-md border border-[#e5e7eb] bg-white p-2">
                                     <FieldLabel>Preço por peça</FieldLabel>
                                     <input
                                       type="number"
                                       value={Math.round(unitPrice)}
                                       onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
-                                      className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
+                                      disabled={order.status !== 'Aberto' || hasOp}
+                                      className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5] disabled:bg-[#f3f4f6] disabled:text-black/40"
                                     />
                                   </label>
+                                )}
+                                {canApproveDiscount && pricing.approvalStatus === 'Pendente' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => reviewOrderPrice(order.id, 'Aprovada')}
+                                    className="inline-flex h-10 items-center justify-center rounded-md bg-[#166534] px-3 text-sm font-medium text-white"
+                                  >
+                                    Aprovar desconto
+                                  </button>
                                 )}
                                 <button
                                   type="button"
@@ -6248,10 +6648,14 @@ export default function SistemaMacaroca() {
                           <SoftInput label="Data do pedido" value={orderDate} onChange={setOrderDate} />
                           <SoftInput label="Prazo" value={orderDueDate} onChange={setOrderDueDate} />
                         </div>
-                        {canSeeMoney && (
-                          <div className="grid gap-3 rounded-md border border-[#d1d5db] bg-white p-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
-                            <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
-                            <ReadOnlyField label="Preço da tabela" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
+                        {canNegotiatePrice && (
+                          <div className="grid gap-3 rounded-md border border-[#d1d5db] bg-white p-4">
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              <MiniStat label="Preço mínimo" value={money(selectedMinimumPrice)} tone="amber" />
+                              <MiniStat label="Preço sugerido" value={money(selectedPrice)} />
+                              <MiniStat label="Preço oficial" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                             <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
                             <button
                               type="button"
@@ -6260,6 +6664,26 @@ export default function SistemaMacaroca() {
                             >
                               {selectedSalePrice ? 'Usar tabela' : 'Usar sugerido'}
                             </button>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <MiniStat
+                                label="Margem real"
+                                value={`${money(currentOrderPricing.realProfit)} · ${currentOrderPricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                                tone={currentOrderNeedsApproval ? 'rose' : currentOrderPricing.realMargin >= 0 ? 'green' : 'amber'}
+                              />
+                              <MiniStat
+                                label="Situação do preço"
+                                value={currentOrderNeedsApproval ? 'Precisa de aprovação' : 'Dentro do limite'}
+                                tone={currentOrderNeedsApproval ? 'rose' : 'green'}
+                              />
+                            </div>
+                            {currentOrderNeedsApproval && (
+                              <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm leading-5 text-rose-900">
+                                {canApproveDiscount
+                                  ? `O valor negociado está abaixo do mínimo de ${money(selectedMinimumPrice)}. Como você é administrador, a autorização será registrada ao confirmar o documento.`
+                                  : `O valor negociado está abaixo do mínimo de ${money(selectedMinimumPrice)}. O documento será salvo, mas financeiro e produção ficarão aguardando aprovação do administrador.`}
+                              </div>
+                            )}
                           </div>
                         )}
                         <label className="grid gap-2">
@@ -6274,7 +6698,7 @@ export default function SistemaMacaroca() {
                           </select>
                         </label>
                         <SoftInput label="Observação do pedido" value={orderNotes} onChange={setOrderNotes} />
-                        {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * finalOrderUnitPrice)} />}
+                        {canNegotiatePrice && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * finalOrderUnitPrice)} />}
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -6304,7 +6728,20 @@ export default function SistemaMacaroca() {
                           <MiniRow title="Tipo" detail={orderDocumentType} />
                           <MiniRow title="Peça" detail={`${selectedProduct.code} · ${productDisplayName(selectedProduct, activeVariationId)}`} />
                           <MiniRow title="Quantidade" detail={`${orderQty} un`} />
-                          {canSeeMoney && <MiniRow title="Preço combinado" detail={`${money(finalOrderUnitPrice)} por peça · total ${money(orderQty * finalOrderUnitPrice)}`} />}
+                          {canNegotiatePrice && <MiniRow title="Preço combinado" detail={`${money(finalOrderUnitPrice)} por peça · total ${money(orderQty * finalOrderUnitPrice)}`} />}
+                          {canNegotiatePrice && <MiniRow title="Margem real" detail={`${money(currentOrderPricing.realProfit)} por peça · ${currentOrderPricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} />}
+                          {canNegotiatePrice && (
+                            <MiniRow
+                              title="Autorização"
+                              detail={
+                                currentOrderNeedsApproval
+                                  ? canApproveDiscount
+                                    ? 'Será aprovada por você ao confirmar'
+                                    : 'Aguardará aprovação administrativa'
+                                  : 'Não necessária'
+                              }
+                            />
+                          )}
                           <MiniRow title="Prazo" detail={formatDate(orderDueDate)} />
                         </div>
                         {orderNotes && <MiniRow title="Observação" detail={orderNotes} />}
@@ -7188,13 +7625,23 @@ export default function SistemaMacaroca() {
                 <div className="grid gap-4">
                   {state.products.map((product) => {
                     const baseCost = productCost(product)
+                    const baseMinimumPrice = idealPrice(baseCost, state.tax, state.commission, state.fixedCost, 0)
                     const baseSuggestedPrice = idealPrice(baseCost, state.tax, state.commission, state.fixedCost, state.profit)
                     const baseSalePrice = productSalePrice(product)
+                    const basePricing = priceBreakdown(
+                      baseCost,
+                      baseSalePrice ?? 0,
+                      state.tax,
+                      state.commission,
+                      state.fixedCost,
+                      state.profit,
+                      baseSalePrice ?? 0,
+                    )
 
                     return (
                       <Panel key={product.id} title={`${product.code} · ${product.name}`}>
                         <div className="grid gap-4">
-                          <div className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 lg:grid-cols-[1fr_130px_150px_170px_auto] lg:items-end">
+                          <div className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 lg:grid-cols-[1fr_120px_120px_130px_150px_auto] lg:items-end">
                             <div>
                               <FieldLabel>Preço padrão do produto</FieldLabel>
                               <p className="mt-1 text-sm leading-5 text-black/56">
@@ -7203,9 +7650,10 @@ export default function SistemaMacaroca() {
                               <p className="mt-2 text-xs text-black/40">{product.brand} · {product.category}</p>
                             </div>
                             <ReadOnlyField label="Custo" value={money(baseCost)} />
+                            <ReadOnlyField label="Mínimo" value={money(baseMinimumPrice)} />
                             <ReadOnlyField label="Sugerido" value={money(baseSuggestedPrice)} />
                             <SoftNumber
-                              label="Preço definido"
+                              label="Preço oficial"
                               value={baseSalePrice ?? 0}
                               onChange={(value) => updateProductSalePrice(product.id, undefined, value)}
                             />
@@ -7217,19 +7665,34 @@ export default function SistemaMacaroca() {
                               Usar sugerido
                             </button>
                           </div>
+                          {baseSalePrice ? (
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              <MiniStat label="Sobra por peça" value={money(basePricing.realProfit)} tone={basePricing.realProfit >= 0 ? 'green' : 'rose'} />
+                              <MiniStat label="Margem oficial" value={`${basePricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} tone={basePricing.realMargin >= 0 ? 'green' : 'rose'} />
+                              <MiniStat label="Situação" value={priceNeedsApproval(baseSalePrice, baseMinimumPrice) ? 'Abaixo do mínimo' : 'Preço saudável'} tone={priceNeedsApproval(baseSalePrice, baseMinimumPrice) ? 'rose' : 'green'} />
+                            </div>
+                          ) : null}
 
                           <div className="grid gap-3">
                             {product.variations.map((variation) => {
                               const cost = productCost(product, variation.id)
+                              const minimum = idealPrice(cost, state.tax, state.commission, state.fixedCost, 0)
                               const suggested = idealPrice(cost, state.tax, state.commission, state.fixedCost, state.profit)
                               const salePrice = productSalePrice(product, variation.id)
-                              const margin = salePrice ? salePrice - cost : 0
-                              const marginPercent = salePrice ? (margin / salePrice) * 100 : 0
+                              const pricing = priceBreakdown(
+                                cost,
+                                salePrice ?? 0,
+                                state.tax,
+                                state.commission,
+                                state.fixedCost,
+                                state.profit,
+                                salePrice ?? 0,
+                              )
 
                               return (
                                 <div
                                   key={variation.id}
-                                  className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 lg:grid-cols-[1.3fr_120px_140px_160px_130px_auto] lg:items-end"
+                                  className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 lg:grid-cols-[1.3fr_110px_110px_120px_150px_135px_auto] lg:items-end"
                                 >
                                   <div>
                                     <FieldLabel>Variação</FieldLabel>
@@ -7239,16 +7702,17 @@ export default function SistemaMacaroca() {
                                     </span>
                                   </div>
                                   <ReadOnlyField label="Custo" value={money(cost)} />
+                                  <ReadOnlyField label="Mínimo" value={money(minimum)} />
                                   <ReadOnlyField label="Sugerido" value={money(suggested)} />
                                   <SoftNumber
-                                    label="Preço definido"
+                                    label="Preço oficial"
                                     value={salePrice ?? 0}
                                     onChange={(value) => updateProductSalePrice(product.id, variation.id, value)}
                                   />
                                   <MiniStat
-                                    label="Margem"
-                                    value={salePrice ? `${money(margin)} · ${marginPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : 'Sem preço'}
-                                    tone={salePrice && margin > 0 ? 'green' : 'amber'}
+                                    label="Margem real"
+                                    value={salePrice ? `${money(pricing.realProfit)} · ${pricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : 'Sem preço'}
+                                    tone={salePrice && pricing.realProfit >= 0 ? 'green' : 'rose'}
                                   />
                                   <button
                                     type="button"
@@ -7794,10 +8258,13 @@ export default function SistemaMacaroca() {
                       <SoftNumber label="Qtd." value={orderQty} onChange={setOrderQty} />
                       <ReadOnlyField label="Status inicial" value="Aberto" />
                     </div>
-                    {canSeeMoney && (
+                    {canNegotiatePrice && (
                       <div className="grid gap-3 rounded-md border border-[#d1d5db] bg-white p-3">
-                        <ReadOnlyField label="Preço sugerido pelo sistema" value={money(selectedPrice)} />
-                        <ReadOnlyField label="Preço da tabela" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <MiniStat label="Preço mínimo" value={money(selectedMinimumPrice)} tone="amber" />
+                          <MiniStat label="Preço sugerido" value={money(selectedPrice)} />
+                          <MiniStat label="Preço oficial" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
+                        </div>
                         <SoftNumber label="Preço combinado por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
                         <button
                           type="button"
@@ -7806,10 +8273,20 @@ export default function SistemaMacaroca() {
                         >
                           {selectedSalePrice ? 'Usar preço da tabela' : 'Usar preço sugerido'}
                         </button>
+                        <MiniStat
+                          label="Margem real da venda"
+                          value={`${money(currentOrderPricing.realProfit)} por peça · ${currentOrderPricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                          tone={currentOrderNeedsApproval ? 'rose' : 'green'}
+                        />
+                        {currentOrderNeedsApproval && (
+                          <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm leading-5 text-rose-900">
+                            Abaixo do preço mínimo. O documento aguardará aprovação administrativa antes de seguir para financeiro ou produção.
+                          </div>
+                        )}
                       </div>
                     )}
                     <SoftInput label="Observações" value={orderNotes} onChange={setOrderNotes} />
-                    {canSeeMoney && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * finalOrderUnitPrice)} />}
+                    {canNegotiatePrice && <TotalLine label={orderDocumentType === 'Pedido' ? 'Venda prevista' : 'Valor do orçamento'} value={money(orderQty * finalOrderUnitPrice)} />}
                     <button
                       type="button"
                       onClick={createOrder}
@@ -7827,6 +8304,7 @@ export default function SistemaMacaroca() {
                       const product = state.products.find((item) => item.id === order.productId)
                       const timeline = orderTimeline(state, order)
                       const price = orderUnitPrice(state, order)
+                      const pricing = orderPricingDetails(state, order)
                       return (
                         <div
                           key={order.id}
@@ -7840,6 +8318,9 @@ export default function SistemaMacaroca() {
                               </StatusBadge>
                               <StatusBadge tone={orderStatusTone(order.status)}>{order.status}</StatusBadge>
                               {order.documentType === 'Pedido' && order.billed && <StatusBadge tone="green">Faturado</StatusBadge>}
+                              {pricing.approvalStatus === 'Pendente' && <StatusBadge tone="rose">Preço aguardando aprovação</StatusBadge>}
+                              {pricing.approvalStatus === 'Aprovada' && <StatusBadge tone="green">Desconto aprovado</StatusBadge>}
+                              {pricing.approvalStatus === 'Recusada' && <StatusBadge tone="rose">Preço recusado</StatusBadge>}
                             </div>
                             <p className="mt-2 text-sm text-black/60">
                               {productDisplayName(product, order.variationId)} · {order.qty} un
@@ -7850,7 +8331,12 @@ export default function SistemaMacaroca() {
                               <p>Telefone: {order.phone || 'Não informado'}</p>
                               <p>Cidade: {order.city || 'Não informada'}</p>
                               <p>Registrado por: {order.createdBy ?? 'Sistema'}</p>
-                              {canSeeMoney && <p>Preço combinado: {money(price)} por peça · Total: {money(order.qty * price)}</p>}
+                              {canNegotiatePrice && <p>Preço combinado: {money(price)} por peça · Total: {money(order.qty * price)}</p>}
+                              {canNegotiatePrice && (
+                                <p>
+                                  Mínimo: {money(pricing.minimumPrice)} · Oficial: {pricing.officialPrice ? money(pricing.officialPrice) : 'não definido'} · Margem real: {money(pricing.realProfit)} ({pricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)
+                                </p>
+                              )}
                               {order.notes && <p>Obs.: {order.notes}</p>}
                             </div>
                             <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
@@ -7880,7 +8366,7 @@ export default function SistemaMacaroca() {
                               type="button"
                               onClick={() => openProductionDecision(order)}
                               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
-                              disabled={order.documentType !== 'Pedido' || order.status !== 'Aberto'}
+                              disabled={order.documentType !== 'Pedido' || order.status !== 'Aberto' || !orderPriceApproved(order)}
                             >
                               Analisar produção
                             </button>
@@ -7889,6 +8375,7 @@ export default function SistemaMacaroca() {
                                 type="button"
                                 onClick={() => convertBudgetToOrder(order)}
                                 className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#3730a3] px-4 text-sm font-medium text-white"
+                                disabled={!orderPriceApproved(order)}
                               >
                                 Virar pedido
                               </button>
@@ -7901,16 +8388,35 @@ export default function SistemaMacaroca() {
                               <ReceiptText className="h-4 w-4" />
                               {order.documentType}
                             </button>
-                            {canSeeMoney && (
+                            {canNegotiatePrice && (
                               <label className="grid gap-1 rounded-md border border-[#e5e7eb] bg-white p-2">
                                 <FieldLabel>Preço por peça</FieldLabel>
                                 <input
                                   type="number"
                                   value={Math.round(price)}
                                   onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
-                                  className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
+                                  disabled={order.status !== 'Aberto' || state.productionOrders.some((op) => op.orderId === order.id)}
+                                  className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5] disabled:bg-[#f3f4f6] disabled:text-black/40"
                                 />
                               </label>
+                            )}
+                            {canApproveDiscount && pricing.approvalStatus === 'Pendente' && (
+                              <div className="grid grid-cols-2 gap-2 rounded-md border border-rose-200 bg-rose-50 p-2">
+                                <button
+                                  type="button"
+                                  onClick={() => reviewOrderPrice(order.id, 'Aprovada')}
+                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#166534] px-3 text-sm font-medium text-white"
+                                >
+                                  Aprovar preço
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => reviewOrderPrice(order.id, 'Recusada')}
+                                  className="inline-flex h-10 items-center justify-center rounded-md border border-rose-300 bg-white px-3 text-sm font-medium text-rose-800"
+                                >
+                                  Recusar
+                                </button>
+                              </div>
                             )}
                             <button
                               type="button"
@@ -9117,6 +9623,10 @@ function PricePanel({
   profit: number
   onChange: (field: 'tax' | 'commission' | 'fixedCost' | 'profit', value: number) => void
 }) {
+  const minimumPrice = idealPrice(cost, tax, commission, fixedCost, 0)
+  const allocatedPercent = tax + commission + fixedCost + profit
+  const calculationValid = allocatedPercent < 100
+
   return (
     <aside className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center gap-3">
@@ -9129,12 +9639,18 @@ function PricePanel({
         </div>
       </div>
       <div className="mt-5 grid gap-4">
-        <PriceLine label="Custo da peça" value={money(cost)} />
-        <PriceLine label="Preço ideal" value={money(price)} featured />
+        <PriceLine label="Custo da ficha com perdas" value={money(cost)} />
+        <PriceLine label="Preço mínimo" value={money(minimumPrice)} />
+        <PriceLine label="Preço sugerido" value={calculationValid ? money(price) : 'Revisar percentuais'} featured />
         <PercentControl label="Impostos" value={tax} onChange={(value) => onChange('tax', value)} />
         <PercentControl label="Comissão" value={commission} onChange={(value) => onChange('commission', value)} />
-        <PercentControl label="Custos fixos" value={fixedCost} onChange={(value) => onChange('fixedCost', value)} />
+        <PercentControl label="Rateio de custos fixos" value={fixedCost} onChange={(value) => onChange('fixedCost', value)} />
         <PercentControl label="Lucro desejado" value={profit} onChange={(value) => onChange('profit', value)} />
+        <div className={`rounded-md border p-3 text-sm leading-5 ${calculationValid ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-rose-200 bg-rose-50 text-rose-900'}`}>
+          {calculationValid
+            ? `${allocatedPercent}% do preço está distribuído entre impostos, comissão, custos fixos e lucro.`
+            : 'A soma dos percentuais precisa ficar abaixo de 100% para o preço ser calculado.'}
+        </div>
       </div>
     </aside>
   )
