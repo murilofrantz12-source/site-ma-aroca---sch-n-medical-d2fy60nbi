@@ -7390,6 +7390,16 @@ export default function SistemaMacaroca() {
       description: 'Tela completa de pedidos, usada como apoio operacional.',
     },
   }
+  const navigateFromMenu = (area: Area) => {
+    if (area.startsWith('modulo-')) setModuleContext(area)
+    setActiveArea(area)
+    setMobileMenuOpen(false)
+    setMessage(
+      area === 'inicio'
+        ? `Olá, ${currentUserName}. Escolha uma rotina para começar.`
+        : `Você entrou em ${pageIntro[area].title}.`,
+    )
+  }
 
   if (!authReady) {
     return (
@@ -7563,9 +7573,7 @@ export default function SistemaMacaroca() {
                       key={item.key}
                       type="button"
                       onClick={() => {
-                        if (item.key.startsWith('modulo-')) setModuleContext(item.key)
-                        setActiveArea(item.key)
-                        setMobileMenuOpen(false)
+                        navigateFromMenu(item.key)
                       }}
                       className={`flex h-11 items-center gap-3 rounded-md px-3 text-left text-sm transition ${
                         activeArea === item.key
@@ -7593,7 +7601,7 @@ export default function SistemaMacaroca() {
                 {parentModuleHub && (
                   <button
                     type="button"
-                    onClick={() => setActiveArea(parentModuleHub.key)}
+                    onClick={() => navigateFromMenu(parentModuleHub.key)}
                     className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
                     aria-label={`Voltar para ${parentModuleHub.title}`}
                     title={`Voltar para ${parentModuleHub.title}`}
@@ -7639,7 +7647,7 @@ export default function SistemaMacaroca() {
                 {canManagePurchases && (
                   <button
                     type="button"
-                    onClick={() => setActiveArea('notas')}
+                    onClick={() => navigateFromMenu('notas')}
                     className="hidden h-9 items-center gap-2 rounded-md bg-[#312e81] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3] md:inline-flex"
                   >
                     <FileText className="h-4 w-4" />
@@ -7649,7 +7657,7 @@ export default function SistemaMacaroca() {
                 {canAccessArea('pedido-guiado') && (
                   <button
                     type="button"
-                    onClick={() => setActiveArea('pedido-guiado')}
+                    onClick={() => navigateFromMenu('pedido-guiado')}
                     className="hidden h-9 items-center gap-2 rounded-md bg-[#111827] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3] md:inline-flex"
                   >
                     <Plus className="h-4 w-4" />
@@ -7658,7 +7666,7 @@ export default function SistemaMacaroca() {
                 )}
                 <button
                   type="button"
-                  onClick={() => setActiveArea('configuracoes')}
+                  onClick={() => navigateFromMenu('configuracoes')}
                   className="inline-flex h-9 items-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2.5 text-sm font-medium transition hover:border-[#9ca3af] hover:bg-white"
                 >
                   <ShieldCheck className="h-4 w-4" />
@@ -7736,10 +7744,7 @@ export default function SistemaMacaroca() {
                         badge={item.badge}
                         icon={item.icon}
                         tone={item.tone}
-                        onClick={() => {
-                          if (item.key.startsWith('modulo-')) setModuleContext(item.key)
-                          setActiveArea(item.key)
-                        }}
+                        onClick={() => navigateFromMenu(item.key)}
                       />
                     ))}
                   </div>
@@ -7873,7 +7878,7 @@ export default function SistemaMacaroca() {
                 items={activeModuleHub.items}
                 onBack={() => {
                   setModuleContext(null)
-                  setActiveArea('inicio')
+                  navigateFromMenu('inicio')
                 }}
                 onOpen={(area) => {
                   setModuleContext(activeModuleHub.key)
