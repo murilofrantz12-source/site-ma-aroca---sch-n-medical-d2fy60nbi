@@ -255,7 +255,7 @@ type Order = {
 
 type OrderHistoryEvent = {
   id: string
-  type: 'Criação' | 'Disponibilidade' | 'Reserva' | 'Conversão' | 'Duplicação' | 'Cancelamento'
+  type: 'Criação' | 'Disponibilidade' | 'Reserva' | 'Conversão' | 'Duplicação' | 'Cancelamento' | 'Produção'
   detail: string
   date: string
   user: string
@@ -1239,6 +1239,14 @@ const daysUntil = (date?: string) => {
   return Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
 }
 
+const productionPriorityForDueDate = (dueDate?: string): ProductionPriority => {
+  const remainingDays = daysUntil(dueDate)
+  if (remainingDays < 0) return 'Urgente'
+  if (remainingDays <= 3) return 'Alta'
+  if (remainingDays <= 7) return 'Normal'
+  return 'Baixa'
+}
+
 const orderTimeline = (state: AppState, order: Order): OrderTimelineItem[] => {
   const op = state.productionOrders.find((item) => item.orderId === order.id)
   const firstLaunch = op?.launches?.[0]
@@ -1795,11 +1803,12 @@ const helpGuides: HelpGuide[] = [
     action: 'Ver o que produzir',
     steps: [
       'Abra Produção e escolha O que precisa produzir.',
-      'Localize o produto ou pedido na lista.',
-      'Confira pedido pendente, estoque disponível e produção já aberta.',
-      'Revise a quantidade sugerida pelo sistema.',
-      'Ajuste a quantidade se necessário e gere a ordem de produção.',
-      'Abra a OP para definir prioridade, responsável e datas.',
+      'Veja os pedidos ordenados pelo prazo e a prioridade sugerida.',
+      'Confira pendente, físico, reservado, disponível, produzindo e falta produzir.',
+      'Selecione um ou vários pedidos.',
+      'Revise ou edite a quantidade sugerida para cada OP.',
+      'Confira a lista consolidada de matéria-prima e o que falta comprar.',
+      'Gere as OPs selecionadas. Cada ordem continuará vinculada ao seu pedido.',
     ],
   },
   {
@@ -2050,6 +2059,8 @@ export default function SistemaMacaroca() {
   const [cancellationReason, setCancellationReason] = useState('')
   const [productionDecisionOrderId, setProductionDecisionOrderId] = useState<string | null>(null)
   const [productionDecisionQty, setProductionDecisionQty] = useState(1)
+  const [pcpSelectedOrderIds, setPcpSelectedOrderIds] = useState<string[]>([])
+  const [pcpOrderQuantities, setPcpOrderQuantities] = useState<Record<string, number>>({})
   const [stockOpQty, setStockOpQty] = useState(12)
   const [stockOpResponsible, setStockOpResponsible] = useState('')
   const [stockOpStartDate, setStockOpStartDate] = useState(currentDateValue())
@@ -3595,7 +3606,7 @@ export default function SistemaMacaroca() {
       qty,
       produced: 0,
       status: 'Não iniciada',
-      priority: 'Normal',
+      priority: productionPriorityForDueDate(order.dueDate),
       origin: 'Pedido',
       notes: order.notes,
       responsible: currentUserName,
@@ -4093,6 +4104,10 @@ export default function SistemaMacaroca() {
       setMessage('Ative o produto e aprove a ficha antes de criar uma produção.')
       return
     }
+    if (stockOpQty <= 0) {
+      setMessage('Informe uma quantidade maior que zero para criar a produção.')
+      return
+    }
     const op: ProductionOrder = {
       id: nextProductionOrderId(state.productionOrders),
       productId: selectedProduct.id,
@@ -4108,13 +4123,20 @@ export default function SistemaMacaroca() {
       finishedAt: '',
       launches: [],
     }
+    const missing = productionOrderMissingMaterials(state, selectedProduct, op)
+    const nextState: AppState = {
+      ...state,
+      productionOrders: [op, ...state.productionOrders],
+    }
 
-    setState((current) => ({
-      ...current,
-      productionOrders: [op, ...current.productionOrders],
-    }))
+    setState(nextState)
+    void saveStateImmediately(nextState, `Produção ${op.id} para estoque criada e sincronizada.`)
     setActiveArea('producao')
-    setMessage('Produção para estoque criada.')
+    setMessage(
+      missing.length
+        ? `Produção ${op.id} criada. Antes de iniciar, confira o que falta comprar.`
+        : `Produção ${op.id} para estoque criada com matéria-prima disponível.`,
+    )
   }
 
   const updateProductionStatus = (opId: string, status: OpStatus) => {
@@ -4799,6 +4821,9 @@ export default function SistemaMacaroca() {
   }
 
   const guidedMissingMaterials = guidedProduct ? missingMaterialsFor(guidedProduct, guidedLaunchQty, guidedOp?.variationId) : []
+  const stockOpMaterialShortages = selectedProduct
+    ? missingMaterialsFor(selectedProduct, Math.max(0, stockOpQty), activeVariationId)
+    : []
   const guidedMaterialConsumption = guidedProduct
     ? productMaterials(guidedProduct, guidedOp?.variationId).map((material) => ({
         ...material,
@@ -4910,12 +4935,271 @@ export default function SistemaMacaroca() {
   const ordersWaitingProductionOrder = salesFlow.open.filter(
     (order) => orderPriceApproved(order) && !hasProductionOrder(order.id),
   )
-  const productionNeedRows = productStock
-    .map((row) => ({
-      ...row,
-      toProduce: Math.max(0, row.pending - row.physical - row.producing),
+  const pcpOrderPlans = useMemo(() => {
+    const eligibleOrders = state.orders
+      .filter(
+        (order) =>
+          orderIsReserved(order) &&
+          orderPriceApproved(order) &&
+          (order.status === 'Aberto' || order.status === 'Em produção'),
+      )
+      .slice()
+      .sort((left, right) => {
+        const dueDateOrder = (left.dueDate || '9999-12-31').localeCompare(right.dueDate || '9999-12-31')
+        if (dueDateOrder !== 0) return dueDateOrder
+        return (left.createdAt || left.orderDate || '').localeCompare(right.createdAt || right.orderDate || '')
+      })
+    const groupedOrders = new Map<string, Order[]>()
+
+    eligibleOrders.forEach((order) => {
+      const key = `${order.productId}::${order.variationId ?? ''}`
+      groupedOrders.set(key, [...(groupedOrders.get(key) ?? []), order])
+    })
+
+    return Array.from(groupedOrders.entries()).flatMap(([key, orders]) => {
+      const [productId, variationId = ''] = key.split('::')
+      const product = state.products.find((item) => item.id === productId)
+      const finishedName = product ? productFinishedItemName(product, variationId || undefined) : ''
+      const physical = finishedName
+        ? stock.finishedItems.find((item) => item.item === finishedName)?.qty ?? 0
+        : 0
+      const producing = state.productionOrders
+        .filter(
+          (op) =>
+            op.productId === productId &&
+            (op.variationId ?? '') === variationId &&
+            op.status !== 'Finalizada',
+        )
+        .reduce((sum, op) => sum + Math.max(0, op.qty - op.produced), 0)
+      const pending = orders.reduce((sum, order) => sum + order.qty, 0)
+      let coverage = Math.max(0, physical + producing)
+
+      return orders.map((order) => {
+        const covered = Math.min(order.qty, coverage)
+        const suggestedQty = Math.max(0, order.qty - covered)
+        coverage = Math.max(0, coverage - order.qty)
+        const relatedOp = state.productionOrders.find(
+          (op) => op.orderId === order.id && op.status !== 'Finalizada',
+        )
+
+        return {
+          order,
+          product,
+          variationId: variationId || undefined,
+          physical,
+          pending,
+          producing,
+          available: physical - pending,
+          covered,
+          suggestedQty,
+          priority: productionPriorityForDueDate(order.dueDate),
+          relatedOp,
+        }
+      })
+    })
+  }, [state.orders, state.productionOrders, state.products, stock.finishedItems])
+  const pcpSelectablePlans = pcpOrderPlans.filter(
+    (plan) => plan.suggestedQty > 0 && !plan.relatedOp && plan.order.status === 'Aberto',
+  )
+  const pcpAdjustablePlans = pcpOrderPlans.filter(
+    (plan) => plan.suggestedQty > 0 && Boolean(plan.relatedOp),
+  )
+  const pcpCoveredPlans = pcpOrderPlans.filter(
+    (plan) => plan.suggestedQty === 0 && !plan.relatedOp && plan.order.status === 'Aberto',
+  )
+  const productionNeedRows = useMemo(() => {
+    const rows = new Map<string, (typeof pcpOrderPlans)[number] & { toProduce: number }>()
+
+    pcpOrderPlans.forEach((plan) => {
+      const key = `${plan.order.productId}::${plan.variationId ?? ''}`
+      if (rows.has(key)) return
+      rows.set(key, {
+        ...plan,
+        toProduce: Math.max(0, plan.pending - plan.physical - plan.producing),
+      })
+    })
+
+    return Array.from(rows.values()).filter(
+      (row) => row.pending > 0 || row.producing > 0 || row.toProduce > 0,
+    )
+  }, [pcpOrderPlans])
+  const selectedPcpPlans = pcpSelectablePlans.filter((plan) =>
+    pcpSelectedOrderIds.includes(plan.order.id),
+  )
+  const selectedPcpMaterialShortages = (() => {
+    const required = new Map<string, { item: string; unit: string; needed: number }>()
+
+    selectedPcpPlans.forEach((plan) => {
+      if (!plan.product) return
+      const qty = Math.max(0, Math.floor(pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty))
+      productMaterials(plan.product, plan.variationId).forEach((material) => {
+        const current = required.get(material.name) ?? {
+          item: material.name,
+          unit: material.unit,
+          needed: 0,
+        }
+        required.set(material.name, {
+          ...current,
+          needed: current.needed + materialPlannedQty(material, qty),
+        })
+      })
+    })
+
+    return Array.from(required.values())
+      .map((item) => {
+        const available = stock.rawItems.find((raw) => raw.item === item.item)?.qty ?? 0
+        return { ...item, available, missing: Math.max(0, item.needed - available) }
+      })
+      .filter((item) => item.missing > 0)
+  })()
+  const togglePcpOrder = (orderId: string) => {
+    const plan = pcpSelectablePlans.find((item) => item.order.id === orderId)
+    if (!plan) return
+
+    setPcpSelectedOrderIds((current) =>
+      current.includes(orderId)
+        ? current.filter((id) => id !== orderId)
+        : [...current, orderId],
+    )
+    setPcpOrderQuantities((current) => ({
+      ...current,
+      [orderId]: current[orderId] ?? Math.max(1, plan.suggestedQty),
     }))
-    .filter((row) => row.pending > 0 || row.producing > 0 || row.toProduce > 0)
+  }
+  const toggleAllPcpOrders = () => {
+    const selectableIds = pcpSelectablePlans.map((plan) => plan.order.id)
+    const allSelected = selectableIds.length > 0 && selectableIds.every((id) => pcpSelectedOrderIds.includes(id))
+
+    if (allSelected) {
+      setPcpSelectedOrderIds([])
+      return
+    }
+
+    setPcpSelectedOrderIds(selectableIds)
+    setPcpOrderQuantities((current) => {
+      const next = { ...current }
+      pcpSelectablePlans.forEach((plan) => {
+        next[plan.order.id] = next[plan.order.id] ?? Math.max(1, plan.suggestedQty)
+      })
+      return next
+    })
+  }
+  const generateSelectedPcpOrders = () => {
+    if (!selectedPcpPlans.length) {
+      setMessage('Selecione ao menos um pedido que precise de produção.')
+      return
+    }
+
+    const createdOps: ProductionOrder[] = []
+    const createdOrderIds = new Set<string>()
+    const usedProductionOrders = [...state.productionOrders]
+
+    selectedPcpPlans.forEach((plan) => {
+      if (!plan.product || plan.relatedOp) return
+      const requestedQty = Math.floor(pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty)
+      const qty = Math.min(plan.order.qty, Math.max(0, requestedQty))
+      if (qty <= 0) return
+
+      const op: ProductionOrder = {
+        id: nextProductionOrderId(usedProductionOrders),
+        orderId: plan.order.id,
+        productId: plan.order.productId,
+        variationId: plan.order.variationId,
+        qty,
+        produced: 0,
+        status: 'Não iniciada',
+        priority: plan.priority,
+        origin: 'Pedido',
+        notes: plan.order.notes,
+        responsible: currentUserName,
+        startedAt: '',
+        finishedAt: '',
+        launches: [],
+      }
+      createdOps.push(op)
+      usedProductionOrders.push(op)
+      createdOrderIds.add(plan.order.id)
+    })
+
+    if (!createdOps.length) {
+      setMessage('Informe uma quantidade maior que zero para os pedidos selecionados.')
+      return
+    }
+
+    const nextState: AppState = {
+      ...state,
+      productionOrders: [...createdOps, ...state.productionOrders],
+      orders: state.orders.map((order) =>
+        createdOrderIds.has(order.id)
+          ? {
+              ...order,
+              status: 'Em produção',
+              history: [
+                ...(order.history ?? []),
+                newOrderHistoryEvent(
+                  'Produção',
+                  `OP criada pelo PCP para ${createdOps.find((op) => op.orderId === order.id)?.qty ?? 0} un`,
+                  currentUserName,
+                ),
+              ],
+            }
+          : order,
+      ),
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `${createdOps.length} ordem(ns) de produção criada(s) e sincronizada(s).`)
+    setPcpSelectedOrderIds([])
+    setPcpOrderQuantities({})
+    setMessage(
+      selectedPcpMaterialShortages.length
+        ? `${createdOps.length} OP(s) criada(s). Antes de iniciar, confira a lista do que falta comprar.`
+        : `${createdOps.length} OP(s) criada(s) com matéria-prima disponível.`,
+    )
+  }
+  const completeExistingProductionOrder = (plan: (typeof pcpOrderPlans)[number]) => {
+    if (!plan.relatedOp || plan.suggestedQty <= 0) return
+    if (plan.relatedOp.status === 'Finalizada') {
+      setMessage('Essa OP já foi finalizada. Revise o pedido antes de criar uma nova produção.')
+      return
+    }
+
+    const nextQty = plan.relatedOp.qty + plan.suggestedQty
+    const nextState: AppState = {
+      ...state,
+      productionOrders: state.productionOrders.map((op) =>
+        op.id === plan.relatedOp?.id
+          ? {
+              ...op,
+              qty: nextQty,
+              priority:
+                priorityWeight(plan.priority) > priorityWeight(op.priority)
+                  ? plan.priority
+                  : op.priority,
+            }
+          : op,
+      ),
+      orders: state.orders.map((order) =>
+        order.id === plan.order.id
+          ? {
+              ...order,
+              history: [
+                ...(order.history ?? []),
+                newOrderHistoryEvent(
+                  'Produção',
+                  `${plan.relatedOp?.id} ajustada para ${nextQty} un após recálculo do PCP`,
+                  currentUserName,
+                ),
+              ],
+            }
+          : order,
+      ),
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `${plan.relatedOp.id} ajustada para ${nextQty} un e sincronizada.`)
+    setMessage(`${plan.relatedOp.id} foi ajustada para cobrir as ${plan.suggestedQty} peça(s) restantes.`)
+  }
   const overdueSmartOrders = state.orders.filter(
     (order) =>
       order.documentType === 'Pedido' &&
@@ -6421,10 +6705,31 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'producao-necessidades' && (
               <section className="grid gap-5">
-                <div className="grid gap-3 md:grid-cols-3">
-                  <PocketMetric label="Pedidos sem produção" value={ordersWaitingProductionOrder.length.toString()} detail="Precisam criar ordem" tone={ordersWaitingProductionOrder.length ? 'amber' : 'neutral'} />
-                  <PocketMetric label="Produções abertas" value={openProductionOrders.length.toString()} detail="Aguardam registro" tone="blue" />
-                  <PocketMetric label="Itens com falta" value={productionNeedRows.filter((row) => row.toProduce > 0).length.toString()} detail="Comparando pedido e estoque" tone="rose" />
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <PocketMetric
+                    label="Pedidos pendentes"
+                    value={pcpOrderPlans.length.toString()}
+                    detail={`${pcpOrderPlans.reduce((sum, plan) => sum + plan.order.qty, 0)} peças comprometidas`}
+                    tone={pcpOrderPlans.length ? 'amber' : 'neutral'}
+                  />
+                  <PocketMetric
+                    label="Precisam de ação"
+                    value={(pcpSelectablePlans.length + pcpAdjustablePlans.length).toString()}
+                    detail={`${[...pcpSelectablePlans, ...pcpAdjustablePlans].reduce((sum, plan) => sum + plan.suggestedQty, 0)} peças faltantes`}
+                    tone={pcpSelectablePlans.length || pcpAdjustablePlans.length ? 'rose' : 'neutral'}
+                  />
+                  <PocketMetric
+                    label="Produzindo"
+                    value={openProductionOrders.reduce((sum, op) => sum + Math.max(0, op.qty - op.produced), 0).toString()}
+                    detail={`${openProductionOrders.length} ordens abertas`}
+                    tone="blue"
+                  />
+                  <PocketMetric
+                    label="Cobertos pelo estoque"
+                    value={pcpCoveredPlans.length.toString()}
+                    detail="Podem seguir para separação"
+                    tone={pcpCoveredPlans.length ? 'green' : 'neutral'}
+                  />
                 </div>
 
                 <Panel title="Alertas de produção">
@@ -6436,80 +6741,226 @@ export default function SistemaMacaroca() {
                   />
                 </Panel>
 
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-                  <Panel title="Pedidos aguardando ordem de produção">
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+                  <Panel title="Pedidos para planejar">
                     <div className="grid gap-3">
-                      {ordersWaitingProductionOrder.map((order) => {
-                        const product = state.products.find((item) => item.id === order.productId)
-                        const stockPosition = orderStockPosition(order)
-                        const missingQty = stockPosition.toProduce
+                      {!!pcpSelectablePlans.length && (
+                        <div className="flex flex-col justify-between gap-3 rounded-md border border-[#d1d5db] bg-[#f9fafb] p-3 sm:flex-row sm:items-center">
+                          <label className="inline-flex items-center gap-3 text-sm font-medium">
+                            <input
+                              type="checkbox"
+                              checked={pcpSelectablePlans.every((plan) => pcpSelectedOrderIds.includes(plan.order.id))}
+                              onChange={toggleAllPcpOrders}
+                              className="h-4 w-4 accent-[#3730a3]"
+                            />
+                            Selecionar todos os pedidos que precisam produzir
+                          </label>
+                          <span className="text-sm text-black/55">{selectedPcpPlans.length} selecionado(s)</span>
+                        </div>
+                      )}
+
+                      {pcpSelectablePlans.map((plan) => {
+                        const selected = pcpSelectedOrderIds.includes(plan.order.id)
+                        const quantity = pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty
+                        const remainingDays = daysUntil(plan.order.dueDate)
 
                         return (
-                          <div key={order.id} className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
-                            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                              <div>
+                          <div
+                            key={plan.order.id}
+                            className={`rounded-md border p-4 transition ${
+                              selected
+                                ? 'border-[#818cf8] bg-[#f5f3ff]'
+                                : 'border-[#e5e7eb] bg-[#ffffff]'
+                            }`}
+                          >
+                            <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)_150px] lg:items-start">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => togglePcpOrder(plan.order.id)}
+                                aria-label={`Selecionar ${plan.order.id}`}
+                                className="mt-1 h-5 w-5 accent-[#3730a3]"
+                              />
+                              <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <strong>{order.id} · {order.client}</strong>
-                                  <StatusBadge tone={missingQty > 0 ? 'amber' : 'green'}>
-                                    {missingQty > 0 ? 'PCP precisa decidir' : 'Pode separar do estoque'}
+                                  <strong>{plan.order.id} · {plan.order.client}</strong>
+                                  <StatusBadge tone={priorityTone(plan.priority)}>{plan.priority}</StatusBadge>
+                                  <StatusBadge tone={remainingDays < 0 ? 'rose' : remainingDays <= 3 ? 'amber' : 'neutral'}>
+                                    {remainingDays < 0
+                                      ? `${Math.abs(remainingDays)} dia(s) atrasado`
+                                      : remainingDays === 0
+                                        ? 'Entrega hoje'
+                                        : `Prazo em ${remainingDays} dia(s)`}
                                   </StatusBadge>
                                 </div>
                                 <p className="mt-2 text-sm text-black/60">
-                                  {productDisplayName(product, order.variationId)} · vendido {order.qty} un · pronto {stockPosition.physical} un · reservado {stockPosition.pending} un · em produção {stockPosition.producing} un
+                                  {productDisplayName(plan.product, plan.variationId)} · pedido de {plan.order.qty} un · prazo {formatDate(plan.order.dueDate)}
                                 </p>
-                                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                                  <MiniStat label="Livre para este pedido" value={`${stockPosition.freeForThisOrder} un`} tone={stockPosition.freeForThisOrder >= order.qty ? 'green' : 'neutral'} />
-                                  <MiniStat label="Faltante geral" value={`${missingQty} un`} tone={missingQty > 0 ? 'rose' : 'green'} />
-                                  <MiniStat label="Sugestão da OP" value={`${stockPosition.suggestedQty} un`} tone={stockPosition.suggestedQty > 0 ? 'amber' : 'green'} />
+                                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                                  <MiniStat label="Pendente" value={`${plan.pending} un`} />
+                                  <MiniStat label="Físico" value={`${plan.physical} un`} />
+                                  <MiniStat label="Reservado" value={`${plan.pending} un`} />
+                                  <MiniStat label="Disponível" value={`${plan.available} un`} tone={plan.available < 0 ? 'rose' : 'green'} />
+                                  <MiniStat label="Produzindo" value={`${plan.producing} un`} tone="blue" />
+                                  <MiniStat label="Falta produzir" value={`${plan.suggestedQty} un`} tone="rose" />
                                 </div>
                               </div>
-                              {missingQty > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openProductionDecision(order)}
-                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
-                                >
-                                  Analisar produção
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    updateOrderStatus(order.id, 'Pronto')
-                                    setActiveArea('entregas')
-                                  }}
-                                  className="inline-flex h-10 items-center justify-center rounded-md border border-[#b9d8c6] bg-[#f0fbf4] px-4 text-sm font-medium text-[#255437]"
-                                >
-                                  Separar do estoque
-                                </button>
-                              )}
+                              <label className="grid gap-2">
+                                <FieldLabel>Quantidade da OP</FieldLabel>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={plan.order.qty}
+                                  value={quantity}
+                                  onChange={(event) =>
+                                    setPcpOrderQuantities((current) => ({
+                                      ...current,
+                                      [plan.order.id]: Math.max(0, Number(event.target.value)),
+                                    }))
+                                  }
+                                  className="h-11 w-full rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                                />
+                                <span className="text-xs leading-4 text-black/45">Sugestão: {plan.suggestedQty} un</span>
+                              </label>
                             </div>
                           </div>
                         )
                       })}
-                      {!ordersWaitingProductionOrder.length && (
-                        <EmptyLine text="Nenhum pedido aguardando produção. Quando uma venda precisar produzir, ela aparece aqui." />
+                      {!pcpSelectablePlans.length && (
+                        <EmptyLine text="Nenhum pedido precisa de uma nova OP. A necessidade está coberta pelo estoque ou por produções já abertas." />
                       )}
                     </div>
                   </Panel>
 
-                  <Panel title="Ações de produção">
-                    <div className="grid gap-2">
-                      {canAccessArea('producao') && <DashboardAction label="Criar produção para estoque" onClick={() => setActiveArea('producao')} />}
-                      {canAccessArea('producao-guiada') && <DashboardAction label="Registrar produção pronta" onClick={() => setActiveArea('producao-guiada')} />}
-                      {canAccessArea('producao') && <DashboardAction label="Imprimir ordem aberta" onClick={() => setActiveArea('producao')} />}
-                      {canAccessArea('estoque') && <DashboardAction label="Ver compras sugeridas" onClick={() => setActiveArea('estoque')} />}
+                  <div className="grid content-start gap-5">
+                    <Panel title="Gerar ordens">
+                      <div className="grid gap-3">
+                        <MiniStat
+                          label="Pedidos selecionados"
+                          value={selectedPcpPlans.length.toString()}
+                          tone={selectedPcpPlans.length ? 'blue' : 'neutral'}
+                        />
+                        <MiniStat
+                          label="Quantidade total"
+                          value={`${selectedPcpPlans.reduce(
+                            (sum, plan) =>
+                              sum + Math.max(0, Math.floor(pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty)),
+                            0,
+                          )} un`}
+                        />
+                        {selectedPcpMaterialShortages.length ? (
+                          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                            <strong className="text-sm text-amber-950">Falta matéria-prima</strong>
+                            <div className="mt-2 grid gap-1 text-sm leading-5 text-amber-900">
+                              {selectedPcpMaterialShortages.slice(0, 5).map((item) => (
+                                <span key={item.item}>
+                                  Comprar {item.missing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit} de {item.item}
+                                </span>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setActiveArea('estoque')}
+                              className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-amber-300 bg-white px-3 text-sm font-medium text-amber-950"
+                            >
+                              Ver compras sugeridas
+                            </button>
+                          </div>
+                        ) : selectedPcpPlans.length ? (
+                          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                            Matéria-prima suficiente para as quantidades selecionadas.
+                          </div>
+                        ) : (
+                          <p className="text-sm leading-5 text-black/50">
+                            Selecione os pedidos. O sistema reunirá as quantidades e verificará os materiais antes de criar as OPs.
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={generateSelectedPcpOrders}
+                          disabled={!selectedPcpPlans.length}
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Scissors className="h-4 w-4" />
+                          Gerar OPs selecionadas
+                        </button>
+                      </div>
+                    </Panel>
+
+                    <Panel title="Outras ações">
+                      <div className="grid gap-2">
+                        {canAccessArea('producao') && <DashboardAction label="Criar OP independente para estoque" onClick={() => setActiveArea('producao')} />}
+                        {canAccessArea('producao-guiada') && <DashboardAction label="Registrar produção pronta" onClick={() => setActiveArea('producao-guiada')} />}
+                        {canAccessArea('producao') && <DashboardAction label="Ver e imprimir OPs" onClick={() => setActiveArea('producao')} />}
+                      </div>
+                    </Panel>
+                  </div>
+                </div>
+
+                {!!pcpAdjustablePlans.length && (
+                  <Panel title="OPs que precisam completar a quantidade">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {pcpAdjustablePlans.map((plan) => (
+                        <div
+                          key={plan.order.id}
+                          className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                        >
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <strong>{plan.relatedOp?.id} · {plan.order.id}</strong>
+                              <StatusBadge tone="amber">Faltam {plan.suggestedQty} un</StatusBadge>
+                            </div>
+                            <p className="mt-2 text-sm text-amber-950/75">
+                              {productDisplayName(plan.product, plan.variationId)} · OP atual {plan.relatedOp?.qty} un · pedido {plan.order.qty} un
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => completeExistingProductionOrder(plan)}
+                            className="inline-flex h-10 items-center justify-center rounded-md border border-amber-300 bg-white px-4 text-sm font-medium text-amber-950"
+                          >
+                            Completar OP para {(plan.relatedOp?.qty ?? 0) + plan.suggestedQty} un
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </Panel>
-                </div>
+                )}
+
+                {!!pcpCoveredPlans.length && (
+                  <Panel title="Pedidos cobertos pelo estoque">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {pcpCoveredPlans.map((plan) => (
+                        <div key={plan.order.id} className="grid gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                          <div>
+                            <strong>{plan.order.id} · {plan.order.client}</strong>
+                            <p className="mt-1 text-sm text-emerald-900/75">
+                              {productDisplayName(plan.product, plan.variationId)} · {plan.order.qty} un · prazo {formatDate(plan.order.dueDate)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateOrderStatus(plan.order.id, 'Pronto')
+                              setActiveArea('entregas')
+                            }}
+                            className="inline-flex h-10 items-center justify-center rounded-md border border-emerald-300 bg-white px-4 text-sm font-medium text-emerald-950"
+                          >
+                            Enviar para separação
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                )}
 
                 <Panel title="Necessidade por produto">
                   <div className="grid gap-3">
                     {productionNeedRows.map((row) => (
-                      <div key={row.product.id} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 md:grid-cols-[1fr_auto] md:items-center">
+                      <div key={`${row.order.productId}-${row.variationId ?? 'base'}`} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 md:grid-cols-[1fr_auto] md:items-center">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <strong>{row.product.code} · {row.product.name}</strong>
+                            <strong>{row.product?.code} · {productDisplayName(row.product, row.variationId)}</strong>
                             {row.toProduce > 0 ? <StatusBadge tone="rose">Produzir {row.toProduce} un</StatusBadge> : <StatusBadge tone="green">Coberto</StatusBadge>}
                           </div>
                           <p className="mt-2 text-sm text-black/60">
@@ -6519,7 +6970,8 @@ export default function SistemaMacaroca() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSelectedProductId(row.product.id)
+                            setSelectedProductId(row.order.productId)
+                            setSelectedVariationId(row.variationId ?? '')
                             setStockOpQty(Math.max(1, row.toProduce))
                             setActiveArea('producao')
                           }}
@@ -8863,7 +9315,23 @@ export default function SistemaMacaroca() {
                     </label>
                     <SoftInput label="Responsável" value={stockOpResponsible} onChange={setStockOpResponsible} />
                     <div className="lg:col-span-2 2xl:col-span-4">
-                    <SoftInput label="Observação da produção" value={stockOpNotes} onChange={setStockOpNotes} />
+                      <SoftInput label="Observação da produção" value={stockOpNotes} onChange={setStockOpNotes} />
+                    </div>
+                    <div className="grid gap-2 lg:col-span-2 2xl:col-span-4">
+                      <FieldLabel>Verificação de matéria-prima</FieldLabel>
+                      {stockOpMaterialShortages.length ? (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-950">
+                          {stockOpMaterialShortages.map((item) => (
+                            <span key={item.item} className="block">
+                              Falta comprar {item.missing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit} de {item.item}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                          Matéria-prima suficiente para iniciar esta quantidade.
+                        </div>
+                      )}
                     </div>
                     <button
                       type="button"
