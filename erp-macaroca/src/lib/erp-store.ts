@@ -51,6 +51,9 @@ const collectionTypes = {
   productionOrders: 'production_order',
   inventoryEntries: 'inventory_entry',
   inventoryCounts: 'inventory_count',
+  implementationProgress: 'implementation_progress',
+  implementationResponsibilities: 'implementation_responsibility',
+  implementationQuestions: 'implementation_question',
   cashEntries: 'cash_entry',
 } as const
 

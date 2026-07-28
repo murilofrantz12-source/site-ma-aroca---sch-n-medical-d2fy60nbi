@@ -49,6 +49,7 @@ type Area =
   | 'ajuda'
   | 'painel'
   | 'indicadores'
+  | 'implantacao'
   | 'vendas'
   | 'entregas'
   | 'producao-necessidades'
@@ -383,6 +384,30 @@ type InventoryCount = {
   createdAt: string
 }
 
+type ImplementationProgress = {
+  id: string
+  userId: string
+  stepId: string
+  completedAt: string
+  completedBy: string
+}
+
+type ImplementationResponsibility = {
+  id: string
+  area: string
+  userId: string
+}
+
+type ImplementationQuestion = {
+  id: string
+  text: string
+  createdAt: string
+  createdBy: string
+  resolved: boolean
+  resolvedAt?: string
+  resolvedBy?: string
+}
+
 type CashEntry = {
   id: string
   kind: CashKind
@@ -428,6 +453,9 @@ type AppState = {
   productionOrders: ProductionOrder[]
   inventoryEntries: InventoryEntry[]
   inventoryCounts: InventoryCount[]
+  implementationProgress: ImplementationProgress[]
+  implementationResponsibilities: ImplementationResponsibility[]
+  implementationQuestions: ImplementationQuestion[]
   cashEntries: CashEntry[]
   tax: number
   commission: number
@@ -857,6 +885,9 @@ const initialState: AppState = {
     },
   ],
   inventoryCounts: [],
+  implementationProgress: [],
+  implementationResponsibilities: [],
+  implementationQuestions: [],
   cashEntries: [
     {
       id: 'CX-VALORA-001',
@@ -1216,6 +1247,18 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
       notes: count.notes ?? '',
       createdBy: count.createdBy ?? 'Sistema',
       createdAt: count.createdAt ?? `${count.date}T12:00:00.000Z`,
+    })),
+    implementationProgress: (state.implementationProgress ?? []).map((progress) => ({
+      ...progress,
+      completedAt: progress.completedAt ?? '',
+      completedBy: progress.completedBy ?? 'Sistema',
+    })),
+    implementationResponsibilities: state.implementationResponsibilities ?? [],
+    implementationQuestions: (state.implementationQuestions ?? []).map((question) => ({
+      ...question,
+      createdAt: question.createdAt ?? '',
+      createdBy: question.createdBy ?? 'Sistema',
+      resolved: question.resolved ?? false,
     })),
     cashEntries: mergeById(includePrototypeDefaults ? initialState.cashEntries : [], state.cashEntries ?? []).map((entry) => ({
       ...entry,
@@ -1749,6 +1792,7 @@ const allAreas: Area[] = [
   'ajuda',
   'painel',
   'indicadores',
+  'implantacao',
   'vendas',
   'entregas',
   'producao-necessidades',
@@ -1781,7 +1825,9 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'modulo-producao',
     'modulo-estoque',
     'modulo-cadastros',
+    'modulo-gestao',
     'ajuda',
+    'implantacao',
     'vendas',
     'entregas',
     'pedido-guiado',
@@ -1795,8 +1841,8 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'configuracoes',
     'pedidos',
   ],
-  Comercial: ['inicio', 'plano-geral', 'modulo-vendas', 'modulo-estoque', 'ajuda', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
-  Produção: ['inicio', 'plano-geral', 'modulo-producao', 'modulo-estoque', 'ajuda', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
+  Comercial: ['inicio', 'plano-geral', 'modulo-vendas', 'modulo-estoque', 'modulo-gestao', 'ajuda', 'implantacao', 'vendas', 'entregas', 'pedido-guiado', 'pedidos', 'clientes', 'estoque', 'configuracoes'],
+  Produção: ['inicio', 'plano-geral', 'modulo-producao', 'modulo-estoque', 'modulo-gestao', 'ajuda', 'implantacao', 'producao-necessidades', 'producao', 'producao-guiada', 'estoque', 'configuracoes'],
   Financeiro: [
     'inicio',
     'plano-geral',
@@ -1816,6 +1862,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'precos',
     'financeiro',
     'indicadores',
+    'implantacao',
     'historico',
     'configuracoes',
   ],
@@ -1829,7 +1876,92 @@ const roleDescriptions: Record<UserRole, string> = {
   Financeiro: 'Foco em compras, entradas e saídas, notas, fornecedores e financeiro.',
 }
 
+const implementationAreas = [
+  { id: 'responsavel-vendas', area: 'Vendas e orçamentos' },
+  { id: 'responsavel-producao', area: 'Produção' },
+  { id: 'responsavel-compras', area: 'Compras e recebimentos' },
+  { id: 'responsavel-entregas', area: 'Separação e entregas' },
+  { id: 'responsavel-inventario', area: 'Estoque e inventário' },
+] as const
+
+const implementationSteps: {
+  id: string
+  title: string
+  detail: string
+  action: string
+  target: Area
+  roles: UserRole[]
+}[] = [
+  {
+    id: 'revisar-manual',
+    title: 'Revisar o manual',
+    detail: 'Busque uma dúvida e confirme que os passos estão claros.',
+    action: 'Abrir manual',
+    target: 'ajuda',
+    roles: ['Admin', 'Sócia', 'Comercial', 'Produção', 'Financeiro'],
+  },
+  {
+    id: 'primeiro-pedido',
+    title: 'Registrar o primeiro pedido',
+    detail: 'Escolha cliente, produto, quantidade, preço e prazo.',
+    action: 'Treinar pedido',
+    target: 'pedido-guiado',
+    roles: ['Admin', 'Sócia', 'Comercial'],
+  },
+  {
+    id: 'primeira-producao',
+    title: 'Registrar a primeira produção',
+    detail: 'Selecione uma OP e informe somente o que ficou pronto.',
+    action: 'Treinar produção',
+    target: 'producao-guiada',
+    roles: ['Admin', 'Sócia', 'Produção'],
+  },
+  {
+    id: 'primeira-compra',
+    title: 'Registrar a primeira compra',
+    detail: 'Crie ou receba uma compra de matéria-prima.',
+    action: 'Treinar compra',
+    target: 'notas',
+    roles: ['Admin', 'Financeiro'],
+  },
+  {
+    id: 'primeira-entrega',
+    title: 'Concluir a primeira entrega',
+    detail: 'Separe o pedido pronto, registre a saída e conclua.',
+    action: 'Treinar entrega',
+    target: 'entregas',
+    roles: ['Admin', 'Sócia', 'Comercial'],
+  },
+  {
+    id: 'inventario-inicial',
+    title: 'Fazer o inventário inicial',
+    detail: 'Conte os materiais e produtos para estabelecer o saldo real.',
+    action: 'Abrir inventário',
+    target: 'estoque',
+    roles: ['Admin'],
+  },
+]
+
 const helpGuides: HelpGuide[] = [
+  {
+    id: 'implantacao-equipe',
+    category: 'Começar a usar',
+    title: 'Como concluir o treinamento do sistema',
+    summary: 'Acompanhe a rotina de cada pessoa até que ela consiga trabalhar sem ajuda.',
+    keywords: ['implantação', 'treinamento', 'sócia', 'responsabilidade', 'teste real', 'primeiro uso'],
+    target: 'implantacao',
+    action: 'Abrir implantação',
+    steps: [
+      'Abra Gestão e escolha Implantação com a equipe.',
+      'Confirme que cada pessoa possui seu próprio usuário.',
+      'Defina uma responsável para vendas, produção, compras, entregas e inventário.',
+      'Escolha a pessoa que será treinada e siga uma atividade por vez.',
+      'Abra a atividade, realize uma situação real e volte para marcar como concluída.',
+      'Registre dúvidas ou textos confusos no campo de dúvidas recorrentes.',
+      'Conclua o inventário físico para estabelecer o estoque inicial real.',
+      'A implantação termina quando todas as pessoas completarem sua rotina.',
+    ],
+  },
   {
     id: 'usar-indicadores',
     category: 'Gestão',
@@ -2352,6 +2484,8 @@ export default function SistemaMacaroca() {
   const [financeMonth, setFinanceMonth] = useState(currentMonthValue())
   const [indicatorView, setIndicatorView] = useState<IndicatorView>('atencao')
   const [indicatorMonth, setIndicatorMonth] = useState(currentMonthValue())
+  const [implementationUserId, setImplementationUserId] = useState('')
+  const [implementationQuestion, setImplementationQuestion] = useState('')
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [moduleContext, setModuleContext] = useState<Area | null>(null)
@@ -2394,6 +2528,21 @@ export default function SistemaMacaroca() {
   const canManagePurchases = userRole === 'Admin' || userRole === 'Financeiro'
   const canDeleteRecords = userRole === 'Admin'
   const canAdjustInventory = userRole === 'Admin'
+  const selectedImplementationUserId =
+    userRole === 'Admin'
+      ? implementationUserId || state.users[0]?.id || ''
+      : loggedUser?.id ?? ''
+  const selectedImplementationUser =
+    state.users.find((user) => user.id === selectedImplementationUserId) ?? loggedUser
+  const selectedImplementationRole = normalizeUserRole(selectedImplementationUser?.role)
+  const selectedImplementationSteps = implementationSteps.filter((step) =>
+    step.roles.includes(selectedImplementationRole),
+  )
+  const selectedImplementationCompleted = new Set(
+    state.implementationProgress
+      .filter((progress) => progress.userId === selectedImplementationUserId)
+      .map((progress) => progress.stepId),
+  )
   const canAccessArea = (area: Area) =>
     authProfile?.mustChangePassword
       ? area === 'configuracoes' || area === 'ajuda'
@@ -2698,6 +2847,94 @@ export default function SistemaMacaroca() {
       setSyncStatus('Local')
       setSyncDetail(`Sem conexão com o banco compartilhado. A alteração ficou neste navegador.${explainSyncError(error) ? ` Detalhe: ${explainSyncError(error)}` : ''}`)
     }
+  }
+
+  const toggleImplementationStep = (stepId: string) => {
+    if (!selectedImplementationUserId) return
+    const existing = state.implementationProgress.find(
+      (progress) =>
+        progress.userId === selectedImplementationUserId &&
+        progress.stepId === stepId,
+    )
+    if (existing && userRole !== 'Admin') {
+      setMessage('Atividade concluída. Peça ao Admin para reabrir o treinamento se precisar refazê-la.')
+      return
+    }
+    const nextState: AppState = {
+      ...state,
+      implementationProgress: existing
+        ? state.implementationProgress.filter((progress) => progress.id !== existing.id)
+        : [
+            ...state.implementationProgress,
+            {
+              id: `implantacao-${selectedImplementationUserId}-${stepId}`,
+              userId: selectedImplementationUserId,
+              stepId,
+              completedAt: new Date().toISOString(),
+              completedBy: currentUserName,
+            },
+          ],
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, 'Progresso do treinamento atualizado para toda a equipe.')
+  }
+
+  const assignImplementationResponsibility = (responsibilityId: string, area: string, userId: string) => {
+    if (userRole !== 'Admin') return
+    const nextState: AppState = {
+      ...state,
+      implementationResponsibilities: [
+        ...state.implementationResponsibilities.filter(
+          (responsibility) => responsibility.id !== responsibilityId,
+        ),
+        ...(userId ? [{ id: responsibilityId, area, userId }] : []),
+      ],
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, 'Responsabilidades da equipe atualizadas.')
+  }
+
+  const addImplementationQuestion = () => {
+    const text = implementationQuestion.trim()
+    if (!text) {
+      setMessage('Escreva a dúvida ou o trecho confuso antes de registrar.')
+      return
+    }
+    const nextState: AppState = {
+      ...state,
+      implementationQuestions: [
+        {
+          id: `duvida-${Date.now()}`,
+          text,
+          createdAt: new Date().toISOString(),
+          createdBy: currentUserName,
+          resolved: false,
+        },
+        ...state.implementationQuestions,
+      ],
+    }
+    setState(nextState)
+    setImplementationQuestion('')
+    void saveStateImmediately(nextState, 'Dúvida registrada para revisão da equipe.')
+  }
+
+  const toggleImplementationQuestion = (questionId: string) => {
+    if (userRole !== 'Admin') return
+    const nextState: AppState = {
+      ...state,
+      implementationQuestions: state.implementationQuestions.map((question) =>
+        question.id === questionId
+          ? {
+              ...question,
+              resolved: !question.resolved,
+              resolvedAt: !question.resolved ? new Date().toISOString() : undefined,
+              resolvedBy: !question.resolved ? currentUserName : undefined,
+            }
+          : question,
+      ),
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, 'Situação da dúvida atualizada.')
   }
 
   const loadCloudState = useCallback(
@@ -5921,6 +6158,42 @@ export default function SistemaMacaroca() {
       data: count.date,
       extra: { sistema: count.systemQty, diferenca: count.difference, criadoPor: count.createdBy },
     })),
+    ...state.implementationResponsibilities.map((responsibility) => ({
+      tabela: 'Implantação - responsabilidades',
+      id: responsibility.id,
+      nome: responsibility.area,
+      descricao: state.users.find((user) => user.id === responsibility.userId)?.name ?? '',
+      status: 'Definida',
+      quantidade: '',
+      unidade: '',
+      valor: '',
+      data: '',
+      extra: { usuarioId: responsibility.userId },
+    })),
+    ...state.implementationProgress.map((progress) => ({
+      tabela: 'Implantação - treinamento',
+      id: progress.id,
+      nome: state.users.find((user) => user.id === progress.userId)?.name ?? '',
+      descricao: implementationSteps.find((step) => step.id === progress.stepId)?.title ?? progress.stepId,
+      status: 'Concluído',
+      quantidade: '',
+      unidade: '',
+      valor: '',
+      data: progress.completedAt,
+      extra: { concluidoPor: progress.completedBy },
+    })),
+    ...state.implementationQuestions.map((question) => ({
+      tabela: 'Implantação - dúvidas',
+      id: question.id,
+      nome: question.createdBy,
+      descricao: question.text,
+      status: question.resolved ? 'Resolvida' : 'Em revisão',
+      quantidade: '',
+      unidade: '',
+      valor: '',
+      data: question.createdAt,
+      extra: { resolvidoPor: question.resolvedBy, resolvidoEm: question.resolvedAt },
+    })),
     ...state.cashEntries.map((entry) => ({
       tabela: 'Financeiro',
       id: entry.id,
@@ -6685,6 +6958,36 @@ export default function SistemaMacaroca() {
     stock.finishedItems,
     stock.rawItems,
   ])
+  const implementationOverview = {
+    assignedResponsibilities: implementationAreas.filter((area) =>
+      state.implementationResponsibilities.some(
+        (responsibility) => responsibility.id === area.id && responsibility.userId,
+      ),
+    ).length,
+    selectedCompleted: selectedImplementationSteps.filter((step) =>
+      selectedImplementationCompleted.has(step.id),
+    ).length,
+    openQuestions: state.implementationQuestions.filter((question) => !question.resolved).length,
+    countedItems: new Set(
+      state.inventoryCounts.map((count) => `${count.category}:${count.item}`),
+    ).size,
+    expectedInventoryItems: state.rawMaterials.length + finishedCatalog.length,
+  }
+  const teamImplementationProgress = state.users.map((user) => {
+    const role = normalizeUserRole(user.role)
+    const steps = implementationSteps.filter((step) => step.roles.includes(role))
+    const completed = steps.filter((step) =>
+      state.implementationProgress.some(
+        (progress) => progress.userId === user.id && progress.stepId === step.id,
+      ),
+    ).length
+    return {
+      user,
+      completed,
+      total: steps.length,
+      percent: steps.length ? Math.round((completed / steps.length) * 100) : 0,
+    }
+  })
 
   const navGroups: { title: string; items: { key: Area; label: string; icon: ReactNode }[] }[] = [
     {
@@ -6858,7 +7161,8 @@ export default function SistemaMacaroca() {
       title: 'Gestão',
       description: 'Defina preços, acompanhe o dinheiro e controle os acessos ao sistema.',
       items: [
-        { key: 'indicadores', title: 'Indicadores', detail: 'Veja atrasos, produção, estoque, vendas e margem com ações diretas.', badge: `${overdueSmartOrders.length + indicatorSummary.delayedOps.length} atenção`, icon: <LayoutDashboard />, primary: true },
+        { key: 'implantacao', title: 'Implantação com a equipe', detail: 'Organize responsabilidades, treinamento, dúvidas e inventário inicial.', badge: `${state.implementationQuestions.filter((question) => !question.resolved).length} dúvida(s)`, icon: <ShieldCheck />, primary: true },
+        { key: 'indicadores', title: 'Indicadores', detail: 'Veja atrasos, produção, estoque, vendas e margem com ações diretas.', badge: `${overdueSmartOrders.length + indicatorSummary.delayedOps.length} atenção`, icon: <LayoutDashboard /> },
         { key: 'precos', title: 'Preços de venda', detail: 'Defina o valor oficial de cada peça e variação.', badge: `${state.products.length} produto(s)`, icon: <Calculator /> },
         { key: 'financeiro', title: 'Financeiro', detail: 'Acompanhe recebimentos, despesas, contas e saldo.', badge: canSeeMoney ? money(totals.balance) : 'Restrito', icon: <WalletCards /> },
         { key: 'usuarios', title: 'Usuários e permissões', detail: 'Cadastre pessoas e escolha o que cada perfil acessa.', badge: `${state.users.length} usuário(s)`, icon: <ShieldCheck /> },
@@ -6929,6 +7233,10 @@ export default function SistemaMacaroca() {
     indicadores: {
       title: 'Indicadores para decidir',
       description: 'Atrasos, produção, vendas, estoque e margem com uma ação clara para cada situação.',
+    },
+    implantacao: {
+      title: 'Implantação com a equipe',
+      description: 'Acompanhe usuários, responsabilidades, treinamento, dúvidas e o inventário inicial.',
     },
     vendas: {
       title: 'Acompanhar vendas',
@@ -8370,6 +8678,285 @@ export default function SistemaMacaroca() {
                     {!productionNeedRows.length && (
                       <EmptyLine text="Sem necessidade de produção no momento." />
                     )}
+                  </div>
+                </Panel>
+              </section>
+            )}
+
+            {activeArea === 'implantacao' && (
+              <section className="grid gap-5">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <PocketMetric
+                    label="Usuários individuais"
+                    value={state.users.length.toString()}
+                    detail="Uma conta para cada pessoa"
+                    tone={state.users.length > 1 ? 'green' : 'amber'}
+                  />
+                  <PocketMetric
+                    label="Responsabilidades"
+                    value={`${implementationOverview.assignedResponsibilities}/${implementationAreas.length}`}
+                    detail="Áreas com responsável definida"
+                    tone={implementationOverview.assignedResponsibilities === implementationAreas.length ? 'green' : 'amber'}
+                  />
+                  <PocketMetric
+                    label="Treinamento"
+                    value={`${implementationOverview.selectedCompleted}/${selectedImplementationSteps.length}`}
+                    detail={selectedImplementationUser?.name ?? 'Escolha uma pessoa'}
+                    tone={implementationOverview.selectedCompleted === selectedImplementationSteps.length ? 'green' : 'blue'}
+                  />
+                  <PocketMetric
+                    label="Dúvidas abertas"
+                    value={implementationOverview.openQuestions.toString()}
+                    detail="Textos ou processos para revisar"
+                    tone={implementationOverview.openQuestions ? 'amber' : 'green'}
+                  />
+                  <PocketMetric
+                    label="Inventário contado"
+                    value={`${implementationOverview.countedItems}/${implementationOverview.expectedInventoryItems}`}
+                    detail="Itens com contagem física"
+                    tone={
+                      implementationOverview.expectedInventoryItems > 0 &&
+                      implementationOverview.countedItems >= implementationOverview.expectedInventoryItems
+                        ? 'green'
+                        : 'amber'
+                    }
+                  />
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+                  <Panel title="Treinamento por pessoa">
+                    <div className="grid gap-4">
+                      {userRole === 'Admin' ? (
+                        <label className="grid gap-2">
+                          <FieldLabel>Pessoa em treinamento</FieldLabel>
+                          <select
+                            value={selectedImplementationUserId}
+                            onChange={(event) => setImplementationUserId(event.target.value)}
+                            className="h-11 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm"
+                          >
+                            {state.users.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.name} · {user.role}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : (
+                        <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                          <span className="block text-xs uppercase text-slate-400">Minha rotina</span>
+                          <strong className="mt-1 block">{selectedImplementationUser?.name} · {selectedImplementationRole}</strong>
+                        </div>
+                      )}
+
+                      <div className="grid gap-3">
+                        {selectedImplementationSteps.map((step, index) => {
+                          const completed = selectedImplementationCompleted.has(step.id)
+                          const canOpenStep = canAccessArea(step.target)
+                          return (
+                            <article
+                              key={step.id}
+                              className={`grid gap-3 rounded-md border p-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center ${
+                                completed
+                                  ? 'border-emerald-200 bg-emerald-50/50'
+                                  : 'border-slate-200 bg-white'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => toggleImplementationStep(step.id)}
+                                aria-label={completed ? `Marcar ${step.title} como pendente` : `Marcar ${step.title} como concluído`}
+                                className={`grid h-9 w-9 place-items-center rounded-md border text-sm font-semibold ${
+                                  completed
+                                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                                    : 'border-slate-300 bg-white text-slate-500'
+                                }`}
+                              >
+                                {completed ? '✓' : index + 1}
+                              </button>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <strong className="text-sm text-slate-950">{step.title}</strong>
+                                  {completed && <StatusBadge tone="green">Concluído</StatusBadge>}
+                                </div>
+                                <p className="mt-1 text-sm leading-5 text-slate-500">{step.detail}</p>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={!canOpenStep}
+                                onClick={() => {
+                                  if (step.id === 'inventario-inicial') setStockView('inventario')
+                                  setActiveArea(step.target)
+                                }}
+                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-[#312e81] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {canOpenStep ? step.action : 'Fora da sua função'}
+                              </button>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </Panel>
+
+                  <Panel title="Progresso da equipe">
+                    <div className="grid gap-3">
+                      {teamImplementationProgress.map(({ user, completed, total, percent }) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          disabled={userRole !== 'Admin'}
+                          onClick={() => setImplementationUserId(user.id)}
+                          className="grid gap-2 rounded-md border border-slate-200 bg-white p-4 text-left disabled:cursor-default"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <strong className="block text-sm text-slate-950">{user.name}</strong>
+                              <span className="text-xs text-slate-500">{user.role} · {completed}/{total} atividades</span>
+                            </div>
+                            <StatusBadge tone={percent === 100 ? 'green' : percent ? 'blue' : 'neutral'}>
+                              {percent}%
+                            </StatusBadge>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-600' : 'bg-[#312e81]'}`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </button>
+                      ))}
+                      {!state.users.length && <EmptyLine text="Cadastre os usuários individuais para iniciar." />}
+                      {userRole === 'Admin' && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveArea('usuarios')}
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Cadastrar usuário
+                        </button>
+                      )}
+                    </div>
+                  </Panel>
+                </div>
+
+                <div className="grid gap-5 xl:grid-cols-2">
+                  <Panel title="Responsabilidades">
+                    <div className="grid gap-3">
+                      {implementationAreas.map((item) => {
+                        const responsibility = state.implementationResponsibilities.find(
+                          (entry) => entry.id === item.id,
+                        )
+                        const owner = state.users.find((user) => user.id === responsibility?.userId)
+                        return (
+                          <div
+                            key={item.id}
+                            className="grid gap-2 rounded-md border border-slate-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.8fr)] sm:items-center"
+                          >
+                            <strong className="text-sm text-slate-900">{item.area}</strong>
+                            {userRole === 'Admin' ? (
+                              <select
+                                aria-label={`Responsável por ${item.area}`}
+                                value={responsibility?.userId ?? ''}
+                                onChange={(event) =>
+                                  assignImplementationResponsibility(
+                                    item.id,
+                                    item.area,
+                                    event.target.value,
+                                  )
+                                }
+                                className="h-10 min-w-0 rounded-md border border-slate-200 bg-white px-3 text-sm"
+                              >
+                                <option value="">Escolher responsável</option>
+                                {state.users.map((user) => (
+                                  <option key={user.id} value={user.id}>{user.name}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="text-sm text-slate-500">{owner?.name ?? 'Ainda não definida'}</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </Panel>
+
+                  <Panel title="Dúvidas e melhorias">
+                    <div className="grid gap-4">
+                      <label className="grid gap-2">
+                        <FieldLabel>O que ficou difícil ou confuso?</FieldLabel>
+                        <textarea
+                          value={implementationQuestion}
+                          onChange={(event) => setImplementationQuestion(event.target.value)}
+                          rows={3}
+                          placeholder="Ex.: não entendi qual preço usar no pedido"
+                          className="min-h-24 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#312e81]"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={addImplementationQuestion}
+                        className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white sm:w-fit"
+                      >
+                        Registrar dúvida
+                      </button>
+                      <div className="grid gap-3">
+                        {state.implementationQuestions.map((question) => (
+                          <article
+                            key={question.id}
+                            className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                          >
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <StatusBadge tone={question.resolved ? 'green' : 'amber'}>
+                                  {question.resolved ? 'Resolvida' : 'Em revisão'}
+                                </StatusBadge>
+                                <span className="text-xs text-slate-400">
+                                  {question.createdBy} · {formatDate(question.createdAt)}
+                                </span>
+                              </div>
+                              <p className="mt-2 text-sm leading-5 text-slate-700">{question.text}</p>
+                            </div>
+                            {userRole === 'Admin' && (
+                              <button
+                                type="button"
+                                onClick={() => toggleImplementationQuestion(question.id)}
+                                className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-[#312e81]"
+                              >
+                                {question.resolved ? 'Reabrir' : 'Marcar resolvida'}
+                              </button>
+                            )}
+                          </article>
+                        ))}
+                        {!state.implementationQuestions.length && (
+                          <EmptyLine text="Nenhuma dúvida registrada. Use este espaço durante o treinamento." />
+                        )}
+                      </div>
+                    </div>
+                  </Panel>
+                </div>
+
+                <Panel title="Inventário inicial real">
+                  <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                    <div>
+                      <strong className="text-slate-950">
+                        {implementationOverview.countedItems} de {implementationOverview.expectedInventoryItems} itens contados
+                      </strong>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        Conte matéria-prima e produto acabado. Toda diferença precisa de justificativa e ficará no histórico.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!canAdjustInventory}
+                      onClick={() => {
+                        setStockView('inventario')
+                        setActiveArea('estoque')
+                      }}
+                      className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      {canAdjustInventory ? 'Continuar inventário' : 'Inventário com o Admin'}
+                    </button>
                   </div>
                 </Panel>
               </section>

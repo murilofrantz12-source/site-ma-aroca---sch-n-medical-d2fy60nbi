@@ -19,10 +19,15 @@ create table if not exists public.erp_records (
       'supplier',
       'customer',
       'product',
+      'purchase_order',
       'purchase_note',
       'order',
       'production_order',
       'inventory_entry',
+      'inventory_count',
+      'implementation_progress',
+      'implementation_responsibility',
+      'implementation_question',
       'cash_entry',
       'company',
       'pricing'
@@ -106,6 +111,14 @@ begin
   end if;
 
   if requested_action = 'read' then
+    if requested_entity in (
+      'implementation_progress',
+      'implementation_responsibility',
+      'implementation_question'
+    ) then
+      return true;
+    end if;
+
     if profile_role = 'Sócia' then
       return requested_entity <> 'cash_entry';
     elsif profile_role = 'Comercial' then
@@ -124,6 +137,10 @@ begin
   end if;
 
   if requested_action = 'write' then
+    if requested_entity in ('implementation_progress', 'implementation_question') then
+      return true;
+    end if;
+
     if profile_role = 'Sócia' then
       return requested_entity in ('customer', 'product', 'order', 'production_order', 'inventory_entry');
     elsif profile_role = 'Comercial' then
@@ -132,7 +149,7 @@ begin
       return requested_entity in ('production_order', 'inventory_entry');
     elsif profile_role = 'Financeiro' then
       return requested_entity in (
-        'supplier', 'purchase_note', 'inventory_entry', 'cash_entry',
+        'supplier', 'purchase_order', 'purchase_note', 'inventory_entry', 'cash_entry',
         'pricing', 'order'
       );
     end if;
