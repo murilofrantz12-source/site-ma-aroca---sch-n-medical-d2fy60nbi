@@ -1559,6 +1559,17 @@ const materialPlannedQty = (material: MaterialLine, productQty = 1) =>
 const materialPlannedCost = (material: MaterialLine, productQty = 1) =>
   materialPlannedQty(material, productQty) * material.unitCost
 
+const isBelowMinimumStock = (quantity: number, minimumStock: number) =>
+  minimumStock > 0 && quantity < minimumStock
+
+const normalizedNameKey = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+
 const productCost = (product: Product, variationId?: string) =>
   productMaterials(product, variationId).reduce((total, material) => total + materialPlannedCost(material), 0)
 
@@ -3421,7 +3432,7 @@ export default function SistemaMacaroca() {
           minimumStock: material.minimumStock,
         }
       })
-      .filter((item) => item.minimumStock > 0 && item.qty <= item.minimumStock)
+      .filter((item) => isBelowMinimumStock(item.qty, item.minimumStock))
     const lowFinished = stock.finishedItems.filter((item) => item.qty <= 2)
 
     return { ordersToProduce, activeOps, producedUnits, lowRaw, lowFinished }
@@ -3504,6 +3515,62 @@ export default function SistemaMacaroca() {
       }),
     [state.productionOrders, state.products, state.rawMaterials, stock.rawItems],
   )
+  const materialRegistrationIssues = useMemo(() => {
+    const nameCounts = state.rawMaterials.reduce((counts, material) => {
+      const key = normalizedNameKey(material.name)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+      return counts
+    }, new Map<string, number>())
+    const catalogByName = new Map(
+      state.rawMaterials.map((material) => [normalizedNameKey(material.name), material]),
+    )
+    const technicalMaterials = state.products.flatMap((product) => {
+      const variationIds = product.variations.length
+        ? product.variations.map((variation) => variation.id)
+        : [undefined]
+      return variationIds.flatMap((variationId) => productMaterials(product, variationId))
+    })
+    const issues = state.rawMaterials.flatMap((material) => {
+      const reasons: string[] = []
+      const matchingTechnicalLines = technicalMaterials.filter(
+        (line) => normalizedNameKey(line.name) === normalizedNameKey(material.name),
+      )
+
+      if ((nameCounts.get(normalizedNameKey(material.name)) ?? 0) > 1) {
+        reasons.push('nome repetido no cadastro')
+      }
+      if (material.minimumStock <= 0) {
+        reasons.push('estoque mínimo não definido')
+      }
+      if (!Number.isFinite(material.purchaseToStockFactor) || material.purchaseToStockFactor <= 0) {
+        reasons.push('conversão de compra inválida')
+      }
+      if (matchingTechnicalLines.some((line) => line.unit !== material.unit)) {
+        reasons.push('unidade diferente da ficha técnica')
+      }
+
+      return reasons.length
+        ? [{
+            key: `catalog:${material.id}`,
+            item: material.name,
+            reasons,
+          }]
+        : []
+    })
+    const missingCatalogItems = technicalMaterials
+      .filter((line) => !catalogByName.has(normalizedNameKey(line.name)))
+      .filter(
+        (line, index, lines) =>
+          lines.findIndex((candidate) => normalizedNameKey(candidate.name) === normalizedNameKey(line.name)) === index,
+      )
+      .map((line) => ({
+        key: `technical:${normalizedNameKey(line.name)}`,
+        item: line.name,
+        reasons: ['usada em ficha técnica, mas não cadastrada como matéria-prima'],
+      }))
+
+    return [...issues, ...missingCatalogItems]
+  }, [state.products, state.rawMaterials])
   const openPurchaseOrders = state.purchaseOrders.filter(
     (order) => order.status === 'Enviado' || order.status === 'Parcial',
   )
@@ -11089,10 +11156,37 @@ export default function SistemaMacaroca() {
                 </Panel>
 
                 <Panel title="Matérias-primas cadastradas">
+                  <div className="mb-4 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <strong className="block text-sm text-[#111827]">Revisão dos cadastros</strong>
+                        <span className="mt-1 block text-sm leading-5 text-[#6b7280]">
+                          O sistema apenas sinaliza possíveis inconsistências. Nenhum material é alterado automaticamente.
+                        </span>
+                      </div>
+                      <StatusBadge tone={materialRegistrationIssues.length ? 'amber' : 'green'}>
+                        {materialRegistrationIssues.length
+                          ? `${materialRegistrationIssues.length} para revisar`
+                          : 'Tudo conferido'}
+                      </StatusBadge>
+                    </div>
+                    {materialRegistrationIssues.length > 0 && (
+                      <div className="mt-4 grid gap-2">
+                        {materialRegistrationIssues.map((issue) => (
+                          <div key={issue.key} className="rounded-md border border-amber-200 bg-white px-3 py-2.5">
+                            <strong className="block text-sm text-[#111827]">{issue.item}</strong>
+                            <span className="mt-1 block text-xs leading-5 text-amber-800">
+                              {issue.reasons.join(' · ')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="grid gap-3">
                     {state.rawMaterials.map((material) => {
                       const currentStock = stock.rawItems.find((item) => item.item === material.name)?.qty ?? 0
-                      const isLow = material.minimumStock > 0 && currentStock <= material.minimumStock
+                      const isLow = isBelowMinimumStock(currentStock, material.minimumStock)
 
                       return (
                         <RecordRow
@@ -12289,7 +12383,7 @@ export default function SistemaMacaroca() {
                     <Panel title="Posição de matérias-primas">
                       <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-[#e5e7eb] bg-[#e5e7eb] md:grid-cols-4">
                         <StockSummary label="Itens cadastrados" value={rawStockPositions.length.toString()} />
-                        <StockSummary label="Abaixo do mínimo" value={rawStockPositions.filter((item) => item.physical <= item.minimumStock).length.toString()} />
+                        <StockSummary label="Abaixo do mínimo" value={rawStockPositions.filter((item) => isBelowMinimumStock(item.physical, item.minimumStock)).length.toString()} />
                         <StockSummary label="Com falta para OP" value={rawStockPositions.filter((item) => item.shortage > 0).length.toString()} />
                         <StockSummary label="Valor físico" value={canSeeMoney ? money(stock.rawValue) : 'Restrito'} />
                       </div>
