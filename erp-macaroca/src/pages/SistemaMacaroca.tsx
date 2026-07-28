@@ -174,6 +174,7 @@ type ProductVariation = {
 type PurchaseNote = {
   id: string
   number: string
+  purchaseOrderId?: string
   supplier: string
   date: string
   item: string
@@ -183,6 +184,28 @@ type PurchaseNote = {
   stockQty?: number
   stockUnit?: string
   createdBy?: string
+}
+
+type PurchaseOrderStatus = 'Enviado' | 'Parcial' | 'Recebido' | 'Cancelado'
+
+type PurchaseOrder = {
+  id: string
+  number: string
+  supplier: string
+  orderDate: string
+  expectedDate: string
+  rawMaterialId: string
+  item: string
+  qty: number
+  unit: string
+  unitCost: number
+  stockQty: number
+  stockUnit: string
+  receivedQty: number
+  status: PurchaseOrderStatus
+  notes: string
+  createdBy: string
+  createdAt: string
 }
 
 type RawMaterial = {
@@ -393,6 +416,7 @@ type AppState = {
   suppliers: Supplier[]
   customers: Customer[]
   products: Product[]
+  purchaseOrders: PurchaseOrder[]
   purchaseNotes: PurchaseNote[]
   orders: Order[]
   productionOrders: ProductionOrder[]
@@ -755,6 +779,7 @@ const initialState: AppState = {
     },
   ],
   products: defaultProducts,
+  purchaseOrders: [],
   purchaseNotes: [
     {
       id: 'NF-VALORA-001',
@@ -1081,6 +1106,28 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
         })),
       }
     }),
+    purchaseOrders: mergeById(
+      includePrototypeDefaults ? initialState.purchaseOrders : [],
+      state.purchaseOrders ?? [],
+    ).map((order) => ({
+      ...order,
+      stockQty: order.stockQty ?? convertedStockQty(
+        order.qty,
+        rawMaterials.find((material) => material.id === order.rawMaterialId || material.name === order.item),
+        order.unit,
+      ),
+      stockUnit:
+        order.stockUnit ??
+        rawMaterials.find((material) => material.id === order.rawMaterialId || material.name === order.item)?.unit ??
+        order.unit,
+      receivedQty: order.receivedQty ?? 0,
+      status: (['Enviado', 'Parcial', 'Recebido', 'Cancelado'] as PurchaseOrderStatus[]).includes(order.status)
+        ? order.status
+        : 'Enviado',
+      notes: order.notes ?? '',
+      createdBy: order.createdBy ?? 'Sistema',
+      createdAt: order.createdAt ?? new Date(`${order.orderDate}T12:00:00`).toISOString(),
+    })),
     purchaseNotes: mergeById(includePrototypeDefaults ? initialState.purchaseNotes : [], state.purchaseNotes ?? []).map((note) => ({
       ...note,
       createdBy: note.createdBy ?? 'Sistema',
@@ -1192,6 +1239,7 @@ const auditEntityLabels: Record<string, string> = {
   supplier: 'Fornecedor',
   customer: 'Cliente',
   product: 'Produto',
+  purchase_order: 'Pedido de compra',
   purchase_note: 'Compra de matéria-prima',
   order: 'Orçamento ou pedido',
   production_order: 'Ordem de produção',
@@ -1913,18 +1961,36 @@ const helpGuides: HelpGuide[] = [
   {
     id: 'comprar-material',
     category: 'Estoque',
-    title: 'Como registrar uma compra de matéria-prima',
-    summary: 'Lance a nota para aumentar o estoque e registrar a saída financeira.',
-    keywords: ['compra', 'nota', 'entrada', 'tecido', 'matéria-prima', 'fornecedor'],
+    title: 'Como criar um pedido de compra',
+    summary: 'Transforme a necessidade de material em uma encomenda ao fornecedor.',
+    keywords: ['compra', 'pedido de compra', 'comprar', 'tecido', 'matéria-prima', 'fornecedor'],
     target: 'notas',
-    action: 'Registrar compra',
+    action: 'Ver o que comprar',
     steps: [
       'Abra Estoque e compras e escolha Compras de matéria-prima.',
-      'Informe número, fornecedor e data da nota.',
-      'Escolha o material comprado e sua unidade de compra.',
-      'Informe quantidade e custo.',
-      'Confira a conversão para a unidade usada na ficha técnica.',
-      'Salve para registrar a entrada no estoque e a despesa financeira.',
+      'Na aba O que comprar, veja OPs, pedidos futuros, estoque mínimo e materiais já encomendados.',
+      'No material desejado, escolha Pedir.',
+      'Confira fornecedor, quantidade sugerida, unidade de compra, custo e previsão de chegada.',
+      'Crie o pedido de compra.',
+      'O material ficará como A caminho, sem aumentar o estoque antes de chegar.',
+    ],
+  },
+  {
+    id: 'receber-material',
+    category: 'Estoque',
+    title: 'Como receber uma compra parcial ou total',
+    summary: 'Registre somente a quantidade que realmente chegou.',
+    keywords: ['recebimento', 'chegou', 'nota', 'parcial', 'total', 'conta a pagar'],
+    target: 'notas',
+    action: 'Registrar recebimento',
+    steps: [
+      'Abra Compras de matéria-prima e escolha Recebimentos.',
+      'Selecione o pedido que está aguardando material.',
+      'Informe a nota, a data e a quantidade recebida.',
+      'Revise o custo real e o vencimento da conta.',
+      'Confira a conversão para a unidade usada no estoque.',
+      'Confirme o recebimento.',
+      'O sistema atualizará estoque, custo médio e conta a pagar; se faltar material, o pedido continuará Parcial.',
     ],
   },
   {
@@ -2156,11 +2222,27 @@ export default function SistemaMacaroca() {
   const [confirmAccountPassword, setConfirmAccountPassword] = useState('')
   const [noteNumber, setNoteNumber] = useState('0002')
   const [noteSupplier, setNoteSupplier] = useState('Fornecedor de tecidos')
-  const [noteDate, setNoteDate] = useState('2026-07-20')
+  const [noteDate, setNoteDate] = useState(currentDateValue())
   const [noteItem, setNoteItem] = useState('Tecido principal')
   const [noteQty, setNoteQty] = useState(10)
   const [noteUnit, setNoteUnit] = useState('kg')
   const [noteUnitCost, setNoteUnitCost] = useState(55500)
+  const [purchaseView, setPurchaseView] = useState<'necessidades' | 'pedidos' | 'recebimentos'>('necessidades')
+  const [purchaseMaterialId, setPurchaseMaterialId] = useState(state.rawMaterials[0]?.id ?? '')
+  const [purchaseSupplier, setPurchaseSupplier] = useState(state.rawMaterials[0]?.supplier ?? state.suppliers[0]?.name ?? '')
+  const [purchaseQty, setPurchaseQty] = useState(1)
+  const [purchaseUnitCost, setPurchaseUnitCost] = useState(
+    (state.rawMaterials[0]?.avgCost ?? 0) *
+      purchaseToStockFactorFor(state.rawMaterials[0], state.rawMaterials[0]?.purchaseUnit ?? 'un'),
+  )
+  const [purchaseExpectedDate, setPurchaseExpectedDate] = useState(datePlusDaysValue(7))
+  const [purchaseNotes, setPurchaseNotes] = useState('')
+  const [receivingPurchaseOrderId, setReceivingPurchaseOrderId] = useState('')
+  const [receiptNumber, setReceiptNumber] = useState('')
+  const [receiptDate, setReceiptDate] = useState(currentDateValue())
+  const [receiptQty, setReceiptQty] = useState(0)
+  const [receiptUnitCost, setReceiptUnitCost] = useState(0)
+  const [receiptDueDate, setReceiptDueDate] = useState(datePlusDaysValue(30))
   const [selectedCustomerId, setSelectedCustomerId] = useState(state.customers[0]?.id ?? '')
   const [orderDocumentType, setOrderDocumentType] = useState<OrderDocumentType>('Pedido')
   const [orderDate, setOrderDate] = useState(currentDateValue())
@@ -2710,6 +2792,26 @@ export default function SistemaMacaroca() {
   const selectedNoteMaterial = state.rawMaterials.find((material) => material.name === noteItem)
   const noteStockQty = convertedStockQty(noteQty, selectedNoteMaterial, noteUnit)
   const noteStockUnit = selectedNoteMaterial?.unit ?? noteUnit
+  const selectedPurchaseMaterial =
+    state.rawMaterials.find((material) => material.id === purchaseMaterialId) ??
+    state.rawMaterials[0]
+  const selectedReceivingPurchaseOrder =
+    state.purchaseOrders.find(
+      (order) =>
+        order.id === receivingPurchaseOrderId &&
+        (order.status === 'Enviado' || order.status === 'Parcial'),
+    ) ??
+    state.purchaseOrders.find((order) => order.status === 'Enviado' || order.status === 'Parcial')
+  const selectedReceivingMaterial = selectedReceivingPurchaseOrder
+    ? state.rawMaterials.find(
+        (material) =>
+          material.id === selectedReceivingPurchaseOrder.rawMaterialId ||
+          material.name === selectedReceivingPurchaseOrder.item,
+      )
+    : undefined
+  const selectedReceivingPendingQty = selectedReceivingPurchaseOrder
+    ? Math.max(0, selectedReceivingPurchaseOrder.qty - selectedReceivingPurchaseOrder.receivedQty)
+    : 0
   const newMaterialFactor = Math.max(newMaterialPurchaseFactor || 1, 0.0001)
   const newMaterialStockCost = newMaterialCost / newMaterialFactor
   const newMaterialSimulationCost = newMaterialSimulationQty * newMaterialStockCost
@@ -2777,7 +2879,11 @@ export default function SistemaMacaroca() {
     const accountsPayable = state.cashEntries.filter(
       (entry) => entry.kind === 'Saída' && (!entry.paid || entry.category === 'Conta a pagar'),
     )
-    const rawMaterialPurchases = byCategory('Compra de matéria-prima')
+    const rawMaterialPurchases = state.cashEntries.filter(
+      (entry) =>
+        entry.category === 'Compra de matéria-prima' ||
+        entry.source === 'Compra de matéria-prima',
+    )
     const fixedExpenses = byCategory('Despesa fixa')
     const estimatedProfitByOrder = state.orders.filter((order) => order.documentType === 'Pedido').map((order) => {
       const product = state.products.find((item) => item.id === order.productId)
@@ -2964,8 +3070,29 @@ export default function SistemaMacaroca() {
       }),
     [state.productionOrders, state.products, state.rawMaterials, stock.rawItems],
   )
+  const openPurchaseOrders = state.purchaseOrders.filter(
+    (order) => order.status === 'Enviado' || order.status === 'Parcial',
+  )
   const purchaseSuggestions = useMemo(() => {
-    const required = new Map<string, { item: string; qty: number; unit: string }>()
+    type Requirement = { qty: number; dueDate: string }
+    const opRequirements = new Map<string, Requirement>()
+    const futureRequirements = new Map<string, Requirement>()
+    const addRequirement = (
+      target: Map<string, Requirement>,
+      material: MaterialLine,
+      qty: number,
+      dueDate?: string,
+    ) => {
+      const current = target.get(material.name) ?? { qty: 0, dueDate: '' }
+      const nextDueDate =
+        dueDate && (!current.dueDate || dueDate < current.dueDate)
+          ? dueDate
+          : current.dueDate
+      target.set(material.name, {
+        qty: current.qty + materialPlannedQty(material, qty),
+        dueDate: nextDueDate,
+      })
+    }
 
     state.productionOrders
       .filter((op) => op.status !== 'Finalizada')
@@ -2973,42 +3100,106 @@ export default function SistemaMacaroca() {
         const product = state.products.find((item) => item.id === op.productId)
         const remaining = Math.max(0, op.qty - op.produced)
         if (!product || remaining <= 0) return
-
-        productMaterials(product, op.variationId).forEach((material) => {
-          const current = required.get(material.name) ?? {
-            item: material.name,
-            qty: 0,
-            unit: material.unit,
-          }
-          required.set(material.name, {
-            ...current,
-            qty: current.qty + materialPlannedQty(material, remaining),
-          })
-        })
+        const linkedOrder = state.orders.find((order) => order.id === op.orderId)
+        productMaterials(product, op.variationId).forEach((material) =>
+          addRequirement(opRequirements, material, remaining, linkedOrder?.dueDate || op.startDate),
+        )
       })
+
+    const futureGroups = new Map<string, Order[]>()
+    state.orders
+      .filter(
+        (order) =>
+          orderIsReserved(order) &&
+          orderPriceApproved(order) &&
+          (order.status === 'Aberto' || order.status === 'Em produção'),
+      )
+      .forEach((order) => {
+        const key = `${order.productId}::${order.variationId ?? ''}`
+        futureGroups.set(key, [...(futureGroups.get(key) ?? []), order])
+      })
+
+    futureGroups.forEach((orders, key) => {
+      const [productId, variationId = ''] = key.split('::')
+      const product = state.products.find((item) => item.id === productId)
+      if (!product) return
+      const finishedItem = productFinishedItemName(product, variationId || undefined)
+      const physical = stock.finishedItems.find((item) => item.item === finishedItem)?.qty ?? 0
+      const producing = state.productionOrders
+        .filter(
+          (op) =>
+            op.productId === productId &&
+            (op.variationId ?? '') === variationId &&
+            op.status !== 'Finalizada',
+        )
+        .reduce((sum, op) => sum + Math.max(0, op.qty - op.produced), 0)
+      const pending = orders.reduce((sum, order) => sum + order.qty, 0)
+      const futureProductionQty = Math.max(0, pending - physical - producing)
+      if (futureProductionQty <= 0) return
+      const earliestDueDate = orders
+        .map((order) => order.dueDate)
+        .filter(Boolean)
+        .sort()[0]
+      productMaterials(product, variationId || undefined).forEach((material) =>
+        addRequirement(futureRequirements, material, futureProductionQty, earliestDueDate),
+      )
+    })
 
     return state.rawMaterials
       .map((material) => {
-        const item = required.get(material.name) ?? {
-          item: material.name,
-          qty: 0,
-          unit: material.unit,
-        }
-        const available = stock.rawItems.find((raw) => raw.item === material.name)?.qty ?? 0
-        const missingForOps = Math.max(0, item.qty - available)
-        const missingForMinimum = Math.max(0, material.minimumStock - available)
+        const opRequirement = opRequirements.get(material.name) ?? { qty: 0, dueDate: '' }
+        const futureRequirement = futureRequirements.get(material.name) ?? { qty: 0, dueDate: '' }
+        const physical = stock.rawItems.find((raw) => raw.item === material.name)?.qty ?? 0
+        const onOrder = openPurchaseOrders
+          .filter((order) => order.rawMaterialId === material.id || order.item === material.name)
+          .reduce(
+            (sum, order) =>
+              sum +
+              convertedStockQty(
+                Math.max(0, order.qty - order.receivedQty),
+                material,
+                order.unit,
+              ),
+            0,
+          )
+        const totalDemand = opRequirement.qty + futureRequirement.qty
+        const targetStock = totalDemand + material.minimumStock
+        const missingBeforeOrders = Math.max(0, targetStock - physical)
+        const suggestedStockQty = Math.max(0, missingBeforeOrders - onOrder)
+        const conversionFactor = purchaseToStockFactorFor(material, material.purchaseUnit)
+        const suggestedPurchaseQty =
+          conversionFactor > 0
+            ? Math.ceil((suggestedStockQty / conversionFactor) * 100) / 100
+            : suggestedStockQty
+        const needBy = [opRequirement.dueDate, futureRequirement.dueDate]
+          .filter(Boolean)
+          .sort()[0] ?? ''
 
         return {
-          ...item,
-          available,
+          material,
+          item: material.name,
+          unit: material.unit,
+          physical,
+          requiredForOps: opRequirement.qty,
+          requiredForFutureOrders: futureRequirement.qty,
           minimumStock: material.minimumStock,
-          missingForOps,
-          missingForMinimum,
-          suggested: Math.max(missingForOps, missingForMinimum),
+          onOrder,
+          suggestedStockQty,
+          suggestedPurchaseQty,
+          purchaseUnit: material.purchaseUnit,
+          needBy,
         }
       })
-      .filter((item) => item.suggested > 0)
-  }, [state.productionOrders, state.products, state.rawMaterials, stock.rawItems])
+      .filter((item) => item.suggestedStockQty > 0 || item.onOrder > 0)
+  }, [
+    openPurchaseOrders,
+    state.orders,
+    state.productionOrders,
+    state.products,
+    state.rawMaterials,
+    stock.finishedItems,
+    stock.rawItems,
+  ])
   const rawInventoryItems = state.rawMaterials.map((material) => ({
     item: material.name,
     unit: material.unit,
@@ -3510,80 +3701,295 @@ export default function SistemaMacaroca() {
     }
   }
 
-  const createPurchaseNote = () => {
-    const total = noteQty * noteUnitCost
-    const material = state.rawMaterials.find((item) => item.name === noteItem)
-    const stockQty = convertedStockQty(noteQty, material, noteUnit)
-    const stockUnit = material?.unit ?? noteUnit
-    const stockUnitCost = stockQty > 0 ? total / stockQty : noteUnitCost
-    const note: PurchaseNote = {
-      id: `NF-${String(state.purchaseNotes.length + 1).padStart(3, '0')}`,
-      number: noteNumber || String(state.purchaseNotes.length + 1).padStart(4, '0'),
-      supplier: noteSupplier || 'Fornecedor',
-      date: noteDate,
-      item: noteItem || 'Matéria-prima',
-      qty: noteQty,
-      unit: noteUnit || 'un',
-      unitCost: noteUnitCost,
-      stockQty,
-      stockUnit,
-      createdBy: currentUserName,
+  const selectPurchaseMaterial = (materialId: string) => {
+    const material = state.rawMaterials.find((item) => item.id === materialId)
+    setPurchaseMaterialId(materialId)
+    if (!material) return
+    setPurchaseSupplier(material.supplier || state.suppliers[0]?.name || '')
+    setPurchaseQty(1)
+    setPurchaseUnitCost(
+      material.avgCost * purchaseToStockFactorFor(material, material.purchaseUnit),
+    )
+  }
+
+  const preparePurchaseFromSuggestion = (suggestion: (typeof purchaseSuggestions)[number]) => {
+    setPurchaseMaterialId(suggestion.material.id)
+    setPurchaseSupplier(suggestion.material.supplier || state.suppliers[0]?.name || '')
+    setPurchaseQty(Math.max(suggestion.suggestedPurchaseQty, 0.01))
+    setPurchaseUnitCost(
+      suggestion.material.avgCost *
+        purchaseToStockFactorFor(suggestion.material, suggestion.material.purchaseUnit),
+    )
+    setPurchaseExpectedDate(suggestion.needBy || datePlusDaysValue(7))
+    setPurchaseNotes(
+      `Sugestão automática: OPs ${suggestion.requiredForOps.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}; pedidos futuros ${suggestion.requiredForFutureOrders.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}; mínimo ${suggestion.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}.`,
+    )
+    setPurchaseView('pedidos')
+    setMessage(`Sugestão de ${suggestion.item} carregada. Confira fornecedor, quantidade e prazo.`)
+  }
+
+  const createPurchaseOrder = () => {
+    const material = selectedPurchaseMaterial
+    if (!canManagePurchases) {
+      setMessage('Somente Administração ou Financeiro pode criar pedido de compra.')
+      return
+    }
+    if (!material || purchaseQty <= 0 || purchaseUnitCost < 0) {
+      setMessage('Escolha o material e informe uma quantidade válida.')
+      return
+    }
+    if (!purchaseSupplier.trim()) {
+      setMessage('Escolha o fornecedor antes de criar o pedido de compra.')
+      return
     }
 
-    setState((current) => ({
+    const now = Date.now()
+    const number = `PC-${String(state.purchaseOrders.length + 1).padStart(4, '0')}`
+    const order: PurchaseOrder = {
+      id: `PC-${now}`,
+      number,
+      supplier: purchaseSupplier,
+      orderDate: currentDateValue(),
+      expectedDate: purchaseExpectedDate,
+      rawMaterialId: material.id,
+      item: material.name,
+      qty: purchaseQty,
+      unit: material.purchaseUnit,
+      unitCost: purchaseUnitCost,
+      stockQty: convertedStockQty(purchaseQty, material, material.purchaseUnit),
+      stockUnit: material.unit,
+      receivedQty: 0,
+      status: 'Enviado',
+      notes: purchaseNotes,
+      createdBy: currentUserName,
+      createdAt: new Date().toISOString(),
+    }
+    const nextState = {
+      ...state,
+      purchaseOrders: [order, ...state.purchaseOrders],
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState)
+    setReceivingPurchaseOrderId(order.id)
+    setReceiptQty(order.qty)
+    setReceiptUnitCost(order.unitCost)
+    setPurchaseNotes('')
+    setMessage(`${order.number} criado. O material aparece como compra a receber.`)
+  }
+
+  const buildStateAfterMaterialReceipt = (
+    current: AppState,
+    {
+      purchaseOrder,
+      number,
+      supplier,
+      date,
+      dueDate,
+      material,
+      qty,
+      unit,
+      unitCost,
+    }: {
+      purchaseOrder?: PurchaseOrder
+      number: string
+      supplier: string
+      date: string
+      dueDate: string
+      material: RawMaterial
+      qty: number
+      unit: string
+      unitCost: number
+    },
+  ): AppState => {
+    const timestamp = Date.now()
+    const total = qty * unitCost
+    const stockQty = convertedStockQty(qty, material, unit)
+    const stockUnitCost = stockQty > 0 ? total / stockQty : material.avgCost
+    const currentMaterial =
+      current.rawMaterials.find((item) => item.id === material.id) ?? material
+    const physicalBefore = Math.max(0, rawMaterialBalanceFromState(current, material.name))
+    const averageCost =
+      physicalBefore + stockQty > 0
+        ? ((physicalBefore * currentMaterial.avgCost) + (stockQty * stockUnitCost)) /
+          (physicalBefore + stockQty)
+        : stockUnitCost
+    const note: PurchaseNote = {
+      id: `NF-${timestamp}`,
+      number,
+      purchaseOrderId: purchaseOrder?.id,
+      supplier,
+      date,
+      item: material.name,
+      qty,
+      unit,
+      unitCost,
+      stockQty,
+      stockUnit: material.unit,
+      createdBy: currentUserName,
+    }
+    const nextReceivedQty = purchaseOrder
+      ? Math.min(purchaseOrder.qty, purchaseOrder.receivedQty + qty)
+      : 0
+
+    return {
       ...current,
       rawMaterials: current.rawMaterials.map((item) =>
-        item.name === note.item ? { ...item, avgCost: stockUnitCost } : item,
+        item.id === material.id
+          ? { ...item, avgCost: averageCost, lastPurchase: date }
+          : item,
       ),
       products: current.products.map((product) => ({
         ...product,
         materials: product.materials.map((productMaterial) =>
-          (material && productMaterial.rawMaterialId === material.id) || productMaterial.name === note.item
-            ? { ...productMaterial, unitCost: stockUnitCost }
+          productMaterial.rawMaterialId === material.id || productMaterial.name === material.name
+            ? { ...productMaterial, unitCost: averageCost }
             : productMaterial,
         ),
         variations: product.variations.map((variation) => ({
           ...variation,
           materials: variation.materials.map((productMaterial) =>
-            (material && productMaterial.rawMaterialId === material.id) || productMaterial.name === note.item
-              ? { ...productMaterial, unitCost: stockUnitCost }
+            productMaterial.rawMaterialId === material.id || productMaterial.name === material.name
+              ? { ...productMaterial, unitCost: averageCost }
               : productMaterial,
           ),
         })),
       })),
+      purchaseOrders: purchaseOrder
+        ? current.purchaseOrders.map((order) =>
+            order.id === purchaseOrder.id
+              ? {
+                  ...order,
+                  receivedQty: nextReceivedQty,
+                  status: nextReceivedQty >= order.qty ? 'Recebido' : 'Parcial',
+                }
+              : order,
+          )
+        : current.purchaseOrders,
       purchaseNotes: [note, ...current.purchaseNotes],
       inventoryEntries: [
         {
-          id: `EST-${Date.now()}`,
+          id: `EST-${timestamp}`,
           kind: 'Entrada MP',
-          item: note.item,
+          item: material.name,
           qty: stockQty,
-          unit: stockUnit,
+          unit: material.unit,
           value: total,
-          source: `NF ${note.number}`,
+          source: purchaseOrder ? `${purchaseOrder.number} · NF ${number}` : `NF ${number}`,
           createdBy: currentUserName,
           createdAt: new Date().toISOString(),
-          reason: `Compra recebida de ${note.supplier}`,
+          reason: purchaseOrder
+            ? `Recebimento do pedido de compra ${purchaseOrder.number}`
+            : `Compra recebida de ${supplier}`,
         },
         ...current.inventoryEntries,
       ],
       cashEntries: [
         {
-          id: `CX-${Date.now()}`,
+          id: `CX-${timestamp}`,
           kind: 'Saída',
-          category: 'Compra de matéria-prima',
-          description: `NF ${note.number} - ${note.supplier}`,
+          category: 'Conta a pagar',
+          description: `${purchaseOrder?.number ? `${purchaseOrder.number} · ` : ''}NF ${number} - ${supplier}`,
           value: total,
           source: 'Compra de matéria-prima',
-          dueDate: note.date,
-          paid: true,
+          dueDate,
+          paid: false,
           createdBy: currentUserName,
         },
         ...current.cashEntries,
       ],
-    }))
+    }
+  }
+
+  const createPurchaseNote = () => {
+    const material = state.rawMaterials.find((item) => item.name === noteItem)
+    if (!canManagePurchases) {
+      setMessage('Somente Administração ou Financeiro pode registrar recebimentos.')
+      return
+    }
+    if (!material || noteQty <= 0 || noteUnitCost < 0) {
+      setMessage('Informe material, quantidade e custo válidos.')
+      return
+    }
+    const nextState = buildStateAfterMaterialReceipt(state, {
+      number: noteNumber || String(state.purchaseNotes.length + 1).padStart(4, '0'),
+      supplier: noteSupplier || material.supplier || 'Fornecedor',
+      date: noteDate,
+      dueDate: noteDate,
+      material,
+      qty: noteQty,
+      unit: noteUnit || material.purchaseUnit,
+      unitCost: noteUnitCost,
+    })
+    setState(nextState)
+    void saveStateImmediately(nextState)
     setActiveArea('notas')
-    setMessage('Compra registrada. Matéria-prima, estoque e financeiro atualizados.')
+    setPurchaseView('recebimentos')
+    setMessage('Recebimento registrado. Estoque e custo médio foram atualizados e a conta ficou a pagar.')
+  }
+
+  const selectPurchaseOrderForReceipt = (orderId: string) => {
+    const order = state.purchaseOrders.find((item) => item.id === orderId)
+    setReceivingPurchaseOrderId(orderId)
+    if (!order) return
+    setReceiptQty(Math.max(0, order.qty - order.receivedQty))
+    setReceiptUnitCost(order.unitCost)
+    setReceiptNumber('')
+    setReceiptDate(currentDateValue())
+    setReceiptDueDate(datePlusDaysValue(30))
+  }
+
+  const receivePurchaseOrder = () => {
+    const order = selectedReceivingPurchaseOrder
+    const material = selectedReceivingMaterial
+    if (!canManagePurchases) {
+      setMessage('Somente Administração ou Financeiro pode registrar recebimentos.')
+      return
+    }
+    if (!order || !material) {
+      setMessage('Escolha um pedido de compra que ainda tenha material a receber.')
+      return
+    }
+    if (receiptQty <= 0 || receiptQty > selectedReceivingPendingQty) {
+      setMessage(`Informe uma quantidade entre 0 e ${selectedReceivingPendingQty.toLocaleString('pt-BR')} ${order.unit}.`)
+      return
+    }
+    if (!receiptNumber.trim()) {
+      setMessage('Informe o número da nota ou comprovante do recebimento.')
+      return
+    }
+
+    const nextState = buildStateAfterMaterialReceipt(state, {
+      purchaseOrder: order,
+      number: receiptNumber,
+      supplier: order.supplier,
+      date: receiptDate,
+      dueDate: receiptDueDate,
+      material,
+      qty: receiptQty,
+      unit: order.unit,
+      unitCost: receiptUnitCost,
+    })
+    setState(nextState)
+    void saveStateImmediately(nextState)
+    const remaining = Math.max(0, selectedReceivingPendingQty - receiptQty)
+    const nextOpenOrder = nextState.purchaseOrders.find(
+      (item) => item.status === 'Enviado' || item.status === 'Parcial',
+    )
+    setReceivingPurchaseOrderId(nextOpenOrder?.id ?? '')
+    setReceiptNumber('')
+    setReceiptQty(
+      remaining > 0
+        ? remaining
+        : nextOpenOrder
+          ? Math.max(0, nextOpenOrder.qty - nextOpenOrder.receivedQty)
+          : 0,
+    )
+    setReceiptUnitCost(nextOpenOrder?.unitCost ?? 0)
+    setMessage(
+      remaining > 0
+        ? `Recebimento parcial registrado. Ainda faltam ${remaining.toLocaleString('pt-BR')} ${order.unit}.`
+        : `${order.number} recebido por completo. Estoque, custo e conta a pagar foram atualizados.`,
+    )
   }
 
   const inventoryItemUnitCost = (category: InventoryCategory, itemName: string) => {
@@ -5169,6 +5575,24 @@ export default function SistemaMacaroca() {
         },
       })),
     ),
+    ...state.purchaseOrders.map((order) => ({
+      tabela: 'Pedidos de compra',
+      id: order.id,
+      nome: order.number,
+      descricao: order.item,
+      status: order.status,
+      quantidade: order.qty,
+      unidade: order.unit,
+      valor: order.qty * order.unitCost,
+      data: order.orderDate,
+      extra: {
+        fornecedor: order.supplier,
+        previsao: order.expectedDate,
+        recebido: order.receivedQty,
+        estoquePrevisto: `${order.stockQty} ${order.stockUnit}`,
+        criadoPor: order.createdBy,
+      },
+    })),
     ...state.purchaseNotes.map((note) => ({
       tabela: 'Compras de matéria-prima',
       id: note.id,
@@ -5916,7 +6340,7 @@ export default function SistemaMacaroca() {
       description: 'Consulte o saldo, registre compras e acompanhe tudo o que entrou ou saiu.',
       items: [
         { key: 'estoque', title: 'Estoque atual', detail: 'Consulte matéria-prima, produto pronto e compras sugeridas.', badge: `${generalPlan.attentionStock.length} alerta(s)`, icon: <Package />, primary: true },
-        { key: 'notas', title: 'Compras de matéria-prima', detail: 'Registre notas e a entrada dos materiais comprados.', badge: `${state.purchaseNotes.length} nota(s)`, icon: <ReceiptText /> },
+        { key: 'notas', title: 'Compras de matéria-prima', detail: 'Decida o que comprar, acompanhe pedidos e registre recebimentos.', badge: `${openPurchaseOrders.length} a receber`, icon: <ReceiptText /> },
         { key: 'movimentacoes', title: 'Entradas e saídas', detail: 'Consulte o histórico de tudo que movimentou o estoque.', badge: `${state.inventoryEntries.length} registro(s)`, icon: <PackageCheck /> },
         { key: 'fornecedores', title: 'Fornecedores', detail: 'Mantenha os contatos usados nas compras.', badge: `${state.suppliers.length} cadastrado(s)`, icon: <Store /> },
       ],
@@ -6045,7 +6469,7 @@ export default function SistemaMacaroca() {
     },
     notas: {
       title: 'Compras de matéria-prima',
-      description: 'Registre compras e recebimentos sem misturar com a consulta de estoque.',
+      description: 'Veja o que comprar, acompanhe o que está a caminho e registre o que chegou.',
     },
     fornecedores: {
       title: 'Fornecedores',
@@ -9454,91 +9878,329 @@ export default function SistemaMacaroca() {
             )}
 
             {activeArea === 'notas' && (
-              <section className="grid gap-5 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
-                <Panel title="Compra de matéria-prima">
-                  <div className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <SoftInput label="Número" value={noteNumber} onChange={setNoteNumber} />
-                      <SoftInput label="Data" value={noteDate} onChange={setNoteDate} />
-                    </div>
-                    <label className="grid gap-2">
-                      <FieldLabel>Fornecedor</FieldLabel>
-                      <select
-                        value={noteSupplier}
-                        onChange={(event) => setNoteSupplier(event.target.value)}
-                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                      >
-                        {state.suppliers.map((supplier) => (
-                          <option key={supplier.id} value={supplier.name}>
-                            {supplier.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="grid gap-2">
-                      <FieldLabel>Matéria-prima</FieldLabel>
-                      <select
-                        value={noteItem}
-                        onChange={(event) => selectRawMaterialForNote(event.target.value)}
-                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                      >
-                        {state.rawMaterials.map((material) => (
-                          <option key={material.id} value={material.name}>
-                            {material.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
-                      <SoftNumber label="Qtd." value={noteQty} step="0.1" onChange={setNoteQty} />
-                      <UnitInput label="Unidade" value={noteUnit} onChange={setNoteUnit} />
-                    </div>
-                    <SoftNumber label={`Custo por ${noteUnit || 'un'} na nota`} value={noteUnitCost} onChange={setNoteUnitCost} />
-                    <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-3 text-sm text-[#111827]">
-                      <strong className="block">Conversão para estoque</strong>
-                      <span className="mt-1 block text-black/60">
-                        Compra: {noteQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {noteUnit || 'un'} → entra como {noteStockQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {noteStockUnit}
-                      </span>
-                      <span className="mt-1 block text-black/60">
-                        Custo convertido: {money(noteStockQty > 0 ? (noteQty * noteUnitCost) / noteStockQty : noteUnitCost)} por {noteStockUnit}
-                      </span>
-                      {selectedNoteMaterial && (
-                        <span className="mt-1 block text-xs text-black/45">
-                          Regra: 1 {selectedNoteMaterial.purchaseUnit} = {selectedNoteMaterial.purchaseToStockFactor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {selectedNoteMaterial.unit}
-                        </span>
-                      )}
-                    </div>
-                    <TotalLine label="Total da compra" value={money(noteQty * noteUnitCost)} />
+              <section className="grid gap-5">
+                <div className="flex max-w-full gap-2 overflow-x-auto rounded-md border border-[#e5e7eb] bg-[#f3f4f6] p-1">
+                  {([
+                    ['necessidades', 'O que comprar'],
+                    ['pedidos', 'Pedidos de compra'],
+                    ['recebimentos', 'Recebimentos'],
+                  ] as const).map(([view, label]) => (
                     <button
+                      key={view}
                       type="button"
-                      onClick={createPurchaseNote}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      onClick={() => setPurchaseView(view)}
+                      aria-pressed={purchaseView === view}
+                      className={`h-10 min-w-max rounded-md px-4 text-sm font-medium ${
+                        purchaseView === view
+                          ? 'bg-[#111827] text-white'
+                          : 'bg-transparent text-[#4b5563] hover:bg-white'
+                      }`}
                     >
-                      Registrar compra
-                      <ArrowRight className="h-4 w-4" />
+                      {label}
                     </button>
-                  </div>
-                </Panel>
+                  ))}
+                </div>
 
-                <Panel title="Compras lançadas">
-                  <div className="grid gap-3">
-                    {state.purchaseNotes.map((note) => {
-                      const material = state.rawMaterials.find((item) => item.name === note.item)
-                      const stockQty = note.stockQty ?? convertedStockQty(note.qty, material, note.unit)
-                      const stockUnit = note.stockUnit ?? material?.unit ?? note.unit
+                {purchaseView === 'necessidades' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-[#e5e7eb] bg-[#e5e7eb] lg:grid-cols-4">
+                      <StockSummary label="Materiais para comprar" value={purchaseSuggestions.filter((item) => item.suggestedStockQty > 0).length.toString()} />
+                      <StockSummary label="Pedidos a receber" value={openPurchaseOrders.length.toString()} />
+                      <StockSummary label="Com necessidade de OP" value={purchaseSuggestions.filter((item) => item.requiredForOps > 0).length.toString()} />
+                      <StockSummary label="Com pedidos futuros" value={purchaseSuggestions.filter((item) => item.requiredForFutureOrders > 0).length.toString()} />
+                    </div>
+                    <Panel title="Necessidades de compra">
+                      <div className="grid gap-3">
+                        {purchaseSuggestions.length ? (
+                          purchaseSuggestions.map((suggestion) => (
+                            <div
+                              key={suggestion.material.id}
+                              className="grid gap-4 rounded-md border border-[#e5e7eb] bg-white p-4 xl:grid-cols-[minmax(220px,1fr)_repeat(5,minmax(90px,120px))_auto] xl:items-center"
+                            >
+                              <div>
+                                <StatusBadge tone={suggestion.suggestedStockQty > 0 ? 'amber' : 'green'}>
+                                  {suggestion.suggestedStockQty > 0 ? 'Comprar' : 'Coberto'}
+                                </StatusBadge>
+                                <strong className="mt-2 block">{suggestion.item}</strong>
+                                <span className="mt-1 block text-xs text-[#6b7280]">
+                                  {suggestion.material.supplier} · Precisamos até {suggestion.needBy ? formatDate(suggestion.needBy) : 'sem prazo definido'}
+                                </span>
+                              </div>
+                              <StockCountValue label="Físico" value={`${suggestion.physical.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}`} />
+                              <StockCountValue label="Para OPs" value={`${suggestion.requiredForOps.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}`} />
+                              <StockCountValue label="Pedidos futuros" value={`${suggestion.requiredForFutureOrders.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}`} />
+                              <StockCountValue label="Mínimo" value={`${suggestion.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}`} />
+                              <StockCountValue label="Já encomendado" value={`${suggestion.onOrder.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.unit}`} />
+                              {suggestion.suggestedStockQty > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => preparePurchaseFromSuggestion(suggestion)}
+                                  disabled={!canManagePurchases}
+                                  className="inline-flex h-10 min-w-max items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  Pedir {suggestion.suggestedPurchaseQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {suggestion.purchaseUnit}
+                                </button>
+                              ) : (
+                                <span className="text-sm font-medium text-emerald-700">Sem nova compra</span>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <EmptyLine text="Estoque físico, pedidos futuros, OPs e mínimo estão cobertos." />
+                        )}
+                      </div>
+                    </Panel>
+                  </>
+                )}
 
-                      return (
-                        <RecordRow
-                          key={note.id}
-                          badge={`NF ${note.number}`}
-                          title={note.supplier}
-                          detail={`${note.item} · Compra: ${note.qty} ${note.unit} · Estoque: ${stockQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${stockUnit} · ${note.date} · Por: ${note.createdBy ?? 'Sistema'}`}
-                          value={money(note.qty * note.unitCost)}
-                        />
-                      )
-                    })}
+                {purchaseView === 'pedidos' && (
+                  <div className="grid gap-5 xl:grid-cols-[minmax(320px,390px)_minmax(0,1fr)]">
+                    <Panel title="Novo pedido de compra">
+                      {canManagePurchases ? (
+                        <div className="grid gap-4">
+                          <label className="grid gap-2">
+                            <FieldLabel>Matéria-prima</FieldLabel>
+                            <select
+                              value={selectedPurchaseMaterial?.id ?? ''}
+                              onChange={(event) => selectPurchaseMaterial(event.target.value)}
+                              className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                            >
+                              {state.rawMaterials.map((material) => (
+                                <option key={material.id} value={material.id}>{material.name}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="grid gap-2">
+                            <FieldLabel>Fornecedor</FieldLabel>
+                            <select
+                              value={purchaseSupplier}
+                              onChange={(event) => setPurchaseSupplier(event.target.value)}
+                              className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                            >
+                              {state.suppliers.map((supplier) => (
+                                <option key={supplier.id} value={supplier.name}>{supplier.name}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+                            <SoftNumber
+                              label={`Quantidade em ${selectedPurchaseMaterial?.purchaseUnit ?? 'un'}`}
+                              value={purchaseQty}
+                              step="0.01"
+                              onChange={setPurchaseQty}
+                            />
+                            <ReadOnlyField label="Unidade" value={selectedPurchaseMaterial?.purchaseUnit ?? 'un'} />
+                          </div>
+                          <SoftNumber
+                            label={`Custo por ${selectedPurchaseMaterial?.purchaseUnit ?? 'un'}`}
+                            value={purchaseUnitCost}
+                            onChange={setPurchaseUnitCost}
+                          />
+                          <SoftInput label="Previsão de chegada" value={purchaseExpectedDate} onChange={setPurchaseExpectedDate} />
+                          <label className="grid gap-2">
+                            <FieldLabel>Observações</FieldLabel>
+                            <textarea
+                              value={purchaseNotes}
+                              onChange={(event) => setPurchaseNotes(event.target.value)}
+                              className="min-h-24 rounded-md border border-[#d1d5db] bg-white p-3 text-sm"
+                              placeholder="Prazo combinado, condição e referência do fornecedor"
+                            />
+                          </label>
+                          {selectedPurchaseMaterial && (
+                            <div className="rounded-md border border-[#dbeafe] bg-[#eff6ff] p-3 text-sm">
+                              <strong className="block">Conversão prevista</strong>
+                              <span className="mt-1 block text-[#4b5563]">
+                                {purchaseQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {selectedPurchaseMaterial.purchaseUnit}
+                                {' → '}
+                                {convertedStockQty(purchaseQty, selectedPurchaseMaterial, selectedPurchaseMaterial.purchaseUnit).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {selectedPurchaseMaterial.unit}
+                              </span>
+                            </div>
+                          )}
+                          <TotalLine label="Valor previsto" value={money(purchaseQty * purchaseUnitCost)} />
+                          <button
+                            type="button"
+                            onClick={createPurchaseOrder}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                          >
+                            Criar pedido de compra
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <EmptyLine text="Seu perfil pode consultar pedidos, mas não criar novas compras." />
+                      )}
+                    </Panel>
+
+                    <Panel title="Pedidos de compra">
+                      <div className="grid gap-3">
+                        {state.purchaseOrders.length ? (
+                          state.purchaseOrders.map((order) => {
+                            const pending = Math.max(0, order.qty - order.receivedQty)
+                            return (
+                              <div
+                                key={order.id}
+                                className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-center"
+                              >
+                                <div>
+                                  <StatusBadge tone={order.status === 'Recebido' ? 'green' : order.status === 'Parcial' ? 'amber' : order.status === 'Cancelado' ? 'rose' : 'blue'}>
+                                    {order.status}
+                                  </StatusBadge>
+                                  <strong className="mt-2 block">{order.number} · {order.item}</strong>
+                                  <span className="mt-1 block text-sm text-[#6b7280]">
+                                    {order.supplier} · Pedido em {formatDate(order.orderDate)} · Previsto para {formatDate(order.expectedDate)}
+                                  </span>
+                                  {order.notes && <span className="mt-1 block text-xs text-[#6b7280]">{order.notes}</span>}
+                                </div>
+                                <div className="text-sm">
+                                  <span className="block text-[#6b7280]">Pedido: {order.qty.toLocaleString('pt-BR')} {order.unit}</span>
+                                  <strong className="block">Pendente: {pending.toLocaleString('pt-BR')} {order.unit}</strong>
+                                  <span className="block text-[#6b7280]">{money(order.qty * order.unitCost)}</span>
+                                </div>
+                                {(order.status === 'Enviado' || order.status === 'Parcial') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      selectPurchaseOrderForReceipt(order.id)
+                                      setPurchaseView('recebimentos')
+                                    }}
+                                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
+                                  >
+                                    Registrar chegada
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <EmptyLine text="Nenhum pedido de compra criado." />
+                        )}
+                      </div>
+                    </Panel>
                   </div>
-                </Panel>
+                )}
+
+                {purchaseView === 'recebimentos' && (
+                  <>
+                    <div className="grid gap-5 xl:grid-cols-[minmax(320px,390px)_minmax(0,1fr)]">
+                      <Panel title="Receber pedido de compra">
+                        {canManagePurchases && openPurchaseOrders.length ? (
+                          <div className="grid gap-4">
+                            <label className="grid gap-2">
+                              <FieldLabel>Pedido aguardando material</FieldLabel>
+                              <select
+                                value={selectedReceivingPurchaseOrder?.id ?? ''}
+                                onChange={(event) => selectPurchaseOrderForReceipt(event.target.value)}
+                                className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
+                              >
+                                {openPurchaseOrders.map((order) => (
+                                  <option key={order.id} value={order.id}>
+                                    {order.number} · {order.item} · falta {(order.qty - order.receivedQty).toLocaleString('pt-BR')} {order.unit}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            {selectedReceivingPurchaseOrder && (
+                              <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-3 text-sm">
+                                <strong className="block">{selectedReceivingPurchaseOrder.supplier}</strong>
+                                <span className="mt-1 block text-[#6b7280]">
+                                  Pendente: {selectedReceivingPendingQty.toLocaleString('pt-BR')} {selectedReceivingPurchaseOrder.unit}
+                                  {' · '}Previsão: {formatDate(selectedReceivingPurchaseOrder.expectedDate)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                              <SoftInput label="Nota / comprovante" value={receiptNumber} onChange={setReceiptNumber} />
+                              <SoftInput label="Data da chegada" value={receiptDate} onChange={setReceiptDate} />
+                            </div>
+                            <SoftNumber
+                              label={`Quantidade recebida em ${selectedReceivingPurchaseOrder?.unit ?? 'un'}`}
+                              value={receiptQty}
+                              step="0.01"
+                              onChange={setReceiptQty}
+                            />
+                            <SoftNumber
+                              label={`Custo real por ${selectedReceivingPurchaseOrder?.unit ?? 'un'}`}
+                              value={receiptUnitCost}
+                              onChange={setReceiptUnitCost}
+                            />
+                            <SoftInput label="Vencimento da conta" value={receiptDueDate} onChange={setReceiptDueDate} />
+                            {selectedReceivingMaterial && selectedReceivingPurchaseOrder && (
+                              <div className="rounded-md border border-[#dbeafe] bg-[#eff6ff] p-3 text-sm">
+                                Entrará no estoque como{' '}
+                                <strong>
+                                  {convertedStockQty(
+                                    receiptQty,
+                                    selectedReceivingMaterial,
+                                    selectedReceivingPurchaseOrder.unit,
+                                  ).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {selectedReceivingMaterial.unit}
+                                </strong>
+                              </div>
+                            )}
+                            <TotalLine label="Conta a pagar gerada" value={money(receiptQty * receiptUnitCost)} />
+                            <button
+                              type="button"
+                              onClick={receivePurchaseOrder}
+                              disabled={!receiptNumber.trim() || receiptQty <= 0 || receiptQty > selectedReceivingPendingQty}
+                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Confirmar recebimento
+                            </button>
+                          </div>
+                        ) : (
+                          <EmptyLine text={canManagePurchases ? 'Nenhum pedido aguardando recebimento.' : 'Seu perfil pode consultar, mas não registrar recebimentos.'} />
+                        )}
+                      </Panel>
+
+                      <Panel title="Recebimentos registrados">
+                        <div className="grid gap-3">
+                          {state.purchaseNotes.length ? state.purchaseNotes.map((note) => {
+                            const material = state.rawMaterials.find((item) => item.name === note.item)
+                            const stockQty = note.stockQty ?? convertedStockQty(note.qty, material, note.unit)
+                            const stockUnit = note.stockUnit ?? material?.unit ?? note.unit
+                            const order = state.purchaseOrders.find((item) => item.id === note.purchaseOrderId)
+                            return (
+                              <RecordRow
+                                key={note.id}
+                                badge={`NF ${note.number}`}
+                                title={`${order?.number ? `${order.number} · ` : ''}${note.item}`}
+                                detail={`${note.supplier} · Recebido: ${note.qty.toLocaleString('pt-BR')} ${note.unit} · Estoque: ${stockQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${stockUnit} · ${formatDate(note.date)} · Por: ${note.createdBy ?? 'Sistema'}`}
+                                value={money(note.qty * note.unitCost)}
+                              />
+                            )
+                          }) : <EmptyLine text="Nenhum recebimento registrado." />}
+                        </div>
+                      </Panel>
+                    </div>
+
+                    <Panel title="Recebimento sem pedido de compra">
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:items-end">
+                        <SoftInput label="Número" value={noteNumber} onChange={setNoteNumber} />
+                        <SoftInput label="Data" value={noteDate} onChange={setNoteDate} />
+                        <label className="grid gap-2">
+                          <FieldLabel>Fornecedor</FieldLabel>
+                          <select value={noteSupplier} onChange={(event) => setNoteSupplier(event.target.value)} className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm">
+                            {state.suppliers.map((supplier) => <option key={supplier.id} value={supplier.name}>{supplier.name}</option>)}
+                          </select>
+                        </label>
+                        <label className="grid gap-2">
+                          <FieldLabel>Matéria-prima</FieldLabel>
+                          <select value={noteItem} onChange={(event) => selectRawMaterialForNote(event.target.value)} className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm">
+                            {state.rawMaterials.map((material) => <option key={material.id} value={material.name}>{material.name}</option>)}
+                          </select>
+                        </label>
+                        <SoftNumber label="Quantidade" value={noteQty} step="0.01" onChange={setNoteQty} />
+                        <UnitInput label="Unidade" value={noteUnit} onChange={setNoteUnit} />
+                        <SoftNumber label={`Custo por ${noteUnit || 'un'}`} value={noteUnitCost} onChange={setNoteUnitCost} />
+                        <button type="button" onClick={createPurchaseNote} disabled={!canManagePurchases} className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium disabled:opacity-40">
+                          Registrar avulso
+                        </button>
+                      </div>
+                      <p className="mt-3 text-xs text-[#6b7280]">
+                        Use apenas quando o material chegar sem um pedido de compra criado anteriormente. A conversão será {noteStockQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {noteStockUnit}.
+                      </p>
+                    </Panel>
+                  </>
+                )}
               </section>
             )}
 
@@ -10216,13 +10878,37 @@ export default function SistemaMacaroca() {
                       {purchaseSuggestions.length ? (
                         <div className="grid gap-3">
                           {purchaseSuggestions.map((item) => (
-                            <RecordRow
+                            <div
                               key={item.item}
-                              badge="Comprar"
-                              title={item.item}
-                              detail={`Necessário nas OPs: ${item.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} · Mínimo: ${item.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} · Físico: ${item.available.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`}
-                              value={`${item.suggested.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`}
-                            />
+                              className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                            >
+                              <div>
+                                <StatusBadge tone={item.suggestedStockQty > 0 ? 'amber' : 'green'}>
+                                  {item.suggestedStockQty > 0 ? 'Comprar' : 'Já encomendado'}
+                                </StatusBadge>
+                                <strong className="mt-2 block">{item.item}</strong>
+                                <span className="mt-1 block text-sm leading-5 text-[#6b7280]">
+                                  OPs: {item.requiredForOps.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit}
+                                  {' · '}Pedidos futuros: {item.requiredForFutureOrders.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit}
+                                  {' · '}Mínimo: {item.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit}
+                                  {' · '}A caminho: {item.onOrder.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit}
+                                </span>
+                              </div>
+                              {item.suggestedStockQty > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    preparePurchaseFromSuggestion(item)
+                                    setActiveArea('notas')
+                                  }}
+                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                                >
+                                  Pedir {item.suggestedPurchaseQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.purchaseUnit}
+                                </button>
+                              ) : (
+                                <strong className="text-sm text-emerald-700">Coberto pelo pedido aberto</strong>
+                              )}
+                            </div>
                           ))}
                         </div>
                       ) : (
@@ -12348,7 +13034,8 @@ function RawStockPositionTable({
     <div className="grid gap-3">
       {rows.map((row) => {
         const minimumShortage = Math.max(row.minimumStock - row.physical, 0)
-        const purchaseShortage = Math.max(row.shortage, minimumShortage)
+        const attentionQty = Math.max(row.shortage, minimumShortage)
+        const attentionLabel = row.shortage > 0 ? 'Falta para OP' : 'Abaixo do mínimo'
         return (
           <div key={row.item} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_repeat(4,120px)] md:items-center">
             <div>
@@ -12361,9 +13048,9 @@ function RawStockPositionTable({
             <StockCountValue label="Necessário nas OPs" value={`${row.committed.toLocaleString('pt-BR')} ${row.unit}`} />
             <StockCountValue label="Livre" value={`${row.available.toLocaleString('pt-BR')} ${row.unit}`} attention={row.shortage > 0} />
             <StockCountValue
-              label={purchaseShortage > 0 ? 'Falta comprar' : 'Situação'}
-              value={purchaseShortage > 0 ? `${purchaseShortage.toLocaleString('pt-BR')} ${row.unit}` : 'Atendido'}
-              attention={purchaseShortage > 0}
+              label={attentionQty > 0 ? attentionLabel : 'Situação'}
+              value={attentionQty > 0 ? `${attentionQty.toLocaleString('pt-BR')} ${row.unit}` : 'Atendido'}
+              attention={attentionQty > 0}
             />
           </div>
         )

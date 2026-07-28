@@ -45,6 +45,7 @@ const collectionTypes = {
   suppliers: 'supplier',
   customers: 'customer',
   products: 'product',
+  purchaseOrders: 'purchase_order',
   purchaseNotes: 'purchase_note',
   orders: 'order',
   productionOrders: 'production_order',
