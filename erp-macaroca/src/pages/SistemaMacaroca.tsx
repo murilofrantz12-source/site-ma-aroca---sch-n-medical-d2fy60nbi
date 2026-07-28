@@ -1515,6 +1515,47 @@ const measurementUnits = [
   { value: 'dz', label: 'Dúzia (dz)' },
 ]
 
+const productCategorySuggestions = [
+  'Conjunto',
+  'Blusa',
+  'Calça',
+  'Vestido',
+  'Scrub',
+  'Jaleco',
+  'Acessório',
+]
+
+const productModelSuggestions = [
+  'Padrão',
+  'Feminino',
+  'Masculino',
+  'Unissex',
+  'Sob medida',
+]
+
+const productSizeSuggestions = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'Único', 'Sob medida']
+
+const productColorSuggestions = [
+  'Preto',
+  'Branco',
+  'Azul marinho',
+  'Azul claro',
+  'Verde',
+  'Vinho',
+  'Rosa',
+  'Cinza',
+]
+
+const productFabricSuggestions = [
+  'Tecido principal',
+  'Gabardine',
+  'Oxford',
+  'Tricoline',
+  'Viscose',
+  'Linho',
+  'Malha',
+]
+
 const unitLabel = (unit: string) =>
   measurementUnits.find((item) => sameUnit(item.value, unit) || sameUnit(item.label, unit))?.label ?? unit
 
@@ -3157,6 +3198,27 @@ export default function SistemaMacaroca() {
     state.fixedCost,
     state.profit,
   )
+  const guidedMinimumPrice = idealPrice(
+    guidedProductCost,
+    state.tax,
+    state.commission,
+    state.fixedCost,
+    0,
+  )
+  const guidedPriceSummary = priceBreakdown(
+    guidedProductCost,
+    guidedProductPrice,
+    state.tax,
+    state.commission,
+    state.fixedCost,
+    state.profit,
+    guidedProductPrice,
+  )
+  const guidedProductReadyForSale =
+    guidedSheetStatus === 'Aprovada' &&
+    guidedProductPrice > 0 &&
+    guidedProductMaterials.length > 0 &&
+    guidedProductMaterials.every((material) => material.qty > 0)
   const selectedOrderPrice = selectedSalePrice ?? selectedPrice
   const finalOrderUnitPrice = orderUnitPriceInput > 0 ? orderUnitPriceInput : selectedOrderPrice
   const currentOrderPricing = priceBreakdown(
@@ -3928,6 +3990,11 @@ export default function SistemaMacaroca() {
     if (!guidedProductMaterials.length || guidedProductMaterials.some((material) => material.qty <= 0)) {
       setGuidedProductStep(3)
       setMessage('Inclua os materiais e informe quanto é usado em uma peça.')
+      return
+    }
+    if (canSeeMoney && guidedSheetStatus === 'Aprovada' && guidedProductPrice <= 0) {
+      setGuidedProductStep(4)
+      setMessage('Defina o preço oficial antes de aprovar a ficha para venda.')
       return
     }
 
@@ -10297,7 +10364,12 @@ export default function SistemaMacaroca() {
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <SoftInput label="Nome da peça" value={guidedProductName} onChange={setGuidedProductName} />
-                          <SoftInput label="Categoria" value={guidedProductCategory} onChange={setGuidedProductCategory} />
+                          <SuggestionInput
+                            label="Categoria"
+                            value={guidedProductCategory}
+                            options={productCategorySuggestions}
+                            onChange={setGuidedProductCategory}
+                          />
                         </div>
                         <SoftTextarea label="Descrição simples" value={guidedProductDescription} onChange={setGuidedProductDescription} />
                         <SoftInput label="Foto ou link de referência" value={guidedProductReference} onChange={setGuidedProductReference} />
@@ -10323,12 +10395,32 @@ export default function SistemaMacaroca() {
                     <Panel title="2. Como é essa versão da peça?">
                       <div className="grid gap-4">
                         <div className="grid gap-3 md:grid-cols-3">
-                          <SoftInput label="Modelo" value={guidedProductModel} onChange={setGuidedProductModel} />
-                          <SoftInput label="Tamanho" value={guidedProductSize} onChange={setGuidedProductSize} />
-                          <SoftInput label="Cor" value={guidedProductColor} onChange={setGuidedProductColor} />
+                          <SuggestionInput
+                            label="Modelo"
+                            value={guidedProductModel}
+                            options={productModelSuggestions}
+                            onChange={setGuidedProductModel}
+                          />
+                          <SuggestionInput
+                            label="Tamanho"
+                            value={guidedProductSize}
+                            options={productSizeSuggestions}
+                            onChange={setGuidedProductSize}
+                          />
+                          <SuggestionInput
+                            label="Cor"
+                            value={guidedProductColor}
+                            options={productColorSuggestions}
+                            onChange={setGuidedProductColor}
+                          />
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
-                          <SoftInput label="Tecido principal" value={guidedProductFabric} onChange={setGuidedProductFabric} />
+                          <SuggestionInput
+                            label="Tecido principal"
+                            value={guidedProductFabric}
+                            options={productFabricSuggestions}
+                            onChange={setGuidedProductFabric}
+                          />
                           <SoftInput label="Medidas" value={guidedProductMeasurements} onChange={setGuidedProductMeasurements} />
                         </div>
                         <SoftTextarea label="Observação para quem vai produzir" value={guidedProductNotes} onChange={setGuidedProductNotes} />
@@ -10422,15 +10514,42 @@ export default function SistemaMacaroca() {
                           <MiniRow title="Ficha" detail={`v1 · ${currentUserName} · ${userRole === 'Admin' ? guidedSheetStatus : 'Rascunho'}`} />
                           <MiniRow title="Materiais" detail={`${guidedProductMaterials.length} item(ns) · custo calculado ${canSeeMoney ? money(guidedProductCost) : 'automaticamente'}`} />
                           <MiniRow title="Situação da peça" detail={guidedProductActive ? 'Ativa para uso' : 'Desativada'} />
+                          <MiniRow
+                            title="Pronta para vender?"
+                            detail={
+                              guidedProductReadyForSale
+                                ? 'Sim. Ficha aprovada, materiais conferidos e preço oficial definido.'
+                                : 'Ainda não. Confira a ficha, os materiais e o preço oficial.'
+                            }
+                          />
                         </div>
 
                         {canSeeMoney && (
                           <section className="grid gap-3 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4">
-                            <div className="grid gap-3 md:grid-cols-3">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                               <ReadOnlyField label="Custo da ficha" value={money(guidedProductCost)} />
+                              <ReadOnlyField label="Preço mínimo" value={money(guidedMinimumPrice)} />
                               <ReadOnlyField label="Preço sugerido" value={money(guidedSuggestedPrice)} />
                               <SoftNumber label="Preço oficial" value={guidedProductPrice} onChange={setGuidedProductPrice} />
                             </div>
+                            {guidedProductPrice > 0 && (
+                              <div
+                                className={`rounded-md border px-3 py-2.5 text-sm ${
+                                  guidedProductPrice < guidedMinimumPrice
+                                    ? 'border-rose-200 bg-rose-50 text-rose-800'
+                                    : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                }`}
+                              >
+                                {guidedProductPrice < guidedMinimumPrice
+                                  ? `Atenção: este preço fica abaixo do mínimo em ${money(guidedMinimumPrice - guidedProductPrice)}.`
+                                  : `Margem estimada: ${guidedPriceSummary.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% · sobra ${money(guidedPriceSummary.realProfit)} por peça.`}
+                              </div>
+                            )}
+                            {guidedSheetStatus === 'Aprovada' && guidedProductPrice <= 0 && (
+                              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                                Para aprovar a ficha e liberar a peça nos pedidos, defina primeiro o preço oficial.
+                              </div>
+                            )}
                             <div className="grid gap-3 md:grid-cols-2">
                               <label className="grid gap-2">
                                 <FieldLabel>Situação da ficha</FieldLabel>
@@ -13792,6 +13911,38 @@ function SoftInput({
         onChange={(event) => onChange(event.target.value)}
         className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
       />
+    </label>
+  )
+}
+
+function SuggestionInput({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: readonly string[]
+  onChange: (value: string) => void
+}) {
+  const listId = useId()
+
+  return (
+    <label className="grid min-w-0 gap-2">
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        list={listId}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Escolha ou digite"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
+      />
+      <datalist id={listId}>
+        {options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
     </label>
   )
 }
