@@ -3220,7 +3220,7 @@ export default function SistemaMacaroca() {
     guidedProductMaterials.length > 0 &&
     guidedProductMaterials.every((material) => material.qty > 0)
   const selectedOrderPrice = selectedSalePrice ?? selectedPrice
-  const finalOrderUnitPrice = orderUnitPriceInput > 0 ? orderUnitPriceInput : selectedOrderPrice
+  const finalOrderUnitPrice = Math.max(0, orderUnitPriceInput)
   const currentOrderPricing = priceBreakdown(
     selectedCost,
     finalOrderUnitPrice,
@@ -4693,6 +4693,10 @@ export default function SistemaMacaroca() {
       return
     }
     const price = finalOrderUnitPrice
+    if (price <= 0) {
+      setMessage('Defina um preço por peça maior que zero antes de registrar a venda.')
+      return
+    }
     const documentType = orderDocumentType
     const pricing = makeOrderPricing(
       state,
@@ -4787,6 +4791,11 @@ export default function SistemaMacaroca() {
       return
     }
     const price = finalOrderUnitPrice
+    if (price <= 0) {
+      setGuidedOrderStep(4)
+      setMessage('Defina um preço por peça maior que zero para continuar.')
+      return
+    }
     const documentType = requestedDocumentType ?? orderDocumentType
     const orderId = nextDocumentId(state.orders, documentType)
     const pricing = makeOrderPricing(
@@ -9897,10 +9906,19 @@ export default function SistemaMacaroca() {
                 {guidedOrderStep === 4 && (
                   <Panel title="4. Qual foi o preço combinado?">
                     <div className="grid gap-4">
-                      <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <MiniStat label="Mínimo" value={money(selectedMinimumPrice)} tone="amber" />
                         <MiniStat label="Sugerido" value={money(selectedPrice)} />
                         <MiniStat label="Oficial" value={selectedSalePrice ? money(selectedSalePrice) : 'Não definido'} />
+                        <MiniStat
+                          label="Diferença do oficial"
+                          value={
+                            selectedSalePrice
+                              ? `${money(finalOrderUnitPrice - selectedSalePrice)} · ${currentOrderPricing.discountPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% desc.`
+                              : 'Sem preço oficial'
+                          }
+                          tone={selectedSalePrice && finalOrderUnitPrice < selectedSalePrice ? 'amber' : 'green'}
+                        />
                       </div>
                       <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                         <SoftNumber label="Preço por peça" value={orderUnitPriceInput} onChange={setOrderUnitPriceInput} />
@@ -9925,7 +9943,22 @@ export default function SistemaMacaroca() {
                           Preço abaixo do mínimo. {canApproveDiscount ? 'Sua autorização será registrada ao confirmar.' : 'O pedido precisará da aprovação de um administrador.'}
                         </div>
                       )}
-                      <FlowButtons onBack={() => setGuidedOrderStep(3)} onNext={() => setGuidedOrderStep(5)} nextLabel="Pagamento e entrega" />
+                      {finalOrderUnitPrice <= 0 && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">
+                          Informe o preço combinado para continuar.
+                        </div>
+                      )}
+                      <FlowButtons
+                        onBack={() => setGuidedOrderStep(3)}
+                        onNext={() => {
+                          if (finalOrderUnitPrice <= 0) {
+                            setMessage('Defina um preço por peça maior que zero para continuar.')
+                            return
+                          }
+                          setGuidedOrderStep(5)
+                        }}
+                        nextLabel="Pagamento e entrega"
+                      />
                     </div>
                   </Panel>
                 )}
@@ -9989,6 +10022,14 @@ export default function SistemaMacaroca() {
                         <MiniRow title="Cliente" detail={selectedCustomer?.name ?? 'Sem cliente'} />
                         <MiniRow title="Produto" detail={`${selectedProduct.code} · ${productDisplayName(selectedProduct, activeVariationId)}`} />
                         <MiniRow title="Quantidade e valor" detail={`${orderQty} un · ${money(finalOrderUnitPrice)} por peça · ${money(orderQty * finalOrderUnitPrice)} total`} />
+                        <MiniRow
+                          title="Preço oficial e negociado"
+                          detail={
+                            selectedSalePrice
+                              ? `${money(selectedSalePrice)} oficial → ${money(finalOrderUnitPrice)} negociado · ${currentOrderPricing.discountPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% de desconto`
+                              : `Sem preço oficial · ${money(finalOrderUnitPrice)} negociado`
+                          }
+                        />
                         <MiniRow title="Pagamento" detail={`${orderPaymentMethod} · ${orderPaymentStatus}${orderPaymentNotes ? ` · ${orderPaymentNotes}` : ''}`} />
                         <MiniRow title="Entrega" detail={`${orderDeliveryMethod} · ${formatDate(orderDeliveryDate)} · ${orderDeliveryAddress || 'endereço não informado'}`} />
                         <MiniRow title="Estoque" detail={draftMissingStock > 0 ? `${draftMissingStock} un precisarão de produção` : `${orderQty} un poderão ser reservadas`} />
