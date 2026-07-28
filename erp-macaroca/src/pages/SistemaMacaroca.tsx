@@ -9049,9 +9049,20 @@ export default function SistemaMacaroca() {
                       className="mt-1 block h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 sm:w-48"
                     />
                   </div>
+                  <MobileViewSelect
+                    label="Visão dos indicadores"
+                    value={indicatorView}
+                    options={[
+                      ['atencao', 'Atenção agora'],
+                      ['producao', 'Produção'],
+                      ['produtos', 'Produtos e margem'],
+                      ['estoque', 'Estoque'],
+                    ]}
+                    onChange={(value) => setIndicatorView(value as IndicatorView)}
+                  />
                   <nav
                     aria-label="Visões dos indicadores"
-                    className="flex gap-2 overflow-x-auto pb-1 sm:pb-0"
+                    className="hidden gap-2 sm:flex sm:flex-wrap"
                   >
                     {([
                       ['atencao', 'Atenção agora'],
@@ -11037,8 +11048,9 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'materias' && (
               <section className="grid gap-5 xl:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
-                <Panel title="Cadastrar matéria-prima">
-                  <div className="grid gap-5">
+                <div id="cadastro-materia-prima" className="order-2 xl:order-1">
+                  <Panel title="Cadastrar matéria-prima">
+                    <div className="grid gap-5">
                     <section className="grid gap-4">
                       <div>
                         <h3 className="text-sm font-semibold text-[#111827]">Identificação</h3>
@@ -11157,11 +11169,20 @@ export default function SistemaMacaroca() {
                       <Plus className="h-4 w-4" />
                       Cadastrar
                     </button>
-                  </div>
-                </Panel>
+                    </div>
+                  </Panel>
+                </div>
 
-                <Panel title="Matérias-primas cadastradas">
-                  <div className="mb-4 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4">
+                <div className="order-1 xl:order-2">
+                  <Panel title="Matérias-primas cadastradas">
+                    <a
+                      href="#cadastro-materia-prima"
+                      className="mb-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white xl:hidden"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Cadastrar nova matéria-prima
+                    </a>
+                    <div className="mb-4 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <strong className="block text-sm text-[#111827]">Revisão dos cadastros</strong>
@@ -11187,24 +11208,25 @@ export default function SistemaMacaroca() {
                         ))}
                       </div>
                     )}
-                  </div>
-                  <div className="grid gap-3">
-                    {state.rawMaterials.map((material) => {
-                      const currentStock = stock.rawItems.find((item) => item.item === material.name)?.qty ?? 0
-                      const isLow = isBelowMinimumStock(currentStock, material.minimumStock)
+                    </div>
+                    <div className="grid gap-3">
+                      {state.rawMaterials.map((material) => {
+                        const currentStock = stock.rawItems.find((item) => item.item === material.name)?.qty ?? 0
+                        const isLow = isBelowMinimumStock(currentStock, material.minimumStock)
 
-                      return (
-                        <RecordRow
-                          key={material.id}
-                          badge={isLow ? 'Baixo' : material.category ?? material.unit}
-                          title={material.name}
-                          detail={`Código: ${rawMaterialCode(material)}${material.stockLocation ? ` · Locação: ${material.stockLocation}` : ''} · Fornecedor: ${material.supplier} · Atual: ${currentStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)} · Compra: 1 ${unitLabel(material.purchaseUnit)} = ${material.purchaseToStockFactor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)} · Perda padrão: ${(material.expectedLoss ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%${material.lastPurchase ? ` · Última compra: ${formatDate(material.lastPurchase)}` : ''}`}
-                          value={`Mín.: ${material.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${material.unit} · ${money(material.avgCost)}/${material.unit}`}
-                        />
-                      )
-                    })}
-                  </div>
-                </Panel>
+                        return (
+                          <RecordRow
+                            key={material.id}
+                            badge={isLow ? 'Baixo' : material.category ?? material.unit}
+                            title={material.name}
+                            detail={`Código: ${rawMaterialCode(material)}${material.stockLocation ? ` · Locação: ${material.stockLocation}` : ''} · Fornecedor: ${material.supplier} · Atual: ${currentStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)} · Compra: 1 ${unitLabel(material.purchaseUnit)} = ${material.purchaseToStockFactor.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${unitLabel(material.unit)} · Perda padrão: ${(material.expectedLoss ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%${material.lastPurchase ? ` · Última compra: ${formatDate(material.lastPurchase)}` : ''}`}
+                            value={`Mín.: ${material.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${material.unit} · ${money(material.avgCost)}/${material.unit}`}
+                          />
+                        )
+                      })}
+                    </div>
+                  </Panel>
+                </div>
               </section>
             )}
 
@@ -11400,7 +11422,17 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'notas' && (
               <section className="grid gap-5">
-                <div className="flex max-w-full gap-2 overflow-x-auto rounded-md border border-[#e5e7eb] bg-[#f3f4f6] p-1">
+                <MobileViewSelect
+                  label="Área de compras"
+                  value={purchaseView}
+                  options={[
+                    ['necessidades', 'O que comprar'],
+                    ['pedidos', 'Pedidos de compra'],
+                    ['recebimentos', 'Recebimentos'],
+                  ]}
+                  onChange={(value) => setPurchaseView(value as typeof purchaseView)}
+                />
+                <div className="hidden max-w-full gap-2 rounded-md border border-[#e5e7eb] bg-[#f3f4f6] p-1 sm:flex">
                   {([
                     ['necessidades', 'O que comprar'],
                     ['pedidos', 'Pedidos de compra'],
@@ -12349,7 +12381,17 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'estoque' && (
               <section className="grid gap-5">
-                <div className="flex gap-2 overflow-x-auto rounded-md border border-[#d1d5db] bg-white p-2">
+                <MobileViewSelect
+                  label="Área do estoque"
+                  value={stockView}
+                  options={[
+                    ['acabados', 'Produtos acabados'],
+                    ['materias', 'Matérias-primas'],
+                    ['inventario', 'Inventário'],
+                  ]}
+                  onChange={(value) => setStockView(value as typeof stockView)}
+                />
+                <div className="hidden gap-2 rounded-md border border-[#d1d5db] bg-white p-2 sm:flex">
                   {([
                     ['acabados', 'Produtos acabados'],
                     ['materias', 'Matérias-primas'],
@@ -12704,9 +12746,20 @@ export default function SistemaMacaroca() {
             {activeArea === 'financeiro' && (
               <section className="grid gap-5">
                 <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+                  <MobileViewSelect
+                    label="Área do financeiro"
+                    value={financeView}
+                    options={[
+                      ['resumo', 'Visão geral'],
+                      ['resultados', 'Pedidos e produtos'],
+                      ['caixa', 'Fluxo de caixa'],
+                      ['lancamentos', 'Lançamentos'],
+                    ]}
+                    onChange={(value) => setFinanceView(value as FinanceView)}
+                  />
                   <nav
                     aria-label="Áreas do financeiro"
-                    className="flex gap-2 overflow-x-auto pb-1 lg:pb-0"
+                    className="hidden gap-2 sm:flex sm:flex-wrap"
                   >
                     {([
                       ['resumo', 'Visão geral'],
@@ -13153,6 +13206,38 @@ function ModuleTile({
   )
 }
 
+function MobileViewSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: readonly (readonly [string, string])[]
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="grid min-w-0 gap-1.5 sm:hidden">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        {label}
+      </span>
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-[#312e81] focus:ring-2 focus:ring-[#312e81]/15"
+      >
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function ModuleSectionTabs({
   moduleTitle,
   items,
@@ -13182,9 +13267,15 @@ function ModuleSectionTabs({
         </div>
         <span className="hidden text-xs text-slate-400 sm:block">Troque de tela sem voltar ao menu</span>
       </div>
+      <MobileViewSelect
+        label={`Tela de ${moduleTitle}`}
+        value={activeArea}
+        options={items.map((item) => [item.key, item.title] as const)}
+        onChange={(value) => onSelect(value as Area)}
+      />
       <nav
         aria-label={`Opções de ${moduleTitle}`}
-        className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))] sm:overflow-visible sm:pb-0"
+        className="hidden gap-2 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]"
       >
         {items.map((item) => {
           const isActive = item.key === activeArea
