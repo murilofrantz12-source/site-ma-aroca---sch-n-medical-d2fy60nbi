@@ -48,6 +48,7 @@ type Area =
   | 'modulo-gestao'
   | 'ajuda'
   | 'painel'
+  | 'indicadores'
   | 'vendas'
   | 'entregas'
   | 'producao-necessidades'
@@ -99,6 +100,7 @@ type FinanceCategory =
   | 'Comissão'
   | 'Outro'
 type FinanceView = 'resumo' | 'resultados' | 'caixa' | 'lancamentos'
+type IndicatorView = 'atencao' | 'producao' | 'produtos' | 'estoque'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
 type PriceApprovalStatus = 'Não necessária' | 'Pendente' | 'Aprovada' | 'Recusada'
@@ -1746,6 +1748,7 @@ const allAreas: Area[] = [
   'modulo-gestao',
   'ajuda',
   'painel',
+  'indicadores',
   'vendas',
   'entregas',
   'producao-necessidades',
@@ -1812,6 +1815,7 @@ const roleAreaAccess: Record<UserRole, Area[]> = {
     'fornecedores',
     'precos',
     'financeiro',
+    'indicadores',
     'historico',
     'configuracoes',
   ],
@@ -1826,6 +1830,23 @@ const roleDescriptions: Record<UserRole, string> = {
 }
 
 const helpGuides: HelpGuide[] = [
+  {
+    id: 'usar-indicadores',
+    category: 'Gestão',
+    title: 'Como usar os indicadores',
+    summary: 'Encontre atrasos, perdas, estoque parado e diferenças de preço e abra a ação correta.',
+    keywords: ['indicador', 'atraso', 'estoque parado', 'desperdício', 'margem', 'prazo médio', 'mais vendido'],
+    target: 'indicadores',
+    action: 'Abrir indicadores',
+    steps: [
+      'Abra Gestão e escolha Indicadores.',
+      'Comece por Atenção agora para ver pedidos e produções que exigem decisão.',
+      'Use Produção para comparar o planejado com o realizado e conferir perdas e prazo médio.',
+      'Use Produtos e margem para ver os mais vendidos, a margem e a diferença entre preço oficial e vendido.',
+      'Use Estoque para ver itens críticos ou sem movimentação.',
+      'Em cada linha, escolha a ação indicada para abrir diretamente a área onde o problema pode ser resolvido.',
+    ],
+  },
   {
     id: 'novo-orcamento',
     category: 'Vendas',
@@ -2329,6 +2350,8 @@ export default function SistemaMacaroca() {
   const [financePaid, setFinancePaid] = useState(true)
   const [financeView, setFinanceView] = useState<FinanceView>('resumo')
   const [financeMonth, setFinanceMonth] = useState(currentMonthValue())
+  const [indicatorView, setIndicatorView] = useState<IndicatorView>('atencao')
+  const [indicatorMonth, setIndicatorMonth] = useState(currentMonthValue())
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [moduleContext, setModuleContext] = useState<Area | null>(null)
@@ -6426,6 +6449,242 @@ export default function SistemaMacaroca() {
     if (alert.id.startsWith('prazo-proximo')) return canAccessArea('vendas') || canAccessArea('entregas')
     return true
   })
+  const indicatorSummary = useMemo(() => {
+    const today = new Date(`${currentDateValue()}T12:00:00`)
+    const elapsedDays = (date?: string) => {
+      if (!date) return Number.POSITIVE_INFINITY
+      const parsed = new Date(date.includes('T') ? date : `${date}T12:00:00`)
+      if (Number.isNaN(parsed.getTime())) return Number.POSITIVE_INFINITY
+      return Math.max(0, Math.floor((today.getTime() - parsed.getTime()) / 86400000))
+    }
+    const latestDate = (dates: (string | undefined)[]) =>
+      dates.filter((date): date is string => Boolean(date)).sort().at(-1)
+    const monthOrders = financeSummary.orderResults.filter((item) =>
+      isMonth(item.order.orderDate, indicatorMonth),
+    )
+    const monthOps = state.productionOrders.filter((op) =>
+      isMonth(
+        op.startedAt ||
+          op.launches.find((launch) => isMonth(launch.date, indicatorMonth))?.date ||
+          op.finishedAt,
+        indicatorMonth,
+      ),
+    )
+    const completedMonthOps = monthOps.filter(
+      (op) => op.status === 'Finalizada' && op.startedAt && op.finishedAt,
+    )
+    const delayedOps = openProductionOrders
+      .map((op) => {
+        const relatedOrder = state.orders.find((order) => order.id === op.orderId)
+        const lastActivity = latestDate([
+          op.startedAt,
+          ...(op.launches ?? []).map((launch) => launch.date),
+        ])
+        const stoppedDays = elapsedDays(lastActivity)
+        const overdue = Boolean(
+          relatedOrder?.dueDate &&
+            relatedOrder.status !== 'Entregue' &&
+            relatedOrder.status !== 'Cancelado' &&
+            daysUntil(relatedOrder.dueDate) < 0,
+        )
+        return {
+          op,
+          product: state.products.find((product) => product.id === op.productId),
+          relatedOrder,
+          stoppedDays,
+          overdue,
+          needsAttention: op.status === 'Pausada' || overdue || stoppedDays >= 3,
+        }
+      })
+      .filter((item) => item.needsAttention)
+      .sort((left, right) => right.stoppedDays - left.stoppedDays)
+    const plannedQty = monthOps.reduce((total, op) => total + op.qty, 0)
+    const producedQty = monthOps.reduce((total, op) => total + op.produced, 0)
+    const monthLaunches = monthOps.flatMap((op) =>
+      (op.launches ?? []).filter((launch) => isMonth(launch.date, indicatorMonth)),
+    )
+    const lostQty = monthLaunches
+      .filter((launch) => launch.type === 'Perda' || launch.type === 'Defeito')
+      .reduce((total, launch) => total + launch.qty, 0)
+    const reworkQty = monthLaunches
+      .filter((launch) => launch.type === 'Retrabalho')
+      .reduce((total, launch) => total + launch.qty, 0)
+    const leadTimes = completedMonthOps.map((op) =>
+      Math.max(
+        0,
+        Math.ceil(
+          (new Date(`${op.finishedAt}T12:00:00`).getTime() -
+            new Date(`${op.startedAt}T12:00:00`).getTime()) /
+            86400000,
+        ),
+      ),
+    )
+    const averageLeadTime = leadTimes.length
+      ? leadTimes.reduce((total, days) => total + days, 0) / leadTimes.length
+      : 0
+    const topProducts = Array.from(
+      monthOrders
+        .reduce((grouped, item) => {
+          const key = `${item.order.productId}:${item.order.variationId ?? ''}`
+          const current = grouped.get(key) ?? {
+            key,
+            product: item.product,
+            variationId: item.order.variationId,
+            qty: 0,
+            revenue: 0,
+            orders: 0,
+          }
+          current.qty += item.order.qty
+          current.revenue += item.revenue
+          current.orders += 1
+          grouped.set(key, current)
+          return grouped
+        }, new Map<string, {
+          key: string
+          product?: Product
+          variationId?: string
+          qty: number
+          revenue: number
+          orders: number
+        }>())
+        .values(),
+    ).sort((left, right) => right.qty - left.qty)
+    const priceDifferences = Array.from(
+      monthOrders
+        .reduce((grouped, item) => {
+          const key = `${item.order.productId}:${item.order.variationId ?? ''}`
+          const officialPrice =
+            item.order.pricing?.officialPrice ||
+            productSalePrice(item.product, item.order.variationId) ||
+            item.order.pricing?.suggestedPrice ||
+            0
+          const soldPrice = orderUnitPrice(state, item.order)
+          const current = grouped.get(key) ?? {
+            key,
+            product: item.product,
+            variationId: item.order.variationId,
+            qty: 0,
+            officialTotal: 0,
+            soldTotal: 0,
+          }
+          current.qty += item.order.qty
+          current.officialTotal += officialPrice * item.order.qty
+          current.soldTotal += soldPrice * item.order.qty
+          grouped.set(key, current)
+          return grouped
+        }, new Map<string, {
+          key: string
+          product?: Product
+          variationId?: string
+          qty: number
+          officialTotal: number
+          soldTotal: number
+        }>())
+        .values(),
+    )
+      .map((item) => {
+        const officialAverage = item.qty ? item.officialTotal / item.qty : 0
+        const soldAverage = item.qty ? item.soldTotal / item.qty : 0
+        return {
+          ...item,
+          officialAverage,
+          soldAverage,
+          difference: soldAverage - officialAverage,
+          differencePercent: officialAverage
+            ? ((soldAverage - officialAverage) / officialAverage) * 100
+            : 0,
+        }
+      })
+      .sort((left, right) => left.differencePercent - right.differencePercent)
+    const productMargins = financeSummary.productResults
+      .map((item) => {
+        const profit = item.realizedOrders ? item.realProfit : item.estimatedProfit
+        return {
+          ...item,
+          profit,
+          margin: item.revenue ? (profit / item.revenue) * 100 : 0,
+          basis: item.realizedOrders ? 'real' : 'estimada',
+        }
+      })
+      .sort((left, right) => left.margin - right.margin)
+    const stockItems = [
+      ...stock.rawItems.map((item) => ({ ...item, category: 'Matéria-prima' as const })),
+      ...stock.finishedItems.map((item) => ({ ...item, category: 'Produto acabado' as const })),
+    ]
+    const staleStock = stockItems
+      .filter((item) => item.qty > 0)
+      .map((item) => {
+        const lastMovement = latestDate(
+          state.inventoryEntries
+            .filter((entry) => entry.item === item.item)
+            .map((entry) => entry.createdAt),
+        )
+        return {
+          ...item,
+          lastMovement,
+          daysWithoutMovement: elapsedDays(lastMovement),
+        }
+      })
+      .filter((item) => !item.lastMovement || item.daysWithoutMovement >= 60)
+      .sort((left, right) => right.daysWithoutMovement - left.daysWithoutMovement)
+    const monthConsumption = state.inventoryEntries.filter(
+      (entry) =>
+        entry.kind === 'Consumo MP' &&
+        isMonth(entry.createdAt, indicatorMonth),
+    )
+    const consumptionByMaterial = Array.from(
+      monthConsumption
+        .reduce((grouped, entry) => {
+          const current = grouped.get(entry.item) ?? {
+            item: entry.item,
+            qty: 0,
+            unit: entry.unit,
+            value: 0,
+            wasteQty: 0,
+            wasteValue: 0,
+          }
+          current.qty += entry.qty
+          current.value += entry.value
+          if (entry.source.includes('Perda') || entry.source.includes('Defeito')) {
+            current.wasteQty += entry.qty
+            current.wasteValue += entry.value
+          }
+          grouped.set(entry.item, current)
+          return grouped
+        }, new Map<string, {
+          item: string
+          qty: number
+          unit: string
+          value: number
+          wasteQty: number
+          wasteValue: number
+        }>())
+        .values(),
+    ).sort((left, right) => right.value - left.value)
+
+    return {
+      delayedOps,
+      plannedQty,
+      producedQty,
+      completionRate: plannedQty ? (producedQty / plannedQty) * 100 : 0,
+      lostQty,
+      reworkQty,
+      averageLeadTime,
+      completedOps: completedMonthOps.length,
+      topProducts,
+      priceDifferences,
+      productMargins,
+      staleStock,
+      consumptionByMaterial,
+    }
+  }, [
+    financeSummary,
+    indicatorMonth,
+    openProductionOrders,
+    state,
+    stock.finishedItems,
+    stock.rawItems,
+  ])
 
   const navGroups: { title: string; items: { key: Area; label: string; icon: ReactNode }[] }[] = [
     {
@@ -6599,7 +6858,8 @@ export default function SistemaMacaroca() {
       title: 'Gestão',
       description: 'Defina preços, acompanhe o dinheiro e controle os acessos ao sistema.',
       items: [
-        { key: 'precos', title: 'Preços de venda', detail: 'Defina o valor oficial de cada peça e variação.', badge: `${state.products.length} produto(s)`, icon: <Calculator />, primary: true },
+        { key: 'indicadores', title: 'Indicadores', detail: 'Veja atrasos, produção, estoque, vendas e margem com ações diretas.', badge: `${overdueSmartOrders.length + indicatorSummary.delayedOps.length} atenção`, icon: <LayoutDashboard />, primary: true },
+        { key: 'precos', title: 'Preços de venda', detail: 'Defina o valor oficial de cada peça e variação.', badge: `${state.products.length} produto(s)`, icon: <Calculator /> },
         { key: 'financeiro', title: 'Financeiro', detail: 'Acompanhe recebimentos, despesas, contas e saldo.', badge: canSeeMoney ? money(totals.balance) : 'Restrito', icon: <WalletCards /> },
         { key: 'usuarios', title: 'Usuários e permissões', detail: 'Cadastre pessoas e escolha o que cada perfil acessa.', badge: `${state.users.length} usuário(s)`, icon: <ShieldCheck /> },
         { key: 'historico', title: 'Histórico de alterações', detail: 'Veja quem criou, alterou ou excluiu cada registro.', badge: `${auditEvents.length} evento(s)`, icon: <FileText /> },
@@ -6665,6 +6925,10 @@ export default function SistemaMacaroca() {
     painel: {
       title: 'Painel completo',
       description: 'Resumo amplo do sistema para conferências administrativas.',
+    },
+    indicadores: {
+      title: 'Indicadores para decidir',
+      description: 'Atrasos, produção, vendas, estoque e margem com uma ação clara para cada situação.',
     },
     vendas: {
       title: 'Acompanhar vendas',
@@ -8108,6 +8372,342 @@ export default function SistemaMacaroca() {
                     )}
                   </div>
                 </Panel>
+              </section>
+            )}
+
+            {activeArea === 'indicadores' && (
+              <section className="grid gap-5">
+                <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-end sm:justify-between md:p-4">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                      Período analisado
+                    </span>
+                    <input
+                      aria-label="Mês dos indicadores"
+                      type="month"
+                      value={indicatorMonth}
+                      onChange={(event) => setIndicatorMonth(event.target.value)}
+                      className="mt-1 block h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 sm:w-48"
+                    />
+                  </div>
+                  <nav
+                    aria-label="Visões dos indicadores"
+                    className="flex gap-2 overflow-x-auto pb-1 sm:pb-0"
+                  >
+                    {([
+                      ['atencao', 'Atenção agora'],
+                      ['producao', 'Produção'],
+                      ['produtos', 'Produtos e margem'],
+                      ['estoque', 'Estoque'],
+                    ] as [IndicatorView, string][]).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setIndicatorView(key)}
+                        aria-current={indicatorView === key ? 'page' : undefined}
+                        className={`min-h-10 shrink-0 rounded-md border px-3 text-sm font-medium transition ${
+                          indicatorView === key
+                            ? 'border-[#312e81] bg-[#312e81] text-white'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                {indicatorView === 'atencao' && (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <PocketMetric
+                        label="Pedidos atrasados"
+                        value={overdueSmartOrders.length.toString()}
+                        detail={overdueSmartOrders.length ? 'Precisam de uma decisão hoje' : 'Nenhum prazo vencido'}
+                        tone={overdueSmartOrders.length ? 'rose' : 'green'}
+                      />
+                      <PocketMetric
+                        label="OPs atrasadas ou paradas"
+                        value={indicatorSummary.delayedOps.length.toString()}
+                        detail={indicatorSummary.delayedOps.length ? 'Revise prazo ou andamento' : 'Produção dentro do esperado'}
+                        tone={indicatorSummary.delayedOps.length ? 'amber' : 'green'}
+                      />
+                      <PocketMetric
+                        label="Estoque crítico"
+                        value={generalPlan.attentionStock.length.toString()}
+                        detail={generalPlan.attentionStock.length ? 'Itens para conferir ou comprar' : 'Nenhum item crítico'}
+                        tone={generalPlan.attentionStock.length ? 'amber' : 'green'}
+                      />
+                      <PocketMetric
+                        label="Preços abaixo do oficial"
+                        value={indicatorSummary.priceDifferences.filter((item) => item.difference < 0).length.toString()}
+                        detail="Produtos vendidos com diferença no mês"
+                        tone={indicatorSummary.priceDifferences.some((item) => item.difference < 0) ? 'amber' : 'neutral'}
+                      />
+                    </div>
+
+                    <div className="grid gap-5 xl:grid-cols-2">
+                      <Panel title="Pedidos atrasados">
+                        <div className="grid gap-3">
+                          {overdueSmartOrders
+                            .slice()
+                            .sort((left, right) => (left.dueDate || '').localeCompare(right.dueDate || ''))
+                            .map((order) => {
+                              const product = state.products.find((item) => item.id === order.productId)
+                              return (
+                                <IndicatorActionRow
+                                  key={order.id}
+                                  badge={`${Math.abs(daysUntil(order.dueDate))} dia(s) atrasado`}
+                                  tone="rose"
+                                  title={`${order.id} · ${order.client}`}
+                                  detail={`${productDisplayName(product, order.variationId)} · ${order.qty} un · prazo ${formatDate(order.dueDate)}`}
+                                  value={order.status}
+                                  actionLabel="Resolver pedido"
+                                  onAction={() => setActiveArea('vendas')}
+                                />
+                              )
+                            })}
+                          {!overdueSmartOrders.length && (
+                            <EmptyLine text="Nenhum pedido com prazo vencido." />
+                          )}
+                        </div>
+                      </Panel>
+
+                      <Panel title="Produções que precisam de atenção">
+                        <div className="grid gap-3">
+                          {indicatorSummary.delayedOps.map(({ op, product, relatedOrder, stoppedDays, overdue }) => (
+                            <IndicatorActionRow
+                              key={op.id}
+                              badge={op.status === 'Pausada' ? 'Pausada' : overdue ? 'Prazo vencido' : 'Sem atualização'}
+                              tone={overdue ? 'rose' : 'amber'}
+                              title={`${op.id} · ${productDisplayName(product, op.variationId)}`}
+                              detail={`${relatedOrder ? `Pedido ${relatedOrder.id} · ` : ''}${op.produced}/${op.qty} un prontas · ${
+                                Number.isFinite(stoppedDays) ? `${stoppedDays} dia(s) sem lançamento` : 'sem início registrado'
+                              }`}
+                              value={op.priority}
+                              actionLabel="Abrir produção"
+                              onAction={() => {
+                                setGuidedOpId(op.id)
+                                setActiveArea('producao')
+                              }}
+                            />
+                          ))}
+                          {!indicatorSummary.delayedOps.length && (
+                            <EmptyLine text="Nenhuma produção atrasada ou parada." />
+                          )}
+                        </div>
+                      </Panel>
+                    </div>
+                  </>
+                )}
+
+                {indicatorView === 'producao' && (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <PocketMetric
+                        label="Planejado"
+                        value={`${indicatorSummary.plannedQty.toLocaleString('pt-BR')} un`}
+                        detail="Quantidade das OPs do mês"
+                        tone="neutral"
+                      />
+                      <PocketMetric
+                        label="Realizado"
+                        value={`${indicatorSummary.producedQty.toLocaleString('pt-BR')} un`}
+                        detail={`${indicatorSummary.completionRate.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% do planejado`}
+                        tone={indicatorSummary.completionRate >= 100 ? 'green' : 'blue'}
+                      />
+                      <PocketMetric
+                        label="Perdas e defeitos"
+                        value={`${indicatorSummary.lostQty.toLocaleString('pt-BR')} un`}
+                        detail={`${indicatorSummary.reworkQty.toLocaleString('pt-BR')} un em retrabalho`}
+                        tone={indicatorSummary.lostQty ? 'rose' : 'green'}
+                      />
+                      <PocketMetric
+                        label="Prazo médio"
+                        value={`${indicatorSummary.averageLeadTime.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias`}
+                        detail={`${indicatorSummary.completedOps} OP(s) concluída(s) no mês`}
+                        tone="neutral"
+                      />
+                    </div>
+
+                    <div className="grid gap-5 xl:grid-cols-2">
+                      <Panel title="Planejado versus realizado">
+                        <div className="grid gap-4">
+                          <div>
+                            <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                              <span className="text-slate-500">Avanço das OPs do mês</span>
+                              <strong>{indicatorSummary.completionRate.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</strong>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className="h-full rounded-full bg-[#312e81]"
+                                style={{ width: `${Math.min(100, indicatorSummary.completionRate)}%` }}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-sm leading-6 text-slate-600">
+                            Foram planejadas {indicatorSummary.plannedQty.toLocaleString('pt-BR')} peças e registradas{' '}
+                            {indicatorSummary.producedQty.toLocaleString('pt-BR')} peças prontas.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setActiveArea('producao')}
+                            className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white sm:w-fit"
+                          >
+                            Acompanhar ordens
+                          </button>
+                        </div>
+                      </Panel>
+
+                      <Panel title="Consumo e desperdício">
+                        <div className="grid gap-3">
+                          {indicatorSummary.consumptionByMaterial.slice(0, 8).map((item) => (
+                            <IndicatorActionRow
+                              key={item.item}
+                              badge={item.wasteQty ? 'Com desperdício' : 'Consumo normal'}
+                              tone={item.wasteQty ? 'rose' : 'neutral'}
+                              title={item.item}
+                              detail={`Consumido: ${item.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}${
+                                item.wasteQty
+                                  ? ` · perdas: ${item.wasteQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`
+                                  : ''
+                              }`}
+                              value={canSeeMoney ? money(item.value) : `${item.qty.toLocaleString('pt-BR')} ${item.unit}`}
+                              actionLabel="Ver movimentações"
+                              onAction={() => setActiveArea('movimentacoes')}
+                            />
+                          ))}
+                          {!indicatorSummary.consumptionByMaterial.length && (
+                            <EmptyLine text="Ainda não há consumo registrado neste mês." />
+                          )}
+                        </div>
+                      </Panel>
+                    </div>
+                  </>
+                )}
+
+                {indicatorView === 'produtos' && (
+                  <div className="grid gap-5 xl:grid-cols-2">
+                    <Panel title="Produtos mais vendidos">
+                      <div className="grid gap-3">
+                        {indicatorSummary.topProducts.slice(0, 8).map((item, index) => (
+                          <IndicatorActionRow
+                            key={item.key}
+                            badge={`${index + 1}º no mês`}
+                            tone={index === 0 ? 'green' : 'neutral'}
+                            title={productDisplayName(item.product, item.variationId)}
+                            detail={`${item.orders} pedido(s) · ${item.qty.toLocaleString('pt-BR')} peça(s)`}
+                            value={canSeeMoney ? money(item.revenue) : `${item.qty} un`}
+                            actionLabel="Ver vendas"
+                            onAction={() => setActiveArea('vendas')}
+                          />
+                        ))}
+                        {!indicatorSummary.topProducts.length && (
+                          <EmptyLine text="Nenhum pedido registrado neste mês." />
+                        )}
+                      </div>
+                    </Panel>
+
+                    <Panel title="Margem por produto">
+                      <div className="grid gap-3">
+                        {indicatorSummary.productMargins.slice(0, 8).map((item) => (
+                          <IndicatorActionRow
+                            key={item.key}
+                            badge={`Margem ${item.basis}`}
+                            tone={item.margin < 0 ? 'rose' : item.margin < 15 ? 'amber' : 'green'}
+                            title={productDisplayName(item.product, item.variationId)}
+                            detail={`${item.qty} peça(s) · ${item.orders} pedido(s) · lucro ${item.basis}`}
+                            value={`${item.margin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                            actionLabel="Analisar resultado"
+                            onAction={() => {
+                              setFinanceView('resultados')
+                              setActiveArea('financeiro')
+                            }}
+                          />
+                        ))}
+                        {!indicatorSummary.productMargins.length && (
+                          <EmptyLine text="Ainda não existem pedidos para calcular margem." />
+                        )}
+                      </div>
+                    </Panel>
+
+                    <Panel title="Preço oficial versus vendido">
+                      <div className="grid gap-3">
+                        {indicatorSummary.priceDifferences.slice(0, 8).map((item) => (
+                          <IndicatorActionRow
+                            key={item.key}
+                            badge={item.difference < 0 ? 'Vendido abaixo' : item.difference > 0 ? 'Vendido acima' : 'Mesmo preço'}
+                            tone={item.difference < 0 ? 'amber' : 'green'}
+                            title={productDisplayName(item.product, item.variationId)}
+                            detail={`Oficial médio: ${money(item.officialAverage)} · vendido médio: ${money(item.soldAverage)}`}
+                            value={`${item.differencePercent > 0 ? '+' : ''}${item.differencePercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                            actionLabel="Revisar preços"
+                            onAction={() => setActiveArea('precos')}
+                          />
+                        ))}
+                        {!indicatorSummary.priceDifferences.length && (
+                          <EmptyLine text="Nenhuma comparação de preço disponível neste mês." />
+                        )}
+                      </div>
+                    </Panel>
+                  </div>
+                )}
+
+                {indicatorView === 'estoque' && (
+                  <div className="grid gap-5 xl:grid-cols-2">
+                    <Panel title="Estoque crítico">
+                      <div className="grid gap-3">
+                        {generalPlan.attentionStock.map((item) => (
+                          <IndicatorActionRow
+                            key={`${item.item}-${item.unit}`}
+                            badge="Estoque baixo"
+                            tone="rose"
+                            title={item.item}
+                            detail={
+                              'minimumStock' in item
+                                ? `Atual: ${item.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} · mínimo: ${item.minimumStock.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`
+                                : `Atual: ${item.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`
+                            }
+                            value="Conferir"
+                            actionLabel="Abrir estoque"
+                            onAction={() => setActiveArea('estoque')}
+                          />
+                        ))}
+                        {!generalPlan.attentionStock.length && (
+                          <EmptyLine text="Nenhum item está abaixo do nível de atenção." />
+                        )}
+                      </div>
+                    </Panel>
+
+                    <Panel title="Estoque sem movimentação">
+                      <div className="grid gap-3">
+                        {indicatorSummary.staleStock.slice(0, 10).map((item) => (
+                          <IndicatorActionRow
+                            key={`${item.category}-${item.item}`}
+                            badge={item.category}
+                            tone="amber"
+                            title={item.item}
+                            detail={
+                              item.lastMovement
+                                ? `Sem movimentação há ${item.daysWithoutMovement} dia(s)`
+                                : 'Sem data de movimentação registrada'
+                            }
+                            value={`${item.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`}
+                            actionLabel="Ver histórico"
+                            onAction={() => {
+                              setInventoryHistoryItem(item.item)
+                              setMovementView('historico')
+                              setActiveArea('movimentacoes')
+                            }}
+                          />
+                        ))}
+                        {!indicatorSummary.staleStock.length && (
+                          <EmptyLine text="Nenhum saldo está parado há 60 dias ou mais." />
+                        )}
+                      </div>
+                    </Panel>
+                  </div>
+                )}
               </section>
             )}
 
@@ -13515,5 +14115,45 @@ function RecordRow({
       </div>
       <strong className="text-right font-semibold">{value}</strong>
     </div>
+  )
+}
+
+function IndicatorActionRow({
+  badge,
+  tone,
+  title,
+  detail,
+  value,
+  actionLabel,
+  onAction,
+}: {
+  badge: string
+  tone: 'neutral' | 'green' | 'blue' | 'amber' | 'rose'
+  title: string
+  detail: string
+  value: string
+  actionLabel: string
+  onAction: () => void
+}) {
+  return (
+    <article className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone={tone}>{badge}</StatusBadge>
+          <strong className="break-words text-sm leading-5 text-slate-950">{title}</strong>
+        </div>
+        <p className="mt-2 text-sm leading-5 text-slate-500">{detail}</p>
+      </div>
+      <div className="flex min-w-0 items-center justify-between gap-3 sm:flex-col sm:items-end">
+        <strong className="break-words text-sm text-slate-900">{value}</strong>
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-[#312e81] transition hover:border-slate-300 hover:bg-slate-50"
+        >
+          {actionLabel}
+        </button>
+      </div>
+    </article>
   )
 }
