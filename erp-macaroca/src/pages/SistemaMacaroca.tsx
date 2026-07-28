@@ -6494,7 +6494,10 @@ export default function SistemaMacaroca() {
     active: state.orders.filter((order) => order.documentType === 'Pedido' && order.status !== 'Entregue' && order.status !== 'Cancelado'),
   }
   const ordersWaitingProductionOrder = salesFlow.open.filter(
-    (order) => orderPriceApproved(order) && !hasProductionOrder(order.id),
+    (order) =>
+      orderPriceApproved(order) &&
+      !hasProductionOrder(order.id) &&
+      orderStockPosition(order).suggestedQty > 0,
   )
   const pcpOrderPlans = useMemo(() => {
     const eligibleOrders = state.orders
@@ -6587,6 +6590,25 @@ export default function SistemaMacaroca() {
   const selectedPcpPlans = pcpSelectablePlans.filter((plan) =>
     pcpSelectedOrderIds.includes(plan.order.id),
   )
+  const selectedPcpSuggestedQty = selectedPcpPlans.reduce(
+    (sum, plan) => sum + plan.suggestedQty,
+    0,
+  )
+  const selectedPcpPlannedQty = selectedPcpPlans.reduce(
+    (sum, plan) =>
+      sum + Math.max(0, Math.floor(pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty)),
+    0,
+  )
+  const selectedPcpExtraStockQty = selectedPcpPlans.reduce(
+    (sum, plan) => {
+      const plannedQty = Math.max(
+        0,
+        Math.floor(pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty),
+      )
+      return sum + Math.max(0, plannedQty - plan.suggestedQty)
+    },
+    0,
+  )
   const selectedPcpMaterialShortages = (() => {
     const required = new Map<string, { item: string; unit: string; needed: number }>()
 
@@ -6660,6 +6682,11 @@ export default function SistemaMacaroca() {
       const requestedQty = Math.floor(pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty)
       const qty = Math.min(plan.order.qty, Math.max(0, requestedQty))
       if (qty <= 0) return
+      const extraStockQty = Math.max(0, qty - plan.suggestedQty)
+      const extraStockNote =
+        extraStockQty > 0
+          ? `Inclui ${extraStockQty} un adicional(is) para o estoque.`
+          : ''
 
       const op: ProductionOrder = {
         id: nextProductionOrderId(usedProductionOrders),
@@ -6671,7 +6698,7 @@ export default function SistemaMacaroca() {
         status: 'Não iniciada',
         priority: plan.priority,
         origin: 'Pedido',
-        notes: plan.order.notes,
+        notes: [plan.order.notes, extraStockNote].filter(Boolean).join('\n'),
         responsible: currentUserName,
         startedAt: '',
         finishedAt: '',
@@ -6699,7 +6726,14 @@ export default function SistemaMacaroca() {
                 ...(order.history ?? []),
                 newOrderHistoryEvent(
                   'Produção',
-                  `OP criada pelo PCP para ${createdOps.find((op) => op.orderId === order.id)?.qty ?? 0} un`,
+                  (() => {
+                    const createdOp = createdOps.find((op) => op.orderId === order.id)
+                    const plan = selectedPcpPlans.find((item) => item.order.id === order.id)
+                    const extraStockQty = Math.max(0, (createdOp?.qty ?? 0) - (plan?.suggestedQty ?? 0))
+                    return `OP criada pelo PCP para ${createdOp?.qty ?? 0} un${
+                      extraStockQty > 0 ? `, sendo ${extraStockQty} un adicional(is) para estoque` : ''
+                    }`
+                  })(),
                   currentUserName,
                 ),
               ],
@@ -6834,7 +6868,7 @@ export default function SistemaMacaroca() {
         },
       }
     }),
-    ...ordersWaitingProductionOrder.filter((order) => orderStockPosition(order).toProduce > 0).map((order) => {
+    ...ordersWaitingProductionOrder.map((order) => {
       const product = state.products.find((item) => item.id === order.productId)
       return {
         id: `sem-op-${order.id}`,
@@ -8604,6 +8638,7 @@ export default function SistemaMacaroca() {
                       {pcpSelectablePlans.map((plan) => {
                         const selected = pcpSelectedOrderIds.includes(plan.order.id)
                         const quantity = pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty
+                        const extraStockQty = Math.max(0, Math.floor(quantity) - plan.suggestedQty)
                         const remainingDays = daysUntil(plan.order.dueDate)
 
                         return (
@@ -8639,12 +8674,12 @@ export default function SistemaMacaroca() {
                                   {productDisplayName(plan.product, plan.variationId)} · pedido de {plan.order.qty} un · prazo {formatDate(plan.order.dueDate)}
                                 </p>
                                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                                  <MiniStat label="Pendente" value={`${plan.pending} un`} />
+                                  <MiniStat label="Neste pedido" value={`${plan.order.qty} un`} />
+                                  <MiniStat label="Comprometido total" value={`${plan.pending} un`} />
                                   <MiniStat label="Físico" value={`${plan.physical} un`} />
-                                  <MiniStat label="Reservado" value={`${plan.pending} un`} />
-                                  <MiniStat label="Disponível" value={`${plan.available} un`} tone={plan.available < 0 ? 'rose' : 'green'} />
                                   <MiniStat label="Produzindo" value={`${plan.producing} un`} tone="blue" />
-                                  <MiniStat label="Falta produzir" value={`${plan.suggestedQty} un`} tone="rose" />
+                                  <MiniStat label="Coberto neste pedido" value={`${plan.covered} un`} tone="green" />
+                                  <MiniStat label="Falta neste pedido" value={`${plan.suggestedQty} un`} tone="rose" />
                                 </div>
                               </div>
                               <label className="grid gap-2">
@@ -8663,6 +8698,11 @@ export default function SistemaMacaroca() {
                                   className="h-11 w-full rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
                                 />
                                 <span className="text-xs leading-4 text-black/45">Sugestão: {plan.suggestedQty} un</span>
+                                {extraStockQty > 0 && (
+                                  <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs leading-4 text-blue-900">
+                                    {extraStockQty} un adicional(is) irão para estoque
+                                  </span>
+                                )}
                               </label>
                             </div>
                           </div>
@@ -8683,13 +8723,18 @@ export default function SistemaMacaroca() {
                           tone={selectedPcpPlans.length ? 'blue' : 'neutral'}
                         />
                         <MiniStat
-                          label="Quantidade total"
-                          value={`${selectedPcpPlans.reduce(
-                            (sum, plan) =>
-                              sum + Math.max(0, Math.floor(pcpOrderQuantities[plan.order.id] ?? plan.suggestedQty)),
-                            0,
-                          )} un`}
+                          label="Necessidade sugerida"
+                          value={`${selectedPcpSuggestedQty} un`}
                         />
+                        <MiniStat label="Quantidade planejada" value={`${selectedPcpPlannedQty} un`} />
+                        {selectedPcpExtraStockQty > 0 && (
+                          <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+                            <strong>{selectedPcpExtraStockQty} un adicional(is) para estoque.</strong>
+                            <span className="mt-1 block text-blue-900/80">
+                              Essa quantidade excede a falta dos pedidos e ficará disponível após o registro da produção.
+                            </span>
+                          </div>
+                        )}
                         {selectedPcpMaterialShortages.length ? (
                           <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
                             <strong className="text-sm text-amber-950">Falta matéria-prima</strong>
