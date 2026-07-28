@@ -79,6 +79,7 @@ type DeliveryMethod = 'Retirada' | 'Entrega local' | 'Transportadora' | 'Correio
 type ReservationStatus = 'Não se aplica' | 'Reservado' | 'Liberado'
 type OpStatus = 'Não iniciada' | 'Em produção' | 'Pausada' | 'Finalizada'
 type ProductionPriority = 'Baixa' | 'Normal' | 'Alta' | 'Urgente'
+type ProductionEventType = 'Produção' | 'Perda' | 'Defeito' | 'Retrabalho'
 type CashKind = 'Entrada' | 'Saída'
 type InventoryKind = 'Entrada MP' | 'Consumo MP' | 'Entrada PA' | 'Saída PA'
 type FinanceCategory =
@@ -315,6 +316,8 @@ type ProductionLaunch = {
   date: string
   qty: number
   responsible: string
+  type: ProductionEventType
+  notes: string
 }
 
 type InventoryEntry = {
@@ -1095,7 +1098,11 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
       responsible: op.responsible ?? '',
       startedAt: op.startedAt ?? '',
       finishedAt: op.finishedAt ?? '',
-      launches: op.launches ?? [],
+      launches: (op.launches ?? []).map((launch) => ({
+        ...launch,
+        type: launch.type ?? 'Produção',
+        notes: launch.notes ?? '',
+      })),
     })),
     inventoryEntries: mergeById(includePrototypeDefaults ? initialState.inventoryEntries : [], state.inventoryEntries ?? []).map((entry) =>
       entry.id === 'EST-003' && entry.kind === 'Consumo MP' && entry.item === 'Scrub completo'
@@ -2077,9 +2084,10 @@ export default function SistemaMacaroca() {
   const [moduleContext, setModuleContext] = useState<Area | null>(null)
   const [productionLaunches, setProductionLaunches] = useState<Record<string, number>>({})
   const [guidedOrderStep, setGuidedOrderStep] = useState(1)
-  const [guidedProductionStep, setGuidedProductionStep] = useState(1)
   const [guidedOpId, setGuidedOpId] = useState(state.productionOrders.find((op) => op.status !== 'Finalizada')?.id ?? '')
   const [guidedProductionQty, setGuidedProductionQty] = useState(1)
+  const [guidedProductionType, setGuidedProductionType] = useState<ProductionEventType>('Produção')
+  const [guidedProductionNotes, setGuidedProductionNotes] = useState('')
   const [previewOpId, setPreviewOpId] = useState<string | null>(null)
   const [previewOrderId, setPreviewOrderId] = useState<string | null>(null)
   const [printOpId, setPrintOpId] = useState<string | null>(null)
@@ -2612,8 +2620,16 @@ export default function SistemaMacaroca() {
   const guidedOp = openProductionOrders.find((op) => op.id === guidedOpId) ?? openProductionOrders[0]
   const guidedProduct = guidedOp ? state.products.find((product) => product.id === guidedOp.productId) : undefined
   const guidedOrder = guidedOp ? state.orders.find((order) => order.id === guidedOp.orderId) : undefined
+  const guidedVariation = guidedProduct ? productVariation(guidedProduct, guidedOp?.variationId) : undefined
+  const guidedProductImage = guidedVariation?.referenceImage || guidedProduct?.referenceImage || ''
   const guidedRemainingQty = guidedOp ? Math.max(0, guidedOp.qty - guidedOp.produced) : 0
   const guidedLaunchQty = Math.min(Math.max(0, guidedProductionQty), Math.max(1, guidedRemainingQty))
+  const guidedDefectQty = guidedOp?.launches
+    .filter((launch) => launch.type === 'Defeito' || launch.type === 'Perda')
+    .reduce((total, launch) => total + launch.qty, 0) ?? 0
+  const guidedReworkQty = guidedOp?.launches
+    .filter((launch) => launch.type === 'Retrabalho')
+    .reduce((total, launch) => total + launch.qty, 0) ?? 0
 
   useEffect(() => {
     setOrderUnitPriceInput(Math.round(selectedOrderPrice))
@@ -4157,19 +4173,38 @@ export default function SistemaMacaroca() {
       }
     }
 
-    setState((current) => ({
-      ...current,
-      productionOrders: current.productionOrders.map((op) =>
+    const actionDate = currentDateValue()
+    const nextState: AppState = {
+      ...state,
+      productionOrders: state.productionOrders.map((op) =>
         op.id === opId
           ? {
               ...op,
               status,
-              startedAt: status === 'Em produção' && !op.startedAt ? currentDateValue() : op.startedAt,
-              finishedAt: status === 'Finalizada' ? op.finishedAt || currentDateValue() : op.finishedAt,
+              startedAt: status === 'Em produção' && !op.startedAt ? actionDate : op.startedAt,
+              finishedAt: status === 'Finalizada' ? op.finishedAt || actionDate : op.finishedAt,
             }
           : op,
       ),
-    }))
+      orders: state.orders.map((order) =>
+        order.id === op?.orderId
+          ? {
+              ...order,
+              status: status === 'Finalizada' ? 'Pronto' : 'Em produção',
+              history: [
+                ...(order.history ?? []),
+                newOrderHistoryEvent(
+                  'Produção',
+                  `${opId} ${status === 'Em produção' ? (op?.status === 'Pausada' ? 'retomada' : 'iniciada') : status.toLowerCase()}`,
+                  currentUserName,
+                ),
+              ],
+            }
+          : order,
+      ),
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, `${opId} marcada como ${status.toLowerCase()} e sincronizada.`)
     setMessage(`Produção marcada como ${status}.`)
   }
 
@@ -4202,10 +4237,20 @@ export default function SistemaMacaroca() {
       })
       .filter((item) => item.missing > 0)
 
-  const registerProductionAmount = (op: ProductionOrder, requestedAmount: number, redirectToStock = true) => {
+  const registerProductionEvent = (
+    op: ProductionOrder,
+    eventType: ProductionEventType,
+    requestedAmount: number,
+    notes = '',
+    redirectToStock = true,
+  ) => {
     const amount = Math.max(0, requestedAmount)
     if (amount <= 0) {
       setMessage('Informe uma quantidade maior que zero.')
+      return
+    }
+    if (eventType !== 'Produção' && !notes.trim()) {
+      setMessage(`Descreva o motivo para registrar ${eventType.toLowerCase()}.`)
       return
     }
 
@@ -4213,8 +4258,15 @@ export default function SistemaMacaroca() {
     if (!product) return
 
     const remaining = Math.max(0, op.qty - op.produced)
-    const producedAmount = Math.min(amount, remaining)
-    const missing = missingMaterialsFor(product, producedAmount, op.variationId)
+    if (eventType === 'Produção' && remaining <= 0) {
+      setMessage('Essa produção já atingiu a quantidade planejada.')
+      return
+    }
+
+    const eventAmount = eventType === 'Produção' ? Math.min(amount, remaining) : amount
+    const consumesMaterials = eventType === 'Produção' || eventType === 'Perda' || eventType === 'Defeito'
+    const addsFinishedGoods = eventType === 'Produção'
+    const missing = consumesMaterials ? missingMaterialsFor(product, eventAmount, op.variationId) : []
     if (missing.length) {
       setMessage(
         `Estoque insuficiente. Falta comprar: ${missing
@@ -4225,75 +4277,103 @@ export default function SistemaMacaroca() {
       return
     }
 
-    const nextProduced = Math.min(op.qty, op.produced + producedAmount)
+    const nextProduced = addsFinishedGoods ? Math.min(op.qty, op.produced + eventAmount) : op.produced
     const status: OpStatus =
       nextProduced >= op.qty ? 'Finalizada' : nextProduced > 0 ? 'Em produção' : 'Não iniciada'
+    const nextStatus: OpStatus = eventType === 'Produção' ? status : 'Em produção'
     const unitCost = productCost(product, op.variationId)
     const launchDate = currentDateValue()
     const responsible = currentUserName
+    const timestamp = Date.now()
+    const inventoryEntries: InventoryEntry[] = [
+      ...(addsFinishedGoods
+        ? [{
+            id: `EST-PA-${timestamp}`,
+            kind: 'Entrada PA' as InventoryKind,
+            item: productFinishedItemName(product, op.variationId),
+            qty: eventAmount,
+            unit: 'un',
+            value: unitCost * eventAmount,
+            source: `${op.id} · ${eventType}`,
+            createdBy: currentUserName,
+          }]
+        : []),
+      ...(consumesMaterials
+        ? productMaterials(product, op.variationId).map((material, index) => ({
+            id: `EST-MP-${timestamp}-${index}`,
+            kind: 'Consumo MP' as InventoryKind,
+            item: material.name,
+            qty: materialPlannedQty(material, eventAmount),
+            unit: material.unit,
+            value: materialPlannedCost(material, eventAmount),
+            source: `${op.id} · ${eventType}`,
+            createdBy: currentUserName,
+          }))
+        : []),
+    ]
 
-    setState((current) => ({
-      ...current,
-      productionOrders: current.productionOrders.map((item) =>
+    const nextState: AppState = {
+      ...state,
+      productionOrders: state.productionOrders.map((item) =>
         item.id === op.id
           ? {
               ...item,
               produced: nextProduced,
-              status,
+              status: nextStatus,
               responsible: item.responsible || responsible,
               startedAt: item.startedAt || launchDate,
-              finishedAt: status === 'Finalizada' ? item.finishedAt || launchDate : item.finishedAt,
+              finishedAt: nextStatus === 'Finalizada' ? item.finishedAt || launchDate : item.finishedAt,
               launches: [
                 ...(item.launches ?? []),
                 {
-                  id: `LAN-${Date.now()}`,
+                  id: `LAN-${timestamp}`,
                   date: launchDate,
-                  qty: producedAmount,
+                  qty: eventAmount,
                   responsible,
+                  type: eventType,
+                  notes: notes.trim(),
                 },
               ],
             }
           : item,
       ),
-      orders: current.orders.map((item) =>
-        item.id === op.orderId && status === 'Finalizada'
-          ? { ...item, status: 'Pronto' }
+      orders: state.orders.map((item) =>
+        item.id === op.orderId
+          ? {
+              ...item,
+              status: nextStatus === 'Finalizada' ? 'Pronto' : 'Em produção',
+              history: [
+                ...(item.history ?? []),
+                newOrderHistoryEvent(
+                  'Produção',
+                  eventType === 'Produção'
+                    ? `${op.id}: ${eventAmount} un prontas${nextStatus === 'Finalizada' ? ' e produção concluída' : ''}`
+                    : `${op.id}: ${eventAmount} un registradas como ${eventType.toLowerCase()}${notes.trim() ? ` · ${notes.trim()}` : ''}`,
+                  responsible,
+                ),
+              ],
+            }
           : item,
       ),
-      inventoryEntries: [
-        {
-          id: `EST-PA-${Date.now()}`,
-          kind: 'Entrada PA',
-          item: productFinishedItemName(product, op.variationId),
-          qty: producedAmount,
-          unit: 'un',
-          value: unitCost * producedAmount,
-          source: op.id,
-          createdBy: currentUserName,
-        },
-        ...productMaterials(product, op.variationId).map((material, index) => ({
-          id: `EST-MP-${Date.now()}-${index}`,
-          kind: 'Consumo MP' as InventoryKind,
-          item: material.name,
-          qty: materialPlannedQty(material, producedAmount),
-          unit: material.unit,
-          value: materialPlannedCost(material, producedAmount),
-          source: op.id,
-          createdBy: currentUserName,
-        })),
-        ...current.inventoryEntries,
-      ],
-    }))
+      inventoryEntries: [...inventoryEntries, ...state.inventoryEntries],
+    }
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `${eventType} registrada em ${op.id} e sincronizada.`)
     setProductionLaunches((current) => ({ ...current, [op.id]: 1 }))
     setMessage(
-      status === 'Finalizada'
-        ? `Produção concluída com lançamento de ${producedAmount} un.`
-        : `Produção lançada: ${producedAmount} un.`,
+      eventType === 'Produção'
+        ? nextStatus === 'Finalizada'
+          ? `Produção concluída com ${eventAmount} un prontas. Estoques e pedido foram atualizados.`
+          : `${eventAmount} un prontas. Matéria-prima, produto acabado e histórico foram atualizados.`
+        : eventType === 'Retrabalho'
+          ? `Retrabalho de ${eventAmount} un registrado no histórico.`
+          : `${eventAmount} un registradas como ${eventType.toLowerCase()}. A matéria-prima utilizada foi baixada.`,
     )
   }
 
   const registerProduction = (op: ProductionOrder) => {
-    registerProductionAmount(op, productionLaunches[op.id] ?? 1)
+    registerProductionEvent(op, 'Produção', productionLaunches[op.id] ?? 1)
   }
 
   const saveGuidedProduction = () => {
@@ -4302,16 +4382,57 @@ export default function SistemaMacaroca() {
       return
     }
 
-    const missing = missingMaterialsFor(guidedProduct, guidedLaunchQty, guidedOp.variationId)
+    const consumesMaterials =
+      guidedProductionType === 'Produção' || guidedProductionType === 'Perda' || guidedProductionType === 'Defeito'
+    const missing = consumesMaterials
+      ? missingMaterialsFor(guidedProduct, guidedLaunchQty, guidedOp.variationId)
+      : []
     if (missing.length) {
-      setMessage('Não dá para salvar: falta matéria-prima para essa produção.')
+      setMessage('Não dá para salvar: falta matéria-prima para esse lançamento.')
       return
     }
 
-    registerProductionAmount(guidedOp, guidedLaunchQty, false)
-    setGuidedProductionStep(1)
+    registerProductionEvent(
+      guidedOp,
+      guidedProductionType,
+      guidedLaunchQty,
+      guidedProductionNotes,
+      false,
+    )
     setGuidedProductionQty(1)
+    setGuidedProductionNotes('')
     setActiveArea('producao-guiada')
+  }
+
+  const concludeProductionOrder = (op: ProductionOrder) => {
+    const remaining = Math.max(0, op.qty - op.produced)
+    if (remaining > 0) {
+      setMessage(`Ainda faltam ${remaining} peça(s). Registre a produção antes de concluir a ordem.`)
+      return
+    }
+
+    const finishedAt = op.finishedAt || currentDateValue()
+    const nextState: AppState = {
+      ...state,
+      productionOrders: state.productionOrders.map((item) =>
+        item.id === op.id ? { ...item, status: 'Finalizada', finishedAt } : item,
+      ),
+      orders: state.orders.map((order) =>
+        order.id === op.orderId
+          ? {
+              ...order,
+              status: 'Pronto',
+              history: [
+                ...(order.history ?? []),
+                newOrderHistoryEvent('Produção', `${op.id} concluída`, currentUserName),
+              ],
+            }
+          : order,
+      ),
+    }
+    setState(nextState)
+    void saveStateImmediately(nextState, `${op.id} concluída e sincronizada.`)
+    setMessage(`${op.id} concluída. O pedido foi liberado como pronto.`)
   }
 
   const printProductionOrder = (opId: string) => {
@@ -4768,7 +4889,7 @@ export default function SistemaMacaroca() {
         unidade: 'un',
         valor: '',
         data: launch.date,
-        extra: { op: op.id },
+        extra: { op: op.id, tipo: launch.type, observacoes: launch.notes },
       })),
     ),
     ...state.inventoryEntries.map((entry) => ({
@@ -4820,7 +4941,10 @@ export default function SistemaMacaroca() {
     setMessage(nextMessage)
   }
 
-  const guidedMissingMaterials = guidedProduct ? missingMaterialsFor(guidedProduct, guidedLaunchQty, guidedOp?.variationId) : []
+  const guidedMissingMaterials =
+    guidedProduct && guidedProductionType !== 'Retrabalho'
+      ? missingMaterialsFor(guidedProduct, guidedLaunchQty, guidedOp?.variationId)
+      : []
   const stockOpMaterialShortages = selectedProduct
     ? missingMaterialsFor(selectedProduct, Math.max(0, stockOpQty), activeVariationId)
     : []
@@ -7574,183 +7698,305 @@ export default function SistemaMacaroca() {
             )}
 
             {activeArea === 'producao-guiada' && (
-              <section className="grid gap-5 xl:grid-cols-[minmax(300px,320px)_minmax(0,1fr)]">
-                <Panel title="Produção guiada">
-                  <div className="grid gap-2">
-                    <StepButton number={1} label="Escolher ordem" active={guidedProductionStep === 1} done={guidedProductionStep > 1} onClick={() => setGuidedProductionStep(1)} />
-                    <StepButton number={2} label="Quantidade pronta" active={guidedProductionStep === 2} done={guidedProductionStep > 2} onClick={() => setGuidedProductionStep(2)} />
-                    <StepButton number={3} label="Materiais usados" active={guidedProductionStep === 3} done={guidedProductionStep > 3} onClick={() => setGuidedProductionStep(3)} />
-                    <StepButton number={4} label="Salvar registro" active={guidedProductionStep === 4} done={false} onClick={() => setGuidedProductionStep(4)} />
+              <section className="grid gap-5">
+                <Panel title="Produção no ateliê">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                    <label className="grid gap-2">
+                      <FieldLabel>Qual ordem você está trabalhando?</FieldLabel>
+                      <select
+                        value={guidedOp?.id ?? ''}
+                        onChange={(event) => {
+                          setGuidedOpId(event.target.value)
+                          setGuidedProductionQty(1)
+                          setGuidedProductionType('Produção')
+                          setGuidedProductionNotes('')
+                        }}
+                        className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#4f46e5]"
+                      >
+                        {openProductionOrders.map((op) => {
+                          const product = state.products.find((item) => item.id === op.productId)
+                          return (
+                            <option key={op.id} value={op.id}>
+                              {op.id} · {productDisplayName(product, op.variationId)} · faltam {Math.max(0, op.qty - op.produced)} un
+                            </option>
+                          )
+                        })}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setActiveArea('producao')}
+                      className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
+                    >
+                      Ver todas as ordens
+                    </button>
                   </div>
                 </Panel>
 
-                <div className="grid gap-5">
-                  {!openProductionOrders.length && (
-                    <Panel title="Sem produção aberta">
-                      <EmptyLine text="Não há produção aberta para registrar agora." />
-                    </Panel>
-                  )}
+                {!openProductionOrders.length && (
+                  <Panel title="Nenhuma produção aberta">
+                    <EmptyLine text="As ordens aparecem aqui quando o PCP envia uma necessidade para o ateliê." />
+                  </Panel>
+                )}
 
-                  {!!openProductionOrders.length && guidedProductionStep === 1 && (
-                    <Panel title="1. Escolher produção aberta">
-                      <div className="grid gap-4">
-                        <label className="grid gap-2">
-                          <FieldLabel>Ordem para registrar produção</FieldLabel>
-                          <select
-                            value={guidedOp?.id ?? ''}
-                            onChange={(event) => {
-                              setGuidedOpId(event.target.value)
-                              setGuidedProductionQty(1)
-                            }}
-                            className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none"
-                          >
-                            {openProductionOrders.map((op) => {
-                              const product = state.products.find((item) => item.id === op.productId)
-                              return (
-                                <option key={op.id} value={op.id}>
-                                  {op.id} · {productDisplayName(product, op.variationId)} · {Math.max(0, op.qty - op.produced)} un restantes
-                                </option>
-                              )
-                            })}
-                          </select>
-                        </label>
-                        {guidedOp && (
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <MiniRow title="Origem" detail={guidedOrder ? `${guidedOrder.id} · ${guidedOrder.client}` : 'Produção para estoque'} />
-                            <MiniRow title="Status" detail={guidedOp.status} />
-                            <MiniRow title="Peça" detail={`${guidedProduct?.code ?? ''} · ${productDisplayName(guidedProduct, guidedOp.variationId)}`} />
-                            <MiniRow title="Falta produzir" detail={`${guidedRemainingQty} un`} />
+                {guidedOp && guidedProduct && (
+                  <>
+                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
+                      <section className="overflow-hidden rounded-md border border-[#d1d5db] bg-white">
+                        <div className="grid gap-5 p-5 sm:grid-cols-[144px_minmax(0,1fr)]">
+                          <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-[#e5e7eb] bg-[#f9fafb]">
+                            {guidedProductImage ? (
+                              <img
+                                src={guidedProductImage}
+                                alt={productDisplayName(guidedProduct, guidedOp.variationId)}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <Shirt className="h-10 w-10 text-[#9ca3af]" aria-hidden="true" />
+                            )}
                           </div>
-                        )}
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <StatusBadge tone={opStatusTone(guidedOp.status)}>{guidedOp.status}</StatusBadge>
+                              <StatusBadge tone={priorityTone(guidedOp.priority)}>{guidedOp.priority}</StatusBadge>
+                            </div>
+                            <h2 className="mt-3 text-xl font-semibold text-[#111827]">
+                              {productDisplayName(guidedProduct, guidedOp.variationId)}
+                            </h2>
+                            <p className="mt-1 text-sm text-[#6b7280]">
+                              {guidedProduct.code} · {guidedOp.id}
+                              {guidedOrder ? ` · Pedido ${guidedOrder.id}` : ' · Produção para estoque'}
+                            </p>
+                            <div className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                              <MiniRow title="Tamanho" detail={guidedVariation?.size || 'Não informado'} />
+                              <MiniRow title="Cor" detail={guidedVariation?.color || 'Não informada'} />
+                              <MiniRow title="Responsável" detail={guidedOp.responsible || currentUserName} />
+                              <MiniRow title="Prazo" detail={guidedOrder?.dueDate ? formatDate(guidedOrder.dueDate) : 'Sem prazo'} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 border-t border-[#e5e7eb] bg-[#f9fafb]">
+                          <div className="p-4">
+                            <span className="block text-xs uppercase text-[#6b7280]">Planejado</span>
+                            <strong className="mt-1 block text-xl">{guidedOp.qty}</strong>
+                          </div>
+                          <div className="border-x border-[#e5e7eb] p-4">
+                            <span className="block text-xs uppercase text-[#6b7280]">Já produzido</span>
+                            <strong className="mt-1 block text-xl">{guidedOp.produced}</strong>
+                          </div>
+                          <div className="p-4">
+                            <span className="block text-xs uppercase text-[#6b7280]">Restante</span>
+                            <strong className="mt-1 block text-xl">{guidedRemainingQty}</strong>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="rounded-md border border-[#d1d5db] bg-white p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className="text-sm text-[#6b7280]">Controle da ordem</span>
+                            <h3 className="mt-1 text-lg font-semibold">O que fazer agora</h3>
+                          </div>
+                          <span className="text-sm font-medium text-[#4f46e5]">{currentUserName}</span>
+                        </div>
+                        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                          {guidedOp.status === 'Não iniciada' && (
+                            <button
+                              type="button"
+                              onClick={() => updateProductionStatus(guidedOp.id, 'Em produção')}
+                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white sm:col-span-2"
+                            >
+                              Iniciar produção
+                            </button>
+                          )}
+                          {guidedOp.status === 'Pausada' && (
+                            <button
+                              type="button"
+                              onClick={() => updateProductionStatus(guidedOp.id, 'Em produção')}
+                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white sm:col-span-2"
+                            >
+                              Retomar produção
+                            </button>
+                          )}
+                          {guidedOp.status === 'Em produção' && (
+                            <button
+                              type="button"
+                              onClick={() => updateProductionStatus(guidedOp.id, 'Pausada')}
+                              className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
+                            >
+                              Pausar
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => concludeProductionOrder(guidedOp)}
+                            disabled={guidedRemainingQty > 0}
+                            className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Concluir
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewOpId(guidedOp.id)}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium sm:col-span-2"
+                          >
+                            <Printer className="h-4 w-4" />
+                            Ver ou imprimir OP
+                          </button>
+                        </div>
+                        <p className="mt-4 text-xs leading-5 text-[#6b7280]">
+                          A ordem só pode ser concluída quando toda a quantidade planejada estiver pronta.
+                        </p>
+                      </section>
+                    </div>
+
+                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)]">
+                      <section className="rounded-md border border-[#d1d5db] bg-white p-5">
+                        <span className="text-sm text-[#6b7280]">Lançamento do dia</span>
+                        <h3 className="mt-1 text-lg font-semibold">O que aconteceu nesta produção?</h3>
+                        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          {(['Produção', 'Perda', 'Defeito', 'Retrabalho'] as ProductionEventType[]).map((eventType) => (
+                            <button
+                              key={eventType}
+                              type="button"
+                              onClick={() => {
+                                setGuidedProductionType(eventType)
+                                if (eventType === 'Produção') setGuidedProductionNotes('')
+                              }}
+                              aria-pressed={guidedProductionType === eventType}
+                              className={`h-11 rounded-md border px-3 text-sm font-medium transition ${
+                                guidedProductionType === eventType
+                                  ? 'border-[#111827] bg-[#111827] text-white'
+                                  : 'border-[#d1d5db] bg-white text-[#374151] hover:border-[#9ca3af]'
+                              }`}
+                            >
+                              {eventType}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-5 grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+                          <SoftNumber
+                            label={guidedProductionType === 'Produção' ? `Peças prontas (máx. ${guidedRemainingQty})` : 'Quantidade afetada'}
+                            value={guidedProductionQty}
+                            onChange={setGuidedProductionQty}
+                          />
+                          <label className="grid gap-2">
+                            <FieldLabel>
+                              {guidedProductionType === 'Produção' ? 'Observação opcional' : 'Motivo ou observação'}
+                            </FieldLabel>
+                            <input
+                              value={guidedProductionNotes}
+                              onChange={(event) => setGuidedProductionNotes(event.target.value)}
+                              placeholder={
+                                guidedProductionType === 'Produção'
+                                  ? 'Ex.: lote conferido'
+                                  : 'Explique o que aconteceu'
+                              }
+                              className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#4f46e5]"
+                            />
+                          </label>
+                        </div>
+                        <div className="mt-5 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm leading-5 text-[#4b5563]">
+                          {guidedProductionType === 'Produção' && 'Baixa os materiais e adiciona as peças prontas ao estoque.'}
+                          {guidedProductionType === 'Perda' && 'Baixa os materiais utilizados, sem adicionar produto pronto.'}
+                          {guidedProductionType === 'Defeito' && 'Registra o defeito e baixa os materiais, sem adicionar produto pronto.'}
+                          {guidedProductionType === 'Retrabalho' && 'Registra o retrabalho no histórico, sem movimentar o estoque novamente.'}
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setGuidedProductionStep(2)}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                          onClick={saveGuidedProduction}
+                          disabled={
+                            guidedLaunchQty <= 0 ||
+                            !!guidedMissingMaterials.length ||
+                            (guidedProductionType !== 'Produção' && !guidedProductionNotes.trim())
+                          }
+                          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          Próximo: quantidade pronta
-                          <ArrowRight className="h-4 w-4" />
+                          {guidedProductionType === 'Produção' ? 'Registrar peças prontas' : `Registrar ${guidedProductionType.toLowerCase()}`}
                         </button>
-                      </div>
-                    </Panel>
-                  )}
+                      </section>
 
-                  {!!openProductionOrders.length && guidedProductionStep === 2 && (
-                    <Panel title="2. Informar quantas peças ficaram prontas">
-                      <div className="grid gap-4">
-                        <SoftNumber
-                          label={`Quantidade produzida hoje (máx. ${guidedRemainingQty} un)`}
-                          value={guidedProductionQty}
-                          onChange={setGuidedProductionQty}
-                        />
-                        <MiniRow
-                          title="Depois deste lançamento"
-                          detail={`${Math.min(guidedOp?.qty ?? 0, (guidedOp?.produced ?? 0) + guidedLaunchQty)} de ${guidedOp?.qty ?? 0} un produzidas`}
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setGuidedProductionStep(1)}
-                            className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium"
-                          >
-                            Voltar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setGuidedProductionStep(3)}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
-                          >
-                            Conferir baixa de matéria-prima
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </Panel>
-                  )}
-
-                  {!!openProductionOrders.length && guidedProductionStep === 3 && (
-                    <Panel title="3. Confirmar baixa de matéria-prima">
-                      <div className="grid gap-4">
-                        <div className="grid gap-3">
-                          {guidedMaterialConsumption.map((material) => (
-                            <RecordRow
-                              key={material.id}
-                              badge="Material"
-                              title={material.name}
-                              detail={`${material.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${material.unit} por peça · ${guidedLaunchQty} peça(s)`}
-                              value={`${material.totalQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${material.unit}`}
-                            />
+                      <section className="rounded-md border border-[#d1d5db] bg-white p-5">
+                        <span className="text-sm text-[#6b7280]">Materiais deste lançamento</span>
+                        <h3 className="mt-1 text-lg font-semibold">
+                          {guidedProductionType === 'Retrabalho' ? 'Sem nova baixa' : 'Baixa prevista'}
+                        </h3>
+                        <div className="mt-4 grid gap-3">
+                          {guidedProductionType !== 'Retrabalho' && guidedMaterialConsumption.map((material) => (
+                            <div key={material.id} className="flex items-start justify-between gap-3 border-b border-[#e5e7eb] pb-3 text-sm last:border-0 last:pb-0">
+                              <div>
+                                <strong className="block font-medium">{material.name}</strong>
+                                <span className="text-xs text-[#6b7280]">
+                                  {material.qty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {material.unit} por peça
+                                </span>
+                              </div>
+                              <strong className="whitespace-nowrap">
+                                {material.totalQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {material.unit}
+                              </strong>
+                            </div>
                           ))}
-                          {!guidedMaterialConsumption.length && <EmptyLine text="Essa peça ainda não tem matéria-prima cadastrada." />}
+                          {guidedProductionType !== 'Retrabalho' && !guidedMaterialConsumption.length && (
+                            <EmptyLine text="A ficha desta peça ainda não tem materiais." />
+                          )}
+                          {guidedProductionType === 'Retrabalho' && (
+                            <p className="text-sm leading-6 text-[#4b5563]">
+                              O material já foi consumido no lançamento original. O retrabalho será apenas documentado.
+                            </p>
+                          )}
                         </div>
-                        {guidedMissingMaterials.length ? (
-                          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                            <strong className="block">Estoque insuficiente</strong>
+                        {!!guidedMissingMaterials.length && (
+                          <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                            <strong className="block">Falta matéria-prima</strong>
                             {guidedMissingMaterials.map((item) => (
                               <span key={item.item} className="mt-1 block">
-                                Falta {item.missing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit} de {item.item}
+                                {item.missing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.unit} de {item.item}
                               </span>
                             ))}
                           </div>
-                        ) : (
-                          <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-4 text-sm text-[#1f2937]">
-                            Matéria-prima suficiente. Ao salvar, o sistema baixa esses materiais e entra produto acabado no estoque.
-                          </div>
                         )}
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setGuidedProductionStep(2)}
-                            className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium"
-                          >
-                            Voltar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setGuidedProductionStep(4)}
-                            disabled={!!guidedMissingMaterials.length}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
-                          >
-                            Próximo: salvar produção
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </Panel>
-                  )}
+                      </section>
+                    </div>
 
-                  {!!openProductionOrders.length && guidedProductionStep === 4 && (
-                    <Panel title="4. Salvar registro de produção">
-                      <div className="grid gap-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <MiniRow title="Ordem" detail={guidedOp?.id ?? '-'} />
-                          <MiniRow title="Peça" detail={productDisplayName(guidedProduct, guidedOp?.variationId)} />
-                          <MiniRow title="Quantidade pronta" detail={`${guidedLaunchQty} un`} />
-                          <MiniRow title="Responsável" detail={currentUserName} />
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <Panel title="Observações da ordem">
+                        <div className="grid gap-3">
+                          <p className="whitespace-pre-wrap text-sm leading-6 text-[#4b5563]">
+                            {guidedOp.notes || 'Nenhuma observação cadastrada.'}
+                          </p>
+                          {!!guidedVariation?.technicalNotes && (
+                            <div className="border-t border-[#e5e7eb] pt-3">
+                              <FieldLabel>Observação técnica</FieldLabel>
+                              <p className="mt-2 text-sm leading-6 text-[#4b5563]">{guidedVariation.technicalNotes}</p>
+                            </div>
+                          )}
                         </div>
-                        <div className="rounded-md border border-[#3730a3]/20 bg-[#eef2ff] p-4 text-sm text-[#1f2937]">
-                          Depois de salvar, o histórico da ordem recebe esse registro e o estoque é atualizado.
+                      </Panel>
+
+                      <Panel title="Histórico da produção">
+                        <div className="mb-4 grid grid-cols-2 gap-3 text-sm">
+                          <MiniRow title="Perdas e defeitos" detail={`${guidedDefectQty} un`} />
+                          <MiniRow title="Retrabalho" detail={`${guidedReworkQty} un`} />
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setGuidedProductionStep(3)}
-                            className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium"
-                          >
-                            Voltar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={saveGuidedProduction}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
-                          >
-                            Salvar produção
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
+                        <div className="grid gap-2">
+                          {guidedOp.launches.length ? (
+                            guidedOp.launches.slice().reverse().map((launch) => (
+                              <div key={launch.id} className="grid gap-1 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-3 sm:grid-cols-[110px_90px_minmax(0,1fr)]">
+                                <strong className="text-sm">{launch.type}</strong>
+                                <span className="text-sm">{launch.qty} un</span>
+                                <span className="text-sm text-[#6b7280]">
+                                  {formatDate(launch.date)} · {launch.responsible || 'Sistema'}
+                                  {launch.notes ? ` · ${launch.notes}` : ''}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <EmptyLine text="Nenhum lançamento registrado nesta ordem." />
+                          )}
                         </div>
-                      </div>
-                    </Panel>
-                  )}
-                </div>
+                      </Panel>
+                    </div>
+                  </>
+                )}
               </section>
             )}
 
@@ -9353,13 +9599,8 @@ export default function SistemaMacaroca() {
                           .map((op) => {
                             const order = state.orders.find((item) => item.id === op.orderId)
                             const product = state.products.find((item) => item.id === op.productId)
-                            const launchQty = Math.min(
-                              productionLaunches[op.id] ?? 1,
-                              Math.max(0, op.qty - op.produced),
-                            )
                             const remainingQty = Math.max(0, op.qty - op.produced)
                             const missingForStart = product ? missingMaterialsFor(product, remainingQty, op.variationId) : []
-                            const missingForLaunch = product ? missingMaterialsFor(product, launchQty, op.variationId) : []
                             return (
                               <div key={op.id} className="rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4">
                                 <div className="flex items-center justify-between gap-3">
@@ -9463,11 +9704,12 @@ export default function SistemaMacaroca() {
                                   <div className="mt-3 grid gap-2 text-xs text-black/60">
                                     {op.launches?.length ? (
                                       op.launches.slice(-4).reverse().map((launch) => (
-                                        <div key={launch.id} className="grid grid-cols-[70px_1fr] gap-2 rounded-md bg-[#ffffff] px-2 py-2">
-                                          <strong className="text-[#3730a3]">{launch.qty} un</strong>
+                                        <div key={launch.id} className="grid grid-cols-[90px_1fr] gap-2 rounded-md bg-[#ffffff] px-2 py-2">
+                                          <strong className="text-[#3730a3]">{launch.type} · {launch.qty} un</strong>
                                           <span>
                                             {formatDate(launch.date)}
                                             {launch.responsible ? ` · ${launch.responsible}` : ''}
+                                            {launch.notes ? ` · ${launch.notes}` : ''}
                                           </span>
                                         </div>
                                       ))
@@ -10064,7 +10306,7 @@ function ModuleSectionTabs({
 }) {
   return (
     <section className="mb-5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm md:p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3">
         <div>
           <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
             Acesso rápido
@@ -10075,7 +10317,7 @@ function ModuleSectionTabs({
       </div>
       <nav
         aria-label={`Opções de ${moduleTitle}`}
-        className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2"
+        className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))] sm:overflow-visible sm:pb-0"
       >
         {items.map((item) => {
           const isActive = item.key === activeArea
@@ -10085,7 +10327,7 @@ function ModuleSectionTabs({
               type="button"
               onClick={() => onSelect(item.key)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-h-12 items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium leading-4 transition sm:text-sm ${
+              className={`flex min-h-12 min-w-[152px] items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium leading-4 transition sm:min-w-0 sm:text-sm ${
                 isActive
                   ? 'border-[#312e81] bg-[#312e81] text-white shadow-sm'
                   : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-950'
@@ -10928,10 +11170,14 @@ function ProductionOrderPreview({
               <div className="mt-3 grid max-w-3xl gap-2">
                 {op.launches?.length ? (
                   op.launches.map((launch) => (
-                    <div key={launch.id} className="grid grid-cols-[120px_120px_1fr] rounded-md border border-black/10 bg-[#f9fafb] px-3 py-2">
+                    <div key={launch.id} className="grid grid-cols-[120px_110px_90px_1fr] rounded-md border border-black/10 bg-[#f9fafb] px-3 py-2">
                       <strong>{formatDate(launch.date)}</strong>
+                      <span>{launch.type}</span>
                       <span>{launch.qty} un</span>
-                      <span>{launch.responsible || '-'}</span>
+                      <span>
+                        {launch.responsible || '-'}
+                        {launch.notes ? ` · ${launch.notes}` : ''}
+                      </span>
                     </div>
                   ))
                 ) : (
@@ -11048,10 +11294,14 @@ function ProductionOrderPrint({ op, state }: { op: ProductionOrder; state: AppSt
         <div style={{ maxWidth: 720, marginTop: 8, display: 'grid', gap: 5 }}>
           {op.launches?.length ? (
             op.launches.map((launch) => (
-              <div key={launch.id} style={{ display: 'grid', gridTemplateColumns: '130px 100px 1fr', border: '1px solid #ddd', padding: '5px 8px' }}>
+              <div key={launch.id} style={{ display: 'grid', gridTemplateColumns: '120px 100px 80px 1fr', border: '1px solid #ddd', padding: '5px 8px' }}>
                 <span>{formatDate(launch.date)}</span>
+                <span>{launch.type}</span>
                 <span>{launch.qty} un</span>
-                <span>{launch.responsible || '-'}</span>
+                <span>
+                  {launch.responsible || '-'}
+                  {launch.notes ? ` · ${launch.notes}` : ''}
+                </span>
               </div>
             ))
           ) : (
