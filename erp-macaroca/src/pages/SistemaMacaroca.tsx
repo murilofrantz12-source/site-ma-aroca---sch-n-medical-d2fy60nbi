@@ -102,6 +102,7 @@ type FinanceCategory =
   | 'Outro'
 type FinanceView = 'resumo' | 'resultados' | 'caixa' | 'lancamentos'
 type IndicatorView = 'atencao' | 'producao' | 'produtos' | 'estoque'
+type ImplementationView = 'resumo' | 'treinamento' | 'equipe' | 'duvidas'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
 type PriceApprovalStatus = 'Não necessária' | 'Pendente' | 'Aprovada' | 'Recusada'
@@ -2563,6 +2564,7 @@ export default function SistemaMacaroca() {
   const [financeMonth, setFinanceMonth] = useState(currentMonthValue())
   const [indicatorView, setIndicatorView] = useState<IndicatorView>('atencao')
   const [indicatorMonth, setIndicatorMonth] = useState(currentMonthValue())
+  const [implementationView, setImplementationView] = useState<ImplementationView>('resumo')
   const [implementationUserId, setImplementationUserId] = useState('')
   const [implementationQuestion, setImplementationQuestion] = useState('')
   const [sidebarCompact, setSidebarCompact] = useState(false)
@@ -2956,6 +2958,7 @@ export default function SistemaMacaroca() {
     }
     setState(nextState)
     void saveStateImmediately(nextState, 'Progresso do treinamento atualizado para toda a equipe.')
+    setMessage(existing ? 'Atividade reaberta para novo treinamento.' : 'Atividade marcada como concluída.')
   }
 
   const assignImplementationResponsibility = (responsibilityId: string, area: string, userId: string) => {
@@ -2971,6 +2974,7 @@ export default function SistemaMacaroca() {
     }
     setState(nextState)
     void saveStateImmediately(nextState, 'Responsabilidades da equipe atualizadas.')
+    setMessage(userId ? 'Responsável definido para esta rotina.' : 'Responsabilidade removida.')
   }
 
   const addImplementationQuestion = () => {
@@ -2995,6 +2999,7 @@ export default function SistemaMacaroca() {
     setState(nextState)
     setImplementationQuestion('')
     void saveStateImmediately(nextState, 'Dúvida registrada para revisão da equipe.')
+    setMessage('Dúvida registrada para a equipe revisar.')
   }
 
   const toggleImplementationQuestion = (questionId: string) => {
@@ -3014,6 +3019,7 @@ export default function SistemaMacaroca() {
     }
     setState(nextState)
     void saveStateImmediately(nextState, 'Situação da dúvida atualizada.')
+    setMessage('Situação da dúvida atualizada.')
   }
 
   const loadCloudState = useCallback(
@@ -7309,6 +7315,47 @@ export default function SistemaMacaroca() {
       percent: steps.length ? Math.round((completed / steps.length) * 100) : 0,
     }
   })
+  const nextImplementationStep = selectedImplementationSteps.find(
+    (step) => !selectedImplementationCompleted.has(step.id),
+  )
+  const teamTrainingCompleted = teamImplementationProgress.reduce(
+    (total, item) => total + item.completed,
+    0,
+  )
+  const teamTrainingTotal = teamImplementationProgress.reduce(
+    (total, item) => total + item.total,
+    0,
+  )
+  const implementationReadinessChecks = [
+    {
+      label: 'Usuários individuais',
+      complete: state.users.length > 1,
+    },
+    {
+      label: 'Responsabilidades definidas',
+      complete: implementationOverview.assignedResponsibilities === implementationAreas.length,
+    },
+    {
+      label: 'Treinamentos concluídos',
+      complete: teamTrainingTotal > 0 && teamTrainingCompleted === teamTrainingTotal,
+    },
+    {
+      label: 'Dúvidas revisadas',
+      complete: implementationOverview.openQuestions === 0,
+    },
+    {
+      label: 'Inventário inicial',
+      complete:
+        implementationOverview.expectedInventoryItems > 0 &&
+        implementationOverview.countedItems >= implementationOverview.expectedInventoryItems,
+    },
+  ]
+  const implementationReadinessCompleted = implementationReadinessChecks.filter(
+    (check) => check.complete,
+  ).length
+  const implementationReadinessPercent = Math.round(
+    (implementationReadinessCompleted / implementationReadinessChecks.length) * 100,
+  )
 
   const navGroups: { title: string; items: { key: Area; label: string; icon: ReactNode }[] }[] = [
     {
@@ -9022,7 +9069,48 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'implantacao' && (
               <section className="grid gap-5">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                  <MobileViewSelect
+                    label="Área da implantação"
+                    value={implementationView}
+                    options={[
+                      ['resumo', 'Visão geral'],
+                      ['treinamento', 'Treinamento'],
+                      ['equipe', 'Responsabilidades'],
+                      ['duvidas', 'Dúvidas e melhorias'],
+                    ]}
+                    onChange={(value) => setImplementationView(value as ImplementationView)}
+                  />
+                  <nav
+                    aria-label="Áreas da implantação"
+                    className="hidden gap-2 sm:flex sm:flex-wrap"
+                  >
+                    {([
+                      ['resumo', 'Visão geral'],
+                      ['treinamento', 'Treinamento'],
+                      ['equipe', 'Responsabilidades'],
+                      ['duvidas', 'Dúvidas e melhorias'],
+                    ] as [ImplementationView, string][]).map(([view, label]) => (
+                      <button
+                        key={view}
+                        type="button"
+                        onClick={() => setImplementationView(view)}
+                        aria-current={implementationView === view ? 'page' : undefined}
+                        className={`min-h-10 rounded-md border px-3 text-sm font-medium ${
+                          implementationView === view
+                            ? 'border-[#312e81] bg-[#312e81] text-white'
+                            : 'border-slate-200 bg-white text-slate-700'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                {implementationView === 'resumo' && (
+                  <>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
                   <PocketMetric
                     label="Usuários individuais"
                     value={state.users.length.toString()}
@@ -9047,20 +9135,110 @@ export default function SistemaMacaroca() {
                     detail="Textos ou processos para revisar"
                     tone={implementationOverview.openQuestions ? 'amber' : 'green'}
                   />
-                  <PocketMetric
-                    label="Inventário contado"
-                    value={`${implementationOverview.countedItems}/${implementationOverview.expectedInventoryItems}`}
-                    detail="Itens com contagem física"
-                    tone={
-                      implementationOverview.expectedInventoryItems > 0 &&
-                      implementationOverview.countedItems >= implementationOverview.expectedInventoryItems
-                        ? 'green'
-                        : 'amber'
-                    }
-                  />
                 </div>
 
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+                  <Panel title="Prontidão para usar no dia a dia">
+                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.7fr)] xl:items-center">
+                    <div className="grid gap-4">
+                      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                        <div>
+                          <strong className="text-3xl text-slate-950">{implementationReadinessPercent}%</strong>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {implementationReadinessCompleted} de {implementationReadinessChecks.length} pontos preparados.
+                          </p>
+                        </div>
+                        <span className="text-sm font-medium text-slate-600">
+                          {teamTrainingCompleted}/{teamTrainingTotal} atividades concluídas pela equipe
+                        </span>
+                      </div>
+                      <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full rounded-full ${
+                            implementationReadinessPercent === 100 ? 'bg-emerald-600' : 'bg-[#312e81]'
+                          }`}
+                          style={{ width: `${implementationReadinessPercent}%` }}
+                        />
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {implementationReadinessChecks.map((check) => (
+                          <div
+                            key={check.label}
+                            className={`flex min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+                              check.complete
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                                : 'border-slate-200 bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <span aria-hidden="true">{check.complete ? '✓' : '○'}</span>
+                            <span className="break-words">{check.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-md border border-indigo-200 bg-indigo-50 p-4">
+                      <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[#312e81]">
+                        Próximo passo de {selectedImplementationUser?.name ?? 'treinamento'}
+                      </span>
+                      {nextImplementationStep ? (
+                        <>
+                          <strong className="mt-2 block text-lg text-slate-950">{nextImplementationStep.title}</strong>
+                          <p className="mt-1 text-sm leading-5 text-slate-600">{nextImplementationStep.detail}</p>
+                          <button
+                            type="button"
+                            disabled={!canAccessArea(nextImplementationStep.target)}
+                            onClick={() => {
+                              if (nextImplementationStep.id === 'inventario-inicial') setStockView('inventario')
+                              setActiveArea(nextImplementationStep.target)
+                            }}
+                            className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                          >
+                            {canAccessArea(nextImplementationStep.target)
+                              ? nextImplementationStep.action
+                              : 'Atividade com outro perfil'}
+                            {canAccessArea(nextImplementationStep.target) && <ArrowRight className="h-4 w-4" />}
+                          </button>
+                        </>
+                      ) : (
+                        <div className="mt-3">
+                          <StatusBadge tone="green">Treinamento concluído</StatusBadge>
+                          <p className="mt-2 text-sm leading-5 text-slate-600">
+                            Esta pessoa concluiu todas as atividades previstas para sua função.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  </Panel>
+
+                  <Panel title="Inventário inicial real">
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                      <div>
+                        <strong className="text-slate-950">
+                          {implementationOverview.countedItems} de {implementationOverview.expectedInventoryItems} itens contados
+                        </strong>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          Conte matéria-prima e produto acabado. Toda diferença precisa de justificativa e ficará no histórico.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!canAdjustInventory}
+                        onClick={() => {
+                          setStockView('inventario')
+                          setActiveArea('estoque')
+                        }}
+                        className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        {canAdjustInventory ? 'Continuar inventário' : 'Inventário com o Admin'}
+                      </button>
+                    </div>
+                  </Panel>
+                  </>
+                )}
+
+                {implementationView === 'treinamento' && (
+                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
                   <Panel title="Treinamento por pessoa">
                     <div className="grid gap-4">
                       {userRole === 'Admin' ? (
@@ -9113,6 +9291,9 @@ export default function SistemaMacaroca() {
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <strong className="text-sm text-slate-950">{step.title}</strong>
+                                  {!completed && nextImplementationStep?.id === step.id && (
+                                    <StatusBadge tone="blue">Próximo</StatusBadge>
+                                  )}
                                   {completed && <StatusBadge tone="green">Concluído</StatusBadge>}
                                 </div>
                                 <p className="mt-1 text-sm leading-5 text-slate-500">{step.detail}</p>
@@ -9176,8 +9357,9 @@ export default function SistemaMacaroca() {
                     </div>
                   </Panel>
                 </div>
+                )}
 
-                <div className="grid gap-5 xl:grid-cols-2">
+                {implementationView === 'equipe' && (
                   <Panel title="Responsabilidades">
                     <div className="grid gap-3">
                       {implementationAreas.map((item) => {
@@ -9217,7 +9399,9 @@ export default function SistemaMacaroca() {
                       })}
                     </div>
                   </Panel>
+                )}
 
+                {implementationView === 'duvidas' && (
                   <Panel title="Dúvidas e melhorias">
                     <div className="grid gap-4">
                       <label className="grid gap-2">
@@ -9271,31 +9455,7 @@ export default function SistemaMacaroca() {
                       </div>
                     </div>
                   </Panel>
-                </div>
-
-                <Panel title="Inventário inicial real">
-                  <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                    <div>
-                      <strong className="text-slate-950">
-                        {implementationOverview.countedItems} de {implementationOverview.expectedInventoryItems} itens contados
-                      </strong>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">
-                        Conte matéria-prima e produto acabado. Toda diferença precisa de justificativa e ficará no histórico.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={!canAdjustInventory}
-                      onClick={() => {
-                        setStockView('inventario')
-                        setActiveArea('estoque')
-                      }}
-                      className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                    >
-                      {canAdjustInventory ? 'Continuar inventário' : 'Inventário com o Admin'}
-                    </button>
-                  </div>
-                </Panel>
+                )}
               </section>
             )}
 
