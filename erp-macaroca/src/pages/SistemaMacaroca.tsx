@@ -101,7 +101,7 @@ type FinanceCategory =
   | 'Comissão'
   | 'Outro'
 type FinanceView = 'resumo' | 'resultados' | 'caixa' | 'lancamentos'
-type IndicatorView = 'atencao' | 'producao' | 'produtos' | 'estoque'
+type IndicatorView = 'resumo' | 'atencao' | 'producao' | 'produtos' | 'estoque'
 type ImplementationView = 'resumo' | 'treinamento' | 'equipe' | 'duvidas'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
@@ -2676,7 +2676,7 @@ export default function SistemaMacaroca() {
   const [financePaid, setFinancePaid] = useState(true)
   const [financeView, setFinanceView] = useState<FinanceView>('resumo')
   const [financeMonth, setFinanceMonth] = useState(currentMonthValue())
-  const [indicatorView, setIndicatorView] = useState<IndicatorView>('atencao')
+  const [indicatorView, setIndicatorView] = useState<IndicatorView>('resumo')
   const [indicatorMonth, setIndicatorMonth] = useState(currentMonthValue())
   const [alertCategoryFilter, setAlertCategoryFilter] = useState<'ALL' | SmartAlert['category']>('ALL')
   const [implementationView, setImplementationView] = useState<ImplementationView>('resumo')
@@ -7532,15 +7532,49 @@ export default function SistemaMacaroca() {
         }
       })
       .sort((left, right) => left.differencePercent - right.differencePercent)
-    const productMargins = financeSummary.productResults
+    const productMargins = Array.from(
+      monthOrders
+        .reduce((grouped, item) => {
+          const key = `${item.order.productId}:${item.order.variationId ?? ''}`
+          const current = grouped.get(key) ?? {
+            key,
+            product: item.product,
+            variationId: item.order.variationId,
+            orders: 0,
+            qty: 0,
+            revenue: 0,
+            profit: 0,
+            realizedOrders: 0,
+          }
+          current.orders += 1
+          current.qty += item.order.qty
+          current.revenue += item.revenue
+          current.profit += item.hasRealizedCost ? item.realProfit : item.estimatedProfit
+          if (item.hasRealizedCost) current.realizedOrders += 1
+          grouped.set(key, current)
+          return grouped
+        }, new Map<string, {
+          key: string
+          product?: Product
+          variationId?: string
+          orders: number
+          qty: number
+          revenue: number
+          profit: number
+          realizedOrders: number
+        }>())
+        .values(),
+    )
       .map((item) => {
-        const profit = item.realizedOrders ? item.realProfit : item.estimatedProfit
-        const revenue = item.realizedOrders ? item.realizedRevenue : item.revenue
         return {
           ...item,
-          profit,
-          margin: revenue ? (profit / revenue) * 100 : 0,
-          basis: item.realizedOrders ? 'real' : 'estimada',
+          margin: item.revenue ? (item.profit / item.revenue) * 100 : 0,
+          basis:
+            item.realizedOrders === item.orders
+              ? 'real'
+              : item.realizedOrders
+                ? 'parcial'
+                : 'estimada',
         }
       })
       .sort((left, right) => left.margin - right.margin)
@@ -7598,8 +7632,48 @@ export default function SistemaMacaroca() {
         }>())
         .values(),
     ).sort((left, right) => right.value - left.value)
+    const monthRevenue = monthOrders.reduce((total, item) => total + item.revenue, 0)
+    const monthProfit = monthOrders.reduce(
+      (total, item) => total + (item.hasRealizedCost ? item.realProfit : item.estimatedProfit),
+      0,
+    )
+    const realizedOrderResults = monthOrders.filter((item) => item.hasRealizedCost).length
+    const deliveredMonthOrders = state.orders.filter(
+      (order) =>
+        order.documentType === 'Pedido' &&
+        order.status === 'Entregue' &&
+        isMonth(order.deliveryDate || order.dueDate, indicatorMonth),
+    )
+    const deliveredOnTime = deliveredMonthOrders.filter(
+      (order) =>
+        Boolean(order.dueDate) &&
+        Boolean(order.deliveryDate) &&
+        new Date(`${order.deliveryDate}T12:00:00`).getTime() <=
+          new Date(`${order.dueDate}T12:00:00`).getTime(),
+    ).length
+    const overdueMonthOrders = monthOrders.filter(
+      (item) =>
+        item.order.status !== 'Entregue' &&
+        item.order.status !== 'Cancelado' &&
+        daysUntil(item.order.dueDate) < 0,
+    )
+    const openMonthOrders = monthOrders.filter(
+      (item) => item.order.status !== 'Entregue' && item.order.status !== 'Cancelado',
+    )
 
     return {
+      monthOrders: monthOrders.length,
+      openMonthOrders: openMonthOrders.length,
+      overdueMonthOrders: overdueMonthOrders.length,
+      deliveredMonthOrders: deliveredMonthOrders.length,
+      deliveredOnTimeRate: deliveredMonthOrders.length
+        ? (deliveredOnTime / deliveredMonthOrders.length) * 100
+        : 0,
+      monthRevenue,
+      monthProfit,
+      monthMargin: monthRevenue ? (monthProfit / monthRevenue) * 100 : 0,
+      averageTicket: monthOrders.length ? monthRevenue / monthOrders.length : 0,
+      realizedOrderResults,
       delayedOps,
       plannedQty,
       producedQty,
@@ -7623,6 +7697,69 @@ export default function SistemaMacaroca() {
     stock.finishedItems,
     stock.rawItems,
   ])
+  const exportIndicatorReport = () => {
+    const rows: (string | number)[][] = [
+      ['Resumo', 'Pedidos registrados', indicatorSummary.monthOrders, 'pedido(s)', ''],
+      ['Resumo', 'Pedidos ainda abertos', indicatorSummary.openMonthOrders, 'pedido(s)', ''],
+      ['Resumo', 'Pedidos atrasados', indicatorSummary.overdueMonthOrders, 'pedido(s)', ''],
+      ['Resumo', 'Entregas realizadas', indicatorSummary.deliveredMonthOrders, 'pedido(s)', ''],
+      ['Resumo', 'Entregas no prazo', indicatorSummary.deliveredOnTimeRate, '%', ''],
+      ['Resumo', 'Produção planejada', indicatorSummary.plannedQty, 'un', ''],
+      ['Resumo', 'Produção realizada', indicatorSummary.producedQty, 'un', ''],
+      ['Resumo', 'Perdas e defeitos', indicatorSummary.lostQty, 'un', ''],
+      ['Resumo', 'Retrabalho', indicatorSummary.reworkQty, 'un', ''],
+      ['Resumo', 'Prazo médio de produção', indicatorSummary.averageLeadTime, 'dias', ''],
+      ['Resumo', 'Itens com estoque crítico', generalPlan.attentionStock.length, 'item(ns)', ''],
+      ['Resumo', 'Itens sem movimentação', indicatorSummary.staleStock.length, 'item(ns)', ''],
+      ...(canSeeMoney
+        ? [
+            ['Resumo', 'Faturamento dos pedidos', indicatorSummary.monthRevenue, 'Gs.', ''],
+            ['Resumo', 'Lucro calculado', indicatorSummary.monthProfit, 'Gs.', ''],
+            ['Resumo', 'Margem média', indicatorSummary.monthMargin, '%', `${indicatorSummary.realizedOrderResults} pedido(s) com custo realizado`],
+            ['Resumo', 'Ticket médio', indicatorSummary.averageTicket, 'Gs.', ''],
+          ]
+        : []),
+      ...indicatorSummary.topProducts.map((item, index) => [
+        'Produtos mais vendidos',
+        productDisplayName(item.product, item.variationId),
+        item.qty,
+        'un',
+        `${index + 1}º · ${item.orders} pedido(s)${canSeeMoney ? ` · ${money(item.revenue)}` : ''}`,
+      ]),
+      ...indicatorSummary.productMargins.map((item) => [
+        'Margem por produto',
+        productDisplayName(item.product, item.variationId),
+        item.margin,
+        '%',
+        `${item.qty} un · resultado ${item.basis}`,
+      ]),
+      ...indicatorSummary.consumptionByMaterial.map((item) => [
+        'Consumo de matéria-prima',
+        item.item,
+        item.qty,
+        item.unit,
+        `Perdas: ${item.wasteQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit}`,
+      ]),
+      ...generalPlan.attentionStock.map((item) => [
+        'Estoque crítico',
+        item.item,
+        item.qty,
+        item.unit,
+        'minimumStock' in item ? `Mínimo: ${item.minimumStock}` : 'Requer conferência',
+      ]),
+    ]
+    const headers = ['seção', 'indicador', 'valor', 'unidade', 'observação']
+    const csv = [
+      headers.map(csvCell).join(';'),
+      ...rows.map((row) => row.map(csvCell).join(';')),
+    ].join('\n')
+    downloadTextFile(
+      `macaroca-indicadores-${indicatorMonth}.csv`,
+      `\ufeff${csv}`,
+      'text/csv;charset=utf-8',
+    )
+    setMessage(`Relatório de ${indicatorMonth} exportado para Excel.`)
+  }
   const implementationOverview = {
     assignedResponsibilities: implementationAreas.filter((area) =>
       state.implementationResponsibilities.some(
@@ -9901,6 +10038,7 @@ export default function SistemaMacaroca() {
                     label="Visão dos indicadores"
                     value={indicatorView}
                     options={[
+                      ['resumo', 'Resumo do mês'],
                       ['atencao', 'Atenção agora'],
                       ['producao', 'Produção'],
                       ['produtos', 'Produtos e margem'],
@@ -9913,6 +10051,7 @@ export default function SistemaMacaroca() {
                     className="hidden gap-2 sm:flex sm:flex-wrap"
                   >
                     {([
+                      ['resumo', 'Resumo do mês'],
                       ['atencao', 'Atenção agora'],
                       ['producao', 'Produção'],
                       ['produtos', 'Produtos e margem'],
@@ -9933,7 +10072,129 @@ export default function SistemaMacaroca() {
                       </button>
                     ))}
                   </nav>
+                  <button
+                    type="button"
+                    onClick={exportIndicatorReport}
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Exportar relatório
+                  </button>
                 </div>
+
+                {indicatorView === 'resumo' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+                      <PocketMetric
+                        label="Pedidos do mês"
+                        value={indicatorSummary.monthOrders.toString()}
+                        detail={`${indicatorSummary.openMonthOrders} ainda em aberto`}
+                        tone={indicatorSummary.overdueMonthOrders ? 'amber' : 'neutral'}
+                      />
+                      <PocketMetric
+                        label="Faturamento"
+                        value={canSeeMoney ? money(indicatorSummary.monthRevenue) : `${indicatorSummary.monthOrders} pedido(s)`}
+                        detail={canSeeMoney ? `Ticket médio ${money(indicatorSummary.averageTicket)}` : 'Valores restritos ao perfil'}
+                        tone="blue"
+                      />
+                      <PocketMetric
+                        label="Margem média"
+                        value={canSeeMoney ? `${indicatorSummary.monthMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : 'Restrita'}
+                        detail={`${indicatorSummary.realizedOrderResults} resultado(s) com custo realizado`}
+                        tone={
+                          !canSeeMoney
+                            ? 'neutral'
+                            : indicatorSummary.monthMargin < 0
+                              ? 'rose'
+                              : indicatorSummary.monthMargin < 15
+                                ? 'amber'
+                                : 'green'
+                        }
+                      />
+                      <PocketMetric
+                        label="Entregas no prazo"
+                        value={`${indicatorSummary.deliveredOnTimeRate.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                        detail={`${indicatorSummary.deliveredMonthOrders} entrega(s) no período`}
+                        tone={indicatorSummary.deliveredOnTimeRate >= 90 ? 'green' : indicatorSummary.deliveredMonthOrders ? 'amber' : 'neutral'}
+                      />
+                    </div>
+
+                    <div className="grid gap-5 xl:grid-cols-2">
+                      <Panel title="Leitura do mês">
+                        <div className="grid gap-3">
+                          <IndicatorActionRow
+                            badge={indicatorSummary.overdueMonthOrders ? 'Requer ação' : 'Em dia'}
+                            tone={indicatorSummary.overdueMonthOrders ? 'rose' : 'green'}
+                            title="Pedidos e prazos"
+                            detail={`${indicatorSummary.openMonthOrders} aberto(s) · ${indicatorSummary.overdueMonthOrders} atrasado(s)`}
+                            value={`${indicatorSummary.monthOrders} no mês`}
+                            actionLabel="Acompanhar vendas"
+                            onAction={() => setActiveArea('vendas')}
+                          />
+                          <IndicatorActionRow
+                            badge={
+                              !indicatorSummary.plannedQty
+                                ? 'Sem OP no período'
+                                : indicatorSummary.completionRate >= 100
+                                  ? 'Meta alcançada'
+                                  : 'Em andamento'
+                            }
+                            tone={
+                              !indicatorSummary.plannedQty
+                                ? 'neutral'
+                                : indicatorSummary.completionRate >= 100
+                                  ? 'green'
+                                  : 'blue'
+                            }
+                            title="Produção"
+                            detail={`${indicatorSummary.producedQty.toLocaleString('pt-BR')} de ${indicatorSummary.plannedQty.toLocaleString('pt-BR')} peça(s) planejadas`}
+                            value={`${indicatorSummary.completionRate.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                            actionLabel="Ver produção"
+                            onAction={() => setIndicatorView('producao')}
+                          />
+                          <IndicatorActionRow
+                            badge={generalPlan.attentionStock.length ? 'Repor estoque' : 'Sem alerta'}
+                            tone={generalPlan.attentionStock.length ? 'amber' : 'green'}
+                            title="Estoque"
+                            detail={`${generalPlan.attentionStock.length} item(ns) crítico(s) · ${indicatorSummary.staleStock.length} sem movimentação`}
+                            value={`${generalPlan.attentionStock.length} crítico(s)`}
+                            actionLabel="Analisar estoque"
+                            onAction={() => setIndicatorView('estoque')}
+                          />
+                          <IndicatorActionRow
+                            badge={indicatorSummary.lostQty ? 'Com ocorrência' : 'Sem perda'}
+                            tone={indicatorSummary.lostQty ? 'rose' : 'green'}
+                            title="Qualidade da produção"
+                            detail={`${indicatorSummary.lostQty.toLocaleString('pt-BR')} perda(s) ou defeito(s) · ${indicatorSummary.reworkQty.toLocaleString('pt-BR')} retrabalho(s)`}
+                            value={`${indicatorSummary.averageLeadTime.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias`}
+                            actionLabel="Ver lançamentos"
+                            onAction={() => setIndicatorView('producao')}
+                          />
+                        </div>
+                      </Panel>
+
+                      <Panel title="Produtos em destaque">
+                        <div className="grid gap-3">
+                          {indicatorSummary.topProducts.slice(0, 5).map((item, index) => (
+                            <IndicatorActionRow
+                              key={item.key}
+                              badge={`${index + 1}º mais vendido`}
+                              tone={index === 0 ? 'green' : 'neutral'}
+                              title={productDisplayName(item.product, item.variationId)}
+                              detail={`${item.orders} pedido(s) no período`}
+                              value={`${item.qty.toLocaleString('pt-BR')} un`}
+                              actionLabel="Ver análise"
+                              onAction={() => setIndicatorView('produtos')}
+                            />
+                          ))}
+                          {!indicatorSummary.topProducts.length && (
+                            <EmptyLine text="Os produtos mais vendidos aparecerão após o primeiro pedido do período." />
+                          )}
+                        </div>
+                      </Panel>
+                    </div>
+                  </>
+                )}
 
                 {indicatorView === 'atencao' && (
                   <>
