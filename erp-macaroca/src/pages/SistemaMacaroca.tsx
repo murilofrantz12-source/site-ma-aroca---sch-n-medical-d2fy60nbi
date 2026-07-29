@@ -1325,6 +1325,111 @@ const auditActionLabels: Record<AuditEvent['action'], string> = {
   DELETE: 'Excluiu',
 }
 
+type AuditChange = {
+  path: string
+  label: string
+  before: unknown
+  after: unknown
+}
+
+const auditFieldLabels: Record<string, string> = {
+  active: 'Situação',
+  address: 'Endereço',
+  brand: 'Marca',
+  category: 'Categoria',
+  city: 'Cidade',
+  client: 'Cliente',
+  color: 'Cor',
+  commission: 'Comissão',
+  cost: 'Custo',
+  createdAt: 'Data de criação',
+  createdBy: 'Criado por',
+  description: 'Descrição',
+  documentType: 'Tipo de documento',
+  dueDate: 'Prazo',
+  email: 'E-mail',
+  fixedCost: 'Custo fixo',
+  name: 'Nome',
+  notes: 'Observações',
+  officialPrice: 'Preço oficial',
+  orderDate: 'Data do pedido',
+  paymentMethod: 'Forma de pagamento',
+  paymentStatus: 'Situação do pagamento',
+  phone: 'Telefone',
+  price: 'Preço',
+  priority: 'Prioridade',
+  produced: 'Quantidade produzida',
+  profit: 'Lucro desejado',
+  qty: 'Quantidade',
+  reason: 'Justificativa',
+  responsible: 'Responsável',
+  role: 'Perfil',
+  size: 'Tamanho',
+  status: 'Situação',
+  tax: 'Impostos',
+  unit: 'Unidade',
+  updatedAt: 'Última atualização',
+  updatedBy: 'Alterado por',
+  value: 'Valor',
+  variationId: 'Variação',
+}
+
+const sensitiveAuditFields = new Set(['password', 'passwordHash', 'accessToken', 'refreshToken'])
+
+const auditValueEqual = (left: unknown, right: unknown) =>
+  JSON.stringify(left) === JSON.stringify(right)
+
+const auditValuePreview = (value: unknown) => {
+  if (value === undefined || value === null || value === '') return 'Não informado'
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
+  if (typeof value === 'number') return value.toLocaleString('pt-BR')
+  if (Array.isArray(value)) return `${value.length} item(ns)`
+  if (typeof value === 'object') return 'Dados atualizados'
+  return String(value)
+}
+
+const auditChanges = (event: AuditEvent): AuditChange[] => {
+  const before = event.oldData ?? {}
+  const after = event.newData ?? {}
+  const changes: AuditChange[] = []
+
+  const compare = (left: unknown, right: unknown, path: string) => {
+    if (auditValueEqual(left, right)) return
+
+    const field = path.split('.').at(-1) ?? path
+    if (sensitiveAuditFields.has(field)) return
+
+    const leftObject = left && typeof left === 'object' && !Array.isArray(left)
+    const rightObject = right && typeof right === 'object' && !Array.isArray(right)
+    if (leftObject || rightObject) {
+      const leftRecord = leftObject ? left as Record<string, unknown> : {}
+      const rightRecord = rightObject ? right as Record<string, unknown> : {}
+      const keys = new Set([
+        ...Object.keys(leftRecord),
+        ...Object.keys(rightRecord),
+      ])
+      keys.forEach((key) => {
+        compare(
+          leftRecord[key],
+          rightRecord[key],
+          path ? `${path}.${key}` : key,
+        )
+      })
+      return
+    }
+
+    changes.push({
+      path,
+      label: auditFieldLabels[field] ?? field.replace(/([a-z])([A-Z])/g, '$1 $2'),
+      before: left,
+      after: right,
+    })
+  }
+
+  compare(before, after, '')
+  return changes
+}
+
 const dateInputValue = (date: Date) => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -2430,6 +2535,12 @@ export default function SistemaMacaroca() {
   const [authReady, setAuthReady] = useState(!normalizedStoreEnabled)
   const [authProfile, setAuthProfile] = useState<ErpProfile | null>(null)
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
+  const [auditSearch, setAuditSearch] = useState('')
+  const [auditActionFilter, setAuditActionFilter] = useState<'ALL' | AuditEvent['action']>('ALL')
+  const [auditEntityFilter, setAuditEntityFilter] = useState('ALL')
+  const [auditUserFilter, setAuditUserFilter] = useState('ALL')
+  const [auditPeriodFilter, setAuditPeriodFilter] = useState<'7' | '30' | 'ALL'>('30')
+  const [selectedAuditEvent, setSelectedAuditEvent] = useState<AuditEvent | null>(null)
   const [loginName, setLoginName] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState('')
@@ -7403,6 +7514,51 @@ export default function SistemaMacaroca() {
       .toLowerCase()
       .includes(normalizedGuideSearch)
   })
+  const auditEntityOptions = [...new Set(auditEvents.map((event) => event.entityType))]
+    .sort((left, right) =>
+      (auditEntityLabels[left] ?? left).localeCompare(auditEntityLabels[right] ?? right, 'pt-BR'),
+    )
+  const auditUserOptions = [...new Set(auditEvents.map((event) => event.userName))]
+    .sort((left, right) => left.localeCompare(right, 'pt-BR'))
+  const filteredAuditEvents = useMemo(() => {
+    const normalizedSearch = auditSearch
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase()
+    const oldestDate = auditPeriodFilter === 'ALL'
+      ? 0
+      : Date.now() - Number(auditPeriodFilter) * 24 * 60 * 60 * 1000
+
+    return auditEvents.filter((event) => {
+      if (auditActionFilter !== 'ALL' && event.action !== auditActionFilter) return false
+      if (auditEntityFilter !== 'ALL' && event.entityType !== auditEntityFilter) return false
+      if (auditUserFilter !== 'ALL' && event.userName !== auditUserFilter) return false
+      if (oldestDate && new Date(event.createdAt).getTime() < oldestDate) return false
+      if (!normalizedSearch) return true
+
+      const changedFieldText = auditChanges(event).map((change) => change.label).join(' ')
+      return [
+        auditEntityLabels[event.entityType] ?? event.entityType,
+        event.recordId,
+        event.userName,
+        auditActionLabels[event.action],
+        changedFieldText,
+      ]
+        .join(' ')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .includes(normalizedSearch)
+    })
+  }, [
+    auditActionFilter,
+    auditEntityFilter,
+    auditEvents,
+    auditPeriodFilter,
+    auditSearch,
+    auditUserFilter,
+  ])
   const moduleTiles: {
     key: Area
     title: string
@@ -7829,6 +7985,12 @@ export default function SistemaMacaroca() {
           onQtyChange={setProductionDecisionQty}
           onClose={() => setProductionDecisionOrderId(null)}
           onConfirm={() => generateProductionOrder(productionDecisionOrder, productionDecisionQty)}
+        />
+      )}
+      {selectedAuditEvent && (
+        <AuditEventDialog
+          event={selectedAuditEvent}
+          onClose={() => setSelectedAuditEvent(null)}
         />
       )}
       <div className={`macaroca-system grid min-h-screen transition-[grid-template-columns] duration-300 ${sidebarCompact ? 'lg:grid-cols-[88px_minmax(0,_1fr)]' : 'lg:grid-cols-[292px_minmax(0,_1fr)]'}`}>
@@ -13375,34 +13537,156 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'historico' && canAccessArea('historico') && (
               <section className="grid gap-5">
-                <Panel title="Quem fez cada alteração">
-                  <div className="mb-5 grid gap-3 sm:grid-cols-3">
-                    <Metric label="Ações recentes" value={auditEvents.length.toString()} icon={<FileText />} />
+                <Panel title="Rastreabilidade do sistema">
+                  <div className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+                    <Metric label="Eventos exibidos" value={filteredAuditEvents.length.toString()} icon={<FileText />} />
                     <Metric
                       label="Pessoas"
                       value={new Set(auditEvents.map((event) => event.userName)).size.toString()}
                       icon={<ShieldCheck />}
                     />
                     <Metric
-                      label="Última alteração"
-                      value={auditEvents[0] ? formatDateTime(auditEvents[0].createdAt) : 'Nenhuma'}
+                      label="Alterações"
+                      value={auditEvents.filter((event) => event.action === 'UPDATE').length.toString()}
                       icon={<RefreshCw />}
+                    />
+                    <Metric
+                      label="Exclusões"
+                      value={auditEvents.filter((event) => event.action === 'DELETE').length.toString()}
+                      icon={<Trash2 />}
                     />
                   </div>
 
+                  <div className="mb-5 grid grid-cols-2 gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 sm:p-4 xl:grid-cols-5">
+                    <label className="col-span-2 grid gap-2 xl:col-span-1">
+                      <FieldLabel>Buscar no histórico</FieldLabel>
+                      <input
+                        type="search"
+                        value={auditSearch}
+                        onChange={(event) => setAuditSearch(event.target.value)}
+                        placeholder="Pedido, pessoa ou campo"
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                      />
+                    </label>
+                    <label className="grid gap-2">
+                      <FieldLabel>Ação</FieldLabel>
+                      <select
+                        value={auditActionFilter}
+                        onChange={(event) => setAuditActionFilter(event.target.value as 'ALL' | AuditEvent['action'])}
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                      >
+                        <option value="ALL">Todas</option>
+                        <option value="INSERT">Criações</option>
+                        <option value="UPDATE">Alterações</option>
+                        <option value="DELETE">Exclusões</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-2">
+                      <FieldLabel>Área</FieldLabel>
+                      <select
+                        value={auditEntityFilter}
+                        onChange={(event) => setAuditEntityFilter(event.target.value)}
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                      >
+                        <option value="ALL">Todas</option>
+                        {auditEntityOptions.map((entity) => (
+                          <option key={entity} value={entity}>
+                            {auditEntityLabels[entity] ?? entity}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="grid gap-2">
+                      <FieldLabel>Pessoa</FieldLabel>
+                      <select
+                        value={auditUserFilter}
+                        onChange={(event) => setAuditUserFilter(event.target.value)}
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                      >
+                        <option value="ALL">Todas</option>
+                        {auditUserOptions.map((userName) => (
+                          <option key={userName}>{userName}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="grid gap-2">
+                      <FieldLabel>Período</FieldLabel>
+                      <select
+                        value={auditPeriodFilter}
+                        onChange={(event) => setAuditPeriodFilter(event.target.value as '7' | '30' | 'ALL')}
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                      >
+                        <option value="7">7 dias</option>
+                        <option value="30">30 dias</option>
+                        <option value="ALL">Todo histórico</option>
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuditSearch('')
+                        setAuditActionFilter('ALL')
+                        setAuditEntityFilter('ALL')
+                        setAuditUserFilter('ALL')
+                        setAuditPeriodFilter('30')
+                      }}
+                      className="col-span-2 h-10 justify-self-start rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 xl:col-span-5"
+                    >
+                      Limpar filtros
+                    </button>
+                  </div>
+
                   <div className="grid gap-3">
-                    {auditEvents.length ? (
-                      auditEvents.map((event) => (
-                        <RecordRow
-                          key={event.id}
-                          badge={auditActionLabels[event.action]}
-                          title={`${auditEntityLabels[event.entityType] ?? 'Registro'} · ${event.recordId}`}
-                          detail={`${event.userName} · ${formatDateTime(event.createdAt)}`}
-                          value={event.version ? `Versão ${event.version}` : 'Registro excluído'}
-                        />
-                      ))
+                    {filteredAuditEvents.length ? (
+                      filteredAuditEvents.map((event) => {
+                        const changes = auditChanges(event)
+                        const changeSummary = changes
+                          .slice(0, 3)
+                          .map((change) => change.label)
+                          .join(', ')
+
+                        return (
+                          <article
+                            key={event.id}
+                            className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <StatusBadge tone={event.action === 'DELETE' ? 'rose' : event.action === 'INSERT' ? 'green' : 'blue'}>
+                                  {auditActionLabels[event.action]}
+                                </StatusBadge>
+                                <strong className="break-words text-sm">
+                                  {auditEntityLabels[event.entityType] ?? 'Registro'} · {event.recordId}
+                                </strong>
+                              </div>
+                              <p className="mt-2 text-sm text-slate-600">
+                                {event.userName} · {formatDateTime(event.createdAt)}
+                              </p>
+                              <p className="mt-1 break-words text-xs leading-5 text-slate-400">
+                                {changeSummary
+                                  ? `${changes.length} campo(s): ${changeSummary}${changes.length > 3 ? '…' : ''}`
+                                  : event.action === 'DELETE'
+                                    ? 'Registro removido do sistema'
+                                    : 'Registro completo salvo'}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+                              <span className="text-xs font-medium text-slate-500">
+                                {event.version ? `Versão ${event.version}` : 'Excluído'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedAuditEvent(event)}
+                                className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[#3730a3] hover:text-[#3730a3]"
+                              >
+                                Conferir
+                              </button>
+                            </div>
+                          </article>
+                        )
+                      })
                     ) : (
-                      <EmptyLine text="As próximas inclusões, alterações e exclusões aparecerão aqui com o nome da pessoa responsável." />
+                      <EmptyLine text="Nenhuma alteração corresponde aos filtros. Limpe os filtros ou escolha outro período." />
                     )}
                   </div>
                 </Panel>
@@ -14645,6 +14929,81 @@ function SoftNumber({
         className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition focus:border-[#4f46e5] focus:bg-white"
       />
     </label>
+  )
+}
+
+function AuditEventDialog({
+  event,
+  onClose,
+}: {
+  event: AuditEvent
+  onClose: () => void
+}) {
+  const changes = auditChanges(event)
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/45 p-3 backdrop-blur-sm print:hidden sm:p-4">
+      <div className="mx-auto flex max-h-[calc(100vh-1.5rem)] max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)]">
+        <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-5">
+          <div className="min-w-0">
+            <span className="text-sm text-slate-500">Conferência da alteração</span>
+            <h2 className="mt-1 break-words text-xl font-semibold text-slate-950 sm:text-2xl">
+              {auditEntityLabels[event.entityType] ?? 'Registro'} · {event.recordId}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white"
+            aria-label="Fechar detalhes da alteração"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="grid gap-4 overflow-auto bg-slate-50 p-4 sm:p-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <FinanceValue label="Ação" value={auditActionLabels[event.action]} />
+            <FinanceValue label="Pessoa" value={event.userName} />
+            <FinanceValue label="Data e hora" value={formatDateTime(event.createdAt)} />
+            <FinanceValue label="Versão" value={event.version ? String(event.version) : 'Registro excluído'} />
+          </div>
+
+          <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <h3 className="font-semibold text-slate-950">O que mudou</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Compare o valor anterior com o valor salvo nesta ação.
+              </p>
+            </div>
+            {changes.length ? (
+              <div className="divide-y divide-slate-200">
+                {changes.map((change) => (
+                  <div key={change.path} className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(140px,0.7fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-start">
+                    <div className="min-w-0">
+                      <strong className="block break-words text-sm text-slate-900">{change.label}</strong>
+                      <span className="mt-1 block break-all text-[11px] text-slate-400">{change.path}</span>
+                    </div>
+                    <div className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3">
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Antes</span>
+                      <span className="mt-1 block break-words text-sm text-slate-700">{auditValuePreview(change.before)}</span>
+                    </div>
+                    <div className="min-w-0 rounded-md border border-indigo-200 bg-indigo-50/60 p-3">
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-500">Depois</span>
+                      <span className="mt-1 block break-words text-sm text-slate-900">{auditValuePreview(change.after)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-8 text-center text-sm text-slate-500">
+                Esta ação não possui diferenças de campos para exibir.
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -19,6 +19,8 @@ export type AuditEvent = {
   userName: string
   createdAt: string
   version?: number
+  oldData?: Record<string, unknown>
+  newData?: Record<string, unknown>
 }
 
 type ErpRecord = {
@@ -120,7 +122,7 @@ export async function loadErpState(
         .order('username'),
       (supabase as any)
         .from('erp_audit_log')
-        .select('id, environment, entity_type, record_id, action, user_name, created_at, record_version')
+        .select('id, environment, entity_type, record_id, action, user_name, created_at, record_version, old_data, new_data')
         .eq('environment', environment)
         .order('created_at', { ascending: false })
         .limit(120),
@@ -176,6 +178,8 @@ export async function loadErpState(
     userName: row.user_name,
     createdAt: row.created_at,
     version: row.record_version,
+    oldData: row.old_data ?? undefined,
+    newData: row.new_data ?? undefined,
   }))
 
   return { state: nextState, versions, updatedAt, audit }
