@@ -128,6 +128,9 @@ type OrderTimelineItem = {
 
 type SmartAlert = {
   id: string
+  category: 'Vendas' | 'Produção' | 'Estoque' | 'Compras' | 'Financeiro' | 'Cadastros'
+  urgency: 'Agora' | 'Hoje' | 'Em breve'
+  priority: number
   badge: string
   title: string
   detail: string
@@ -2675,6 +2678,7 @@ export default function SistemaMacaroca() {
   const [financeMonth, setFinanceMonth] = useState(currentMonthValue())
   const [indicatorView, setIndicatorView] = useState<IndicatorView>('atencao')
   const [indicatorMonth, setIndicatorMonth] = useState(currentMonthValue())
+  const [alertCategoryFilter, setAlertCategoryFilter] = useState<'ALL' | SmartAlert['category']>('ALL')
   const [implementationView, setImplementationView] = useState<ImplementationView>('resumo')
   const [implementationUserId, setImplementationUserId] = useState('')
   const [implementationQuestion, setImplementationQuestion] = useState('')
@@ -7058,11 +7062,30 @@ export default function SistemaMacaroca() {
   )
   const nearDueOrders = state.orders.filter((order) => {
     const days = daysUntil(order.dueDate)
-    return order.documentType === 'Pedido' && order.status !== 'Entregue' && order.status !== 'Cancelado' && days >= 0 && days <= 3
+    return order.documentType === 'Pedido' &&
+      order.status !== 'Entregue' &&
+      order.status !== 'Cancelado' &&
+      order.status !== 'Pronto' &&
+      days >= 0 &&
+      days <= 3
   })
   const pausedProductionOrders = openProductionOrders.filter((op) => {
-    const daysSinceStart = op.startedAt ? Math.abs(daysUntil(op.startedAt)) : 0
-    return op.status === 'Pausada' || (op.status === 'Em produção' && daysSinceStart >= 3 && !(op.launches ?? []).length)
+    const lastActivityDate = [
+      op.startedAt,
+      ...(op.launches ?? []).map((launch) => launch.date),
+    ]
+      .filter(Boolean)
+      .sort()
+      .at(-1)
+    const daysWithoutUpdate = lastActivityDate
+      ? Math.max(0, -daysUntil(lastActivityDate.slice(0, 10)))
+      : 0
+    return op.status === 'Pausada' || (op.status === 'Em produção' && daysWithoutUpdate >= 3)
+  })
+  const urgentNotStartedProductionOrders = openProductionOrders.filter((op) => {
+    if (op.status !== 'Não iniciada') return false
+    const relatedOrder = state.orders.find((order) => order.id === op.orderId)
+    return Boolean(relatedOrder?.dueDate) && daysUntil(relatedOrder?.dueDate) <= 3
   })
   const materialShortageAlerts = openProductionOrders
     .map((op) => {
@@ -7072,11 +7095,54 @@ export default function SistemaMacaroca() {
       return { op, product, missing }
     })
     .filter((item) => item.missing.length > 0)
+  const purchaseDeliveryAlerts = openPurchaseOrders.filter(
+    (order) => daysUntil(order.expectedDate) <= 3,
+  )
+  const upcomingFinanceEntries = state.cashEntries.filter((entry) => {
+    if (entry.paid || !entry.dueDate) return false
+    const days = daysUntil(entry.dueDate)
+    return days >= 0 && days <= 3
+  })
+  const uncoveredStockSuggestions = purchaseSuggestions.filter(
+    (suggestion) => suggestion.suggestedStockQty > 0 && suggestion.onOrder <= 0,
+  )
+  const productConfigurationAlerts = state.products
+    .filter((product) => product.active !== false)
+    .flatMap((product) => {
+      const approvedVariations = product.variations.filter(
+        (variation) => (variation.sheetStatus ?? 'Aprovada') === 'Aprovada',
+      )
+      const draftVariations = product.variations.filter(
+        (variation) => (variation.sheetStatus ?? 'Aprovada') === 'Rascunho',
+      )
+      const withoutPrice = approvedVariations.filter(
+        (variation) => !(productSalePrice(product, variation.id) ?? 0),
+      )
+      return [
+        ...(withoutPrice.length
+          ? [{
+              kind: 'price' as const,
+              product,
+              count: withoutPrice.length,
+            }]
+          : []),
+        ...(draftVariations.length
+          ? [{
+              kind: 'sheet' as const,
+              product,
+              count: draftVariations.length,
+            }]
+          : []),
+      ]
+    })
   const smartAlerts: SmartAlert[] = [
     ...state.orders
       .filter((order) => order.pricing?.approvalStatus === 'Pendente')
       .map((order) => ({
         id: `preco-pendente-${order.id}`,
+        category: 'Vendas' as const,
+        urgency: 'Agora' as const,
+        priority: 100,
         badge: 'Preço em aprovação',
         title: `${order.id} · ${order.client}`,
         detail: `Negociado em ${money(order.pricing!.negotiatedPrice)}; mínimo ${money(order.pricing!.minimumPrice)}. Financeiro e produção estão aguardando.`,
@@ -7086,6 +7152,9 @@ export default function SistemaMacaroca() {
       })),
     ...overdueSmartOrders.map((order) => ({
       id: `prazo-vencido-${order.id}`,
+      category: 'Vendas' as const,
+      urgency: 'Agora' as const,
+      priority: 98 + Math.min(1, Math.abs(daysUntil(order.dueDate)) / 100),
       badge: 'Prazo vencido',
       title: `${order.id} · ${order.client}`,
       detail: `Prazo era ${formatDate(order.dueDate)}. Confira produção, estoque ou entrega.`,
@@ -7095,6 +7164,9 @@ export default function SistemaMacaroca() {
     })),
     ...materialShortageAlerts.map(({ op, product, missing }) => ({
       id: `falta-mp-${op.id}`,
+      category: 'Produção' as const,
+      urgency: 'Agora' as const,
+      priority: 96,
       badge: 'Falta matéria-prima',
       title: `${op.id} · ${productDisplayName(product, op.variationId)}`,
       detail: `Falta comprar ${missing
@@ -7109,6 +7181,9 @@ export default function SistemaMacaroca() {
       const product = state.products.find((item) => item.id === op.productId)
       return {
         id: `producao-parada-${op.id}`,
+        category: 'Produção' as const,
+        urgency: op.status === 'Pausada' ? 'Agora' as const : 'Hoje' as const,
+        priority: op.status === 'Pausada' ? 94 : 88,
         badge: op.status === 'Pausada' ? 'Produção pausada' : 'Produção parada',
         title: `${op.id} · ${productDisplayName(product, op.variationId)}`,
         detail: op.status === 'Pausada'
@@ -7126,6 +7201,9 @@ export default function SistemaMacaroca() {
       const product = state.products.find((item) => item.id === order.productId)
       return {
         id: `sem-op-${order.id}`,
+        category: 'Produção' as const,
+        urgency: daysUntil(order.dueDate) <= 3 ? 'Agora' as const : 'Hoje' as const,
+        priority: daysUntil(order.dueDate) <= 3 ? 93 : 84,
         badge: 'Pedido sem produção',
         title: `${order.id} · ${order.client}`,
         detail: `${productDisplayName(product, order.variationId)} ainda não tem ordem de produção vinculada.`,
@@ -7134,8 +7212,45 @@ export default function SistemaMacaroca() {
         onClick: () => openProductionDecision(order),
       }
     }),
+    ...urgentNotStartedProductionOrders.map((op) => {
+      const product = state.products.find((item) => item.id === op.productId)
+      const relatedOrder = state.orders.find((order) => order.id === op.orderId)
+      const overdue = daysUntil(relatedOrder?.dueDate) < 0
+      return {
+        id: `producao-nao-iniciada-${op.id}`,
+        category: 'Produção' as const,
+        urgency: overdue ? 'Agora' as const : 'Hoje' as const,
+        priority: overdue ? 95 : 86,
+        badge: overdue ? 'Produção atrasada' : 'Produção não iniciada',
+        title: `${op.id} · ${productDisplayName(product, op.variationId)}`,
+        detail: relatedOrder
+          ? `O pedido ${relatedOrder.id} tem prazo ${formatDate(relatedOrder.dueDate)} e a produção ainda não foi iniciada.`
+          : 'A ordem está aguardando início.',
+        tone: overdue ? 'rose' as const : 'amber' as const,
+        actionLabel: 'Iniciar produção',
+        onClick: () => {
+          setGuidedOpId(op.id)
+          setActiveArea('producao-guiada')
+        },
+      }
+    }),
+    ...salesFlow.ready.map((order) => ({
+      id: `pronto-entrega-${order.id}`,
+      category: 'Vendas' as const,
+      urgency: daysUntil(order.dueDate) <= 0 ? 'Agora' as const : 'Hoje' as const,
+      priority: daysUntil(order.dueDate) <= 0 ? 92 : 78,
+      badge: 'Pronto para entregar',
+      title: `${order.id} · ${order.client}`,
+      detail: `As peças estão prontas. Confira a separação e registre a saída do estoque.`,
+      tone: daysUntil(order.dueDate) <= 0 ? 'rose' as const : 'green' as const,
+      actionLabel: 'Separar entrega',
+      onClick: () => setActiveArea('entregas'),
+    })),
     ...nearDueOrders.map((order) => ({
       id: `prazo-proximo-${order.id}`,
+      category: 'Vendas' as const,
+      urgency: daysUntil(order.dueDate) === 0 ? 'Agora' as const : 'Hoje' as const,
+      priority: daysUntil(order.dueDate) === 0 ? 90 : 76,
       badge: 'Prazo próximo',
       title: `${order.id} · ${order.client}`,
       detail: `Entrega prevista para ${formatDate(order.dueDate)}. Faltam ${daysUntil(order.dueDate)} dia(s).`,
@@ -7143,16 +7258,128 @@ export default function SistemaMacaroca() {
       actionLabel: order.status === 'Pronto' ? 'Separar entrega' : 'Ver venda',
       onClick: () => setActiveArea(order.status === 'Pronto' ? 'entregas' : 'vendas'),
     })),
+    ...purchaseDeliveryAlerts.map((order) => {
+      const remainingDays = daysUntil(order.expectedDate)
+      const overdue = remainingDays < 0
+      return {
+        id: `compra-prazo-${order.id}`,
+        category: 'Compras' as const,
+        urgency: overdue || remainingDays === 0 ? 'Agora' as const : 'Hoje' as const,
+        priority: overdue ? 91 : remainingDays === 0 ? 82 : 68,
+        badge: overdue ? 'Compra atrasada' : remainingDays === 0 ? 'Compra chega hoje' : 'Compra a caminho',
+        title: `${order.number} · ${order.item}`,
+        detail: overdue
+          ? `A previsão era ${formatDate(order.expectedDate)}. Confirme com ${order.supplier} ou registre a chegada.`
+          : `Previsão ${formatDate(order.expectedDate)}. Falta receber ${Math.max(0, order.qty - order.receivedQty).toLocaleString('pt-BR')} ${order.unit}.`,
+        tone: overdue ? 'rose' as const : remainingDays === 0 ? 'amber' as const : 'blue' as const,
+        actionLabel: 'Conferir recebimento',
+        onClick: () => {
+          selectPurchaseOrderForReceipt(order.id)
+          setPurchaseView('recebimentos')
+          setActiveArea('notas')
+        },
+      }
+    }),
+    ...financeSummary.overdueReceivables.map((entry) => ({
+      id: `financeiro-receber-${entry.id}`,
+      category: 'Financeiro' as const,
+      urgency: 'Agora' as const,
+      priority: 90,
+      badge: 'Recebimento atrasado',
+      title: entry.description,
+      detail: `${money(entry.value)} venceu em ${formatDate(entry.dueDate)}. Confira o pagamento do cliente.`,
+      tone: 'rose' as const,
+      actionLabel: 'Abrir financeiro',
+      onClick: () => {
+        setFinanceView('resumo')
+        setActiveArea('financeiro')
+      },
+    })),
+    ...financeSummary.overduePayables.map((entry) => ({
+      id: `financeiro-pagar-${entry.id}`,
+      category: 'Financeiro' as const,
+      urgency: 'Agora' as const,
+      priority: 89,
+      badge: 'Conta atrasada',
+      title: entry.description,
+      detail: `${money(entry.value)} venceu em ${formatDate(entry.dueDate)}. Revise antes de registrar o pagamento.`,
+      tone: 'rose' as const,
+      actionLabel: 'Abrir financeiro',
+      onClick: () => {
+        setFinanceView('resumo')
+        setActiveArea('financeiro')
+      },
+    })),
+    ...upcomingFinanceEntries.map((entry) => {
+      const remainingDays = daysUntil(entry.dueDate)
+      return {
+        id: `financeiro-proximo-${entry.id}`,
+        category: 'Financeiro' as const,
+        urgency: remainingDays === 0 ? 'Agora' as const : 'Em breve' as const,
+        priority: remainingDays === 0 ? 80 : 58,
+        badge: remainingDays === 0 ? 'Vence hoje' : 'Vencimento próximo',
+        title: entry.description,
+        detail: `${money(entry.value)} ${entry.kind === 'Entrada' ? 'a receber' : 'a pagar'} em ${formatDate(entry.dueDate)}.`,
+        tone: remainingDays === 0 ? 'amber' as const : 'blue' as const,
+        actionLabel: 'Abrir financeiro',
+        onClick: () => {
+          setFinanceView('resumo')
+          setActiveArea('financeiro')
+        },
+      }
+    }),
+    ...uncoveredStockSuggestions.map((suggestion) => ({
+      id: `estoque-descoberto-${suggestion.material.id}`,
+      category: 'Estoque' as const,
+      urgency: suggestion.needBy && daysUntil(suggestion.needBy) <= 3 ? 'Hoje' as const : 'Em breve' as const,
+      priority: suggestion.needBy && daysUntil(suggestion.needBy) <= 3 ? 87 : 64,
+      badge: 'Estoque sem cobertura',
+      title: suggestion.item,
+      detail: `Sugestão: pedir ${suggestion.suggestedPurchaseQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${suggestion.purchaseUnit}. Não há compra aberta para cobrir a necessidade.`,
+      tone: suggestion.needBy && daysUntil(suggestion.needBy) <= 3 ? 'rose' as const : 'amber' as const,
+      actionLabel: 'Preparar compra',
+      onClick: () => {
+        preparePurchaseFromSuggestion(suggestion)
+        setActiveArea('notas')
+      },
+    })),
+    ...productConfigurationAlerts.map(({ kind, product, count }) => ({
+      id: `cadastro-${kind}-${product.id}`,
+      category: 'Cadastros' as const,
+      urgency: 'Em breve' as const,
+      priority: kind === 'price' ? 55 : 45,
+      badge: kind === 'price' ? 'Preço não definido' : 'Ficha em rascunho',
+      title: `${product.code} · ${product.name}`,
+      detail: kind === 'price'
+        ? `${count} variação(ões) aprovada(s) ainda não possuem preço oficial.`
+        : `${count} ficha(s) ainda aguardam revisão e aprovação.`,
+      tone: 'amber' as const,
+      actionLabel: kind === 'price' ? 'Definir preço' : 'Revisar ficha',
+      onClick: () => {
+        setSelectedProductId(product.id)
+        setActiveArea(kind === 'price' ? 'precos' : 'produtos')
+      },
+    })),
   ]
   const visibleSmartAlerts = smartAlerts.filter((alert) => {
     if (alert.id.startsWith('preco-pendente')) return canAccessArea('pedidos')
     if (alert.id.startsWith('prazo-vencido')) return canAccessArea('vendas')
     if (alert.id.startsWith('falta-mp')) return canAccessArea('estoque')
     if (alert.id.startsWith('producao-parada')) return canAccessArea('producao')
+    if (alert.id.startsWith('producao-nao-iniciada')) return canAccessArea('producao-guiada')
     if (alert.id.startsWith('sem-op')) return canAccessArea('producao')
+    if (alert.id.startsWith('pronto-entrega')) return canAccessArea('entregas')
     if (alert.id.startsWith('prazo-proximo')) return canAccessArea('vendas') || canAccessArea('entregas')
+    if (alert.id.startsWith('compra-prazo')) return canAccessArea('notas')
+    if (alert.id.startsWith('financeiro-')) return canAccessArea('financeiro')
+    if (alert.id.startsWith('estoque-descoberto')) return canAccessArea('notas')
+    if (alert.id.startsWith('cadastro-price')) return canAccessArea('precos')
+    if (alert.id.startsWith('cadastro-sheet')) return canAccessArea('produtos')
     return true
-  })
+  }).sort((left, right) => right.priority - left.priority)
+  const filteredSmartAlerts = visibleSmartAlerts.filter(
+    (alert) => alertCategoryFilter === 'ALL' || alert.category === alertCategoryFilter,
+  )
   const indicatorSummary = useMemo(() => {
     const today = new Date(`${currentDateValue()}T12:00:00`)
     const elapsedDays = (date?: string) => {
@@ -7686,7 +7913,7 @@ export default function SistemaMacaroca() {
       description: 'Defina preços, acompanhe o dinheiro e controle os acessos ao sistema.',
       items: [
         { key: 'implantacao', title: 'Implantação com a equipe', detail: 'Organize responsabilidades, treinamento, dúvidas e inventário inicial.', badge: `${state.implementationQuestions.filter((question) => !question.resolved).length} dúvida(s)`, icon: <ShieldCheck />, primary: true },
-        { key: 'indicadores', title: 'Indicadores', detail: 'Veja atrasos, produção, estoque, vendas e margem com ações diretas.', badge: `${overdueSmartOrders.length + indicatorSummary.delayedOps.length} atenção`, icon: <LayoutDashboard /> },
+        { key: 'indicadores', title: 'Indicadores', detail: 'Veja atrasos, produção, estoque, vendas e margem com ações diretas.', badge: `${visibleSmartAlerts.filter((alert) => alert.urgency !== 'Em breve').length} atenção`, icon: <LayoutDashboard /> },
         { key: 'precos', title: 'Preços de venda', detail: 'Defina o valor oficial de cada peça e variação.', badge: `${state.products.length} produto(s)`, icon: <Calculator /> },
         { key: 'financeiro', title: 'Financeiro', detail: 'Acompanhe recebimentos, despesas, contas e saldo.', badge: canSeeMoney ? money(totals.balance) : 'Restrito', icon: <WalletCards /> },
         { key: 'usuarios', title: 'Usuários e permissões', detail: 'Cadastre pessoas e escolha o que cada perfil acessa.', badge: `${state.users.length} usuário(s)`, icon: <ShieldCheck /> },
@@ -8401,6 +8628,40 @@ export default function SistemaMacaroca() {
                       </button>
                     )}
                   </div>
+
+                  <MobileSummaryPanel
+                    title="Prioridades de hoje"
+                    actionLabel="Ver todas"
+                    onAction={() => {
+                      setIndicatorView('atencao')
+                      setAlertCategoryFilter('ALL')
+                      setActiveArea('indicadores')
+                    }}
+                  >
+                    {visibleSmartAlerts
+                      .filter((alert) => alert.urgency !== 'Em breve')
+                      .slice(0, 3)
+                      .map((alert) => (
+                        <button
+                          key={`mobile-${alert.id}`}
+                          type="button"
+                          onClick={alert.onClick}
+                          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2.5 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <StatusBadge tone={alert.tone}>{alert.badge}</StatusBadge>
+                              <span className="text-[11px] font-medium text-slate-400">{alert.category}</span>
+                            </span>
+                            <strong className="mt-2 block truncate text-sm text-slate-950">{alert.title}</strong>
+                          </span>
+                          <ArrowRight className="h-4 w-4 text-slate-400" />
+                        </button>
+                      ))}
+                    {!visibleSmartAlerts.some((alert) => alert.urgency !== 'Em breve') && (
+                      <EmptyLine text="Nenhuma ação urgente agora." />
+                    )}
+                  </MobileSummaryPanel>
 
                   <MobileSummaryPanel
                     title="Pedidos pendentes"
@@ -9678,128 +9939,76 @@ export default function SistemaMacaroca() {
                   <>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
                       <PocketMetric
-                        label="Pedidos atrasados"
-                        value={overdueSmartOrders.length.toString()}
-                        detail={overdueSmartOrders.length ? 'Precisam de uma decisão hoje' : 'Nenhum prazo vencido'}
-                        tone={overdueSmartOrders.length ? 'rose' : 'green'}
+                        label="Bloqueios"
+                        value={visibleSmartAlerts.filter((alert) => alert.tone === 'rose').length.toString()}
+                        detail="Impedem ou atrasam a rotina"
+                        tone={visibleSmartAlerts.some((alert) => alert.tone === 'rose') ? 'rose' : 'green'}
                       />
                       <PocketMetric
-                        label="OPs atrasadas ou paradas"
-                        value={indicatorSummary.delayedOps.length.toString()}
-                        detail={indicatorSummary.delayedOps.length ? 'Revise prazo ou andamento' : 'Produção dentro do esperado'}
-                        tone={indicatorSummary.delayedOps.length ? 'amber' : 'green'}
+                        label="Ação imediata"
+                        value={visibleSmartAlerts.filter((alert) => alert.urgency === 'Agora').length.toString()}
+                        detail="Tratar antes das demais"
+                        tone={visibleSmartAlerts.some((alert) => alert.urgency === 'Agora') ? 'amber' : 'green'}
                       />
                       <PocketMetric
-                        label="Pedidos sem OP"
-                        value={ordersWaitingProductionOrder.length.toString()}
-                        detail={ordersWaitingProductionOrder.length ? 'Precisam de decisão do PCP' : 'Todos os pedidos encaminhados'}
-                        tone={ordersWaitingProductionOrder.length ? 'amber' : 'green'}
+                        label="Para hoje"
+                        value={visibleSmartAlerts.filter((alert) => alert.urgency === 'Hoje').length.toString()}
+                        detail="Evita problemas nos próximos dias"
+                        tone={visibleSmartAlerts.some((alert) => alert.urgency === 'Hoje') ? 'blue' : 'green'}
                       />
                       <PocketMetric
-                        label="Estoque crítico"
-                        value={generalPlan.attentionStock.length.toString()}
-                        detail={generalPlan.attentionStock.length ? 'Itens para conferir ou comprar' : 'Nenhum item crítico'}
-                        tone={generalPlan.attentionStock.length ? 'amber' : 'green'}
+                        label="Em breve"
+                        value={visibleSmartAlerts.filter((alert) => alert.urgency === 'Em breve').length.toString()}
+                        detail="Planejar sem urgência"
+                        tone="neutral"
                       />
                     </div>
 
-                    <div className="grid gap-5 xl:grid-cols-2">
-                      <Panel title="Pedidos atrasados e próximos do prazo">
-                        <div className="grid gap-3">
-                          {overdueSmartOrders
-                            .slice()
-                            .sort((left, right) => (left.dueDate || '').localeCompare(right.dueDate || ''))
-                            .map((order) => {
-                              const product = state.products.find((item) => item.id === order.productId)
-                              return (
-                                <IndicatorActionRow
-                                  key={order.id}
-                                  badge={`${Math.abs(daysUntil(order.dueDate))} dia(s) atrasado`}
-                                  tone="rose"
-                                  title={`${order.id} · ${order.client}`}
-                                  detail={`${productDisplayName(product, order.variationId)} · ${order.qty} un · prazo ${formatDate(order.dueDate)}`}
-                                  value={order.status}
-                                  actionLabel="Resolver pedido"
-                                  onAction={() => setActiveArea('vendas')}
-                                />
-                              )
-                            })}
-                          {nearDueOrders
-                            .slice()
-                            .sort((left, right) => (left.dueDate || '').localeCompare(right.dueDate || ''))
-                            .map((order) => {
-                              const product = state.products.find((item) => item.id === order.productId)
-                              const remainingDays = daysUntil(order.dueDate)
-                              return (
-                                <IndicatorActionRow
-                                  key={`near-${order.id}`}
-                                  badge={remainingDays === 0 ? 'Vence hoje' : `${remainingDays} dia(s) para o prazo`}
-                                  tone="amber"
-                                  title={`${order.id} · ${order.client}`}
-                                  detail={`${productDisplayName(product, order.variationId)} · ${order.qty} un · prazo ${formatDate(order.dueDate)}`}
-                                  value={order.status}
-                                  actionLabel={order.status === 'Pronto' ? 'Separar entrega' : 'Ver pedido'}
-                                  onAction={() => setActiveArea(order.status === 'Pronto' ? 'entregas' : 'vendas')}
-                                />
-                              )
-                            })}
-                          {!overdueSmartOrders.length && !nearDueOrders.length && (
-                            <EmptyLine text="Nenhum pedido atrasado ou próximo do prazo." />
-                          )}
-                        </div>
-                      </Panel>
-
-                      <Panel title="Produções que precisam de atenção">
-                        <div className="grid gap-3">
-                          {indicatorSummary.delayedOps.map(({ op, product, relatedOrder, stoppedDays, overdue }) => (
-                            <IndicatorActionRow
-                              key={op.id}
-                              badge={op.status === 'Pausada' ? 'Pausada' : overdue ? 'Prazo vencido' : 'Sem atualização'}
-                              tone={overdue ? 'rose' : 'amber'}
-                              title={`${op.id} · ${productDisplayName(product, op.variationId)}`}
-                              detail={`${relatedOrder ? `Pedido ${relatedOrder.id} · ` : ''}${op.produced}/${op.qty} un prontas · ${
-                                Number.isFinite(stoppedDays) ? `${stoppedDays} dia(s) sem lançamento` : 'sem início registrado'
-                              }`}
-                              value={op.priority}
-                              actionLabel="Abrir produção"
-                              onAction={() => {
-                                setGuidedOpId(op.id)
-                                setActiveArea('producao')
-                              }}
-                            />
-                          ))}
-                          {!indicatorSummary.delayedOps.length && (
-                            <EmptyLine text="Nenhuma produção atrasada ou parada." />
-                          )}
-                        </div>
-                      </Panel>
-
-                      <Panel title="Falta de material para produzir">
-                        <div className="grid gap-3">
-                          {materialShortageAlerts.map(({ op, product, missing }) => (
-                            <IndicatorActionRow
-                              key={`shortage-${op.id}`}
-                              badge="Compra necessária"
-                              tone="rose"
-                              title={`${op.id} · ${productDisplayName(product, op.variationId)}`}
-                              detail={missing
-                                .slice(0, 2)
-                                .map((item) => `${item.missing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} de ${item.item}`)
-                                .join(' · ')}
-                              value={`${missing.length} item(ns)`}
-                              actionLabel="Preparar compra"
-                              onAction={() => {
-                                setPurchaseView('necessidades')
-                                setActiveArea('notas')
-                              }}
-                            />
-                          ))}
-                          {!materialShortageAlerts.length && (
-                            <EmptyLine text="As ordens abertas possuem os materiais necessários." />
-                          )}
-                        </div>
-                      </Panel>
+                    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                      <MobileViewSelect
+                        label="Filtrar alertas por área"
+                        value={alertCategoryFilter}
+                        options={[
+                          ['ALL', 'Todas as áreas'],
+                          ['Vendas', 'Vendas'],
+                          ['Produção', 'Produção'],
+                          ['Estoque', 'Estoque'],
+                          ['Compras', 'Compras'],
+                          ['Financeiro', 'Financeiro'],
+                          ['Cadastros', 'Cadastros'],
+                        ]}
+                        onChange={(value) => setAlertCategoryFilter(value as typeof alertCategoryFilter)}
+                      />
+                      <nav aria-label="Áreas dos alertas" className="hidden flex-wrap gap-2 sm:flex">
+                        {([
+                          ['ALL', 'Todas'],
+                          ['Vendas', 'Vendas'],
+                          ['Produção', 'Produção'],
+                          ['Estoque', 'Estoque'],
+                          ['Compras', 'Compras'],
+                          ['Financeiro', 'Financeiro'],
+                          ['Cadastros', 'Cadastros'],
+                        ] as ['ALL' | SmartAlert['category'], string][]).map(([key, label]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setAlertCategoryFilter(key)}
+                            aria-pressed={alertCategoryFilter === key}
+                            className={`min-h-9 rounded-md border px-3 text-sm font-medium ${
+                              alertCategoryFilter === key
+                                ? 'border-[#312e81] bg-[#312e81] text-white'
+                                : 'border-slate-200 bg-white text-slate-700'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </nav>
                     </div>
+
+                    <Panel title="Prioridades em ordem">
+                      <SmartAlertList alerts={filteredSmartAlerts} />
+                    </Panel>
                   </>
                 )}
 
@@ -14528,7 +14737,11 @@ function SmartAlertList({ alerts, limit }: { alerts: SmartAlert[]; limit?: numbe
           className="flex flex-col justify-between gap-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-4 md:flex-row md:items-center"
         >
           <div className="min-w-0">
-            <StatusBadge tone={alert.tone}>{alert.badge}</StatusBadge>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge tone={alert.tone}>{alert.badge}</StatusBadge>
+              <StatusBadge>{alert.category}</StatusBadge>
+              <span className="text-xs font-medium text-slate-400">{alert.urgency}</span>
+            </div>
             <strong className="mt-3 block text-sm">{alert.title}</strong>
             <p className="mt-1 text-sm leading-5 text-black/55">{alert.detail}</p>
           </div>
