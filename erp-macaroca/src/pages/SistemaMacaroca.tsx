@@ -211,6 +211,9 @@ type PurchaseOrder = {
   notes: string
   createdBy: string
   createdAt: string
+  cancellationReason?: string
+  cancelledBy?: string
+  cancelledAt?: string
 }
 
 type RawMaterial = {
@@ -2482,6 +2485,7 @@ export default function SistemaMacaroca() {
   const [noteNumber, setNoteNumber] = useState('0002')
   const [noteSupplier, setNoteSupplier] = useState('Fornecedor de tecidos')
   const [noteDate, setNoteDate] = useState(currentDateValue())
+  const [noteDueDate, setNoteDueDate] = useState(datePlusDaysValue(30))
   const [noteItem, setNoteItem] = useState('Tecido principal')
   const [noteQty, setNoteQty] = useState(10)
   const [noteUnit, setNoteUnit] = useState('kg')
@@ -2502,6 +2506,8 @@ export default function SistemaMacaroca() {
   const [receiptQty, setReceiptQty] = useState(0)
   const [receiptUnitCost, setReceiptUnitCost] = useState(0)
   const [receiptDueDate, setReceiptDueDate] = useState(datePlusDaysValue(30))
+  const [cancelPurchaseOrderId, setCancelPurchaseOrderId] = useState<string | null>(null)
+  const [purchaseCancellationReason, setPurchaseCancellationReason] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState(state.customers[0]?.id ?? '')
   const [orderDocumentType, setOrderDocumentType] = useState<OrderDocumentType>('Pedido')
   const [orderDate, setOrderDate] = useState(currentDateValue())
@@ -4387,6 +4393,49 @@ export default function SistemaMacaroca() {
     setMessage(`${order.number} criado. O material aparece como compra a receber.`)
   }
 
+  const cancelPurchaseOrder = () => {
+    if (!canManagePurchases) {
+      setMessage('Somente Administração ou Financeiro pode cancelar pedidos de compra.')
+      return
+    }
+    const order = state.purchaseOrders.find((item) => item.id === cancelPurchaseOrderId)
+    if (!order || (order.status !== 'Enviado' && order.status !== 'Parcial')) {
+      setMessage('Escolha um pedido de compra que ainda esteja aberto.')
+      return
+    }
+    if (!purchaseCancellationReason.trim()) {
+      setMessage('Explique o motivo do cancelamento para manter o histórico da compra.')
+      return
+    }
+
+    const nextState: AppState = {
+      ...state,
+      purchaseOrders: state.purchaseOrders.map((item) =>
+        item.id === order.id
+          ? {
+              ...item,
+              status: 'Cancelado',
+              cancellationReason: purchaseCancellationReason.trim(),
+              cancelledBy: currentUserName,
+              cancelledAt: new Date().toISOString(),
+            }
+          : item,
+      ),
+    }
+    const nextOpenOrder = nextState.purchaseOrders.find(
+      (item) => item.status === 'Enviado' || item.status === 'Parcial',
+    )
+
+    setState(nextState)
+    void saveStateImmediately(nextState, `${order.number} cancelado e sincronizado.`)
+    setReceivingPurchaseOrderId(nextOpenOrder?.id ?? '')
+    setCancelPurchaseOrderId(null)
+    setPurchaseCancellationReason('')
+    setMessage(
+      `${order.number} cancelado. A quantidade pendente deixou de contar como material a caminho.`,
+    )
+  }
+
   const buildStateAfterMaterialReceipt = (
     current: AppState,
     {
@@ -4525,7 +4574,7 @@ export default function SistemaMacaroca() {
       number: noteNumber || String(state.purchaseNotes.length + 1).padStart(4, '0'),
       supplier: noteSupplier || material.supplier || 'Fornecedor',
       date: noteDate,
-      dueDate: noteDate,
+      dueDate: noteDueDate,
       material,
       qty: noteQty,
       unit: noteUnit || material.purchaseUnit,
@@ -11836,37 +11885,112 @@ export default function SistemaMacaroca() {
                         {state.purchaseOrders.length ? (
                           state.purchaseOrders.map((order) => {
                             const pending = Math.max(0, order.qty - order.receivedQty)
+                            const receivedPercent =
+                              order.qty > 0
+                                ? Math.min(100, Math.round((order.receivedQty / order.qty) * 100))
+                                : 0
+                            const arrivalDays = daysUntil(order.expectedDate)
+                            const isOpen = order.status === 'Enviado' || order.status === 'Parcial'
                             return (
                               <div
                                 key={order.id}
                                 className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-center"
                               >
                                 <div>
-                                  <StatusBadge tone={order.status === 'Recebido' ? 'green' : order.status === 'Parcial' ? 'amber' : order.status === 'Cancelado' ? 'rose' : 'blue'}>
-                                    {order.status}
-                                  </StatusBadge>
+                                  <div className="flex flex-wrap gap-2">
+                                    <StatusBadge tone={order.status === 'Recebido' ? 'green' : order.status === 'Parcial' ? 'amber' : order.status === 'Cancelado' ? 'rose' : 'blue'}>
+                                      {order.status}
+                                    </StatusBadge>
+                                    {isOpen && (
+                                      <StatusBadge tone={arrivalDays < 0 ? 'rose' : arrivalDays <= 3 ? 'amber' : 'neutral'}>
+                                        {arrivalDays < 0
+                                          ? `${Math.abs(arrivalDays)} dia(s) atrasado`
+                                          : arrivalDays === 0
+                                            ? 'Chega hoje'
+                                            : `Chega em ${arrivalDays} dia(s)`}
+                                      </StatusBadge>
+                                    )}
+                                  </div>
                                   <strong className="mt-2 block">{order.number} · {order.item}</strong>
                                   <span className="mt-1 block text-sm text-[#6b7280]">
                                     {order.supplier} · Pedido em {formatDate(order.orderDate)} · Previsto para {formatDate(order.expectedDate)}
                                   </span>
                                   {order.notes && <span className="mt-1 block text-xs text-[#6b7280]">{order.notes}</span>}
+                                  {order.cancellationReason && (
+                                    <span className="mt-2 block rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-800">
+                                      Cancelado por {order.cancelledBy ?? 'Sistema'}: {order.cancellationReason}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-sm">
                                   <span className="block text-[#6b7280]">Pedido: {order.qty.toLocaleString('pt-BR')} {order.unit}</span>
-                                  <strong className="block">Pendente: {pending.toLocaleString('pt-BR')} {order.unit}</strong>
+                                  <span className="block text-[#6b7280]">
+                                    Recebido: {order.receivedQty.toLocaleString('pt-BR')} {order.unit} ({receivedPercent}%)
+                                  </span>
+                                  <strong className="block">
+                                    {order.status === 'Cancelado' ? 'Não recebido' : 'Pendente'}: {pending.toLocaleString('pt-BR')} {order.unit}
+                                  </strong>
                                   <span className="block text-[#6b7280]">{money(order.qty * order.unitCost)}</span>
                                 </div>
-                                {(order.status === 'Enviado' || order.status === 'Parcial') && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      selectPurchaseOrderForReceipt(order.id)
-                                      setPurchaseView('recebimentos')
-                                    }}
-                                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
-                                  >
-                                    Registrar chegada
-                                  </button>
+                                {isOpen && (
+                                  <div className="grid gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        selectPurchaseOrderForReceipt(order.id)
+                                        setPurchaseView('recebimentos')
+                                      }}
+                                      className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                                    >
+                                      Registrar chegada
+                                    </button>
+                                    {canManagePurchases && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCancelPurchaseOrderId(order.id)
+                                          setPurchaseCancellationReason('')
+                                        }}
+                                        className="inline-flex h-9 items-center justify-center rounded-md border border-rose-200 bg-white px-3 text-xs font-medium text-rose-700"
+                                      >
+                                        Cancelar pedido
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                                {cancelPurchaseOrderId === order.id && (
+                                  <div className="grid gap-3 rounded-md border border-rose-200 bg-rose-50 p-3 md:col-span-3">
+                                    <label className="grid gap-2">
+                                      <FieldLabel>Motivo do cancelamento</FieldLabel>
+                                      <textarea
+                                        value={purchaseCancellationReason}
+                                        onChange={(event) => setPurchaseCancellationReason(event.target.value)}
+                                        rows={2}
+                                        placeholder="Ex.: fornecedor não conseguirá entregar no prazo"
+                                        className="min-h-20 rounded-md border border-rose-200 bg-white px-3 py-2 text-sm"
+                                      />
+                                    </label>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCancelPurchaseOrderId(null)
+                                          setPurchaseCancellationReason('')
+                                        }}
+                                        className="inline-flex h-10 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-4 text-sm font-medium"
+                                      >
+                                        Manter pedido
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={cancelPurchaseOrder}
+                                        disabled={!purchaseCancellationReason.trim()}
+                                        className="inline-flex h-10 items-center justify-center rounded-md bg-rose-700 px-4 text-sm font-medium text-white disabled:opacity-40"
+                                      >
+                                        Confirmar cancelamento
+                                      </button>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             )
@@ -11976,6 +12100,7 @@ export default function SistemaMacaroca() {
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:items-end">
                         <SoftInput label="Número" value={noteNumber} onChange={setNoteNumber} />
                         <SoftInput label="Data" value={noteDate} onChange={setNoteDate} />
+                        <SoftInput label="Vencimento da conta" value={noteDueDate} onChange={setNoteDueDate} />
                         <label className="grid gap-2">
                           <FieldLabel>Fornecedor</FieldLabel>
                           <select value={noteSupplier} onChange={(event) => setNoteSupplier(event.target.value)} className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm">
