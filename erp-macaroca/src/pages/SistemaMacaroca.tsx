@@ -102,7 +102,7 @@ type FinanceCategory =
   | 'Outro'
 type FinanceView = 'resumo' | 'resultados' | 'caixa' | 'lancamentos'
 type IndicatorView = 'resumo' | 'atencao' | 'producao' | 'produtos' | 'estoque'
-type ImplementationView = 'resumo' | 'treinamento' | 'equipe' | 'duvidas'
+type ImplementationView = 'resumo' | 'validacao' | 'treinamento' | 'equipe' | 'duvidas'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
 type PriceApprovalStatus = 'Não necessária' | 'Pendente' | 'Aprovada' | 'Recusada'
@@ -2078,6 +2078,14 @@ const implementationSteps: {
   roles: UserRole[]
 }[] = [
   {
+    id: 'primeiro-acesso',
+    title: 'Entrar com o próprio usuário',
+    detail: 'Faça login, confira seu nome no topo e confirme que o menu corresponde à sua função.',
+    action: 'Conferir minha conta',
+    target: 'configuracoes',
+    roles: ['Admin', 'Sócia', 'Comercial', 'Produção', 'Financeiro'],
+  },
+  {
     id: 'revisar-manual',
     title: 'Revisar o manual',
     detail: 'Busque uma dúvida e confirme que os passos estão claros.',
@@ -2086,12 +2094,28 @@ const implementationSteps: {
     roles: ['Admin', 'Sócia', 'Comercial', 'Produção', 'Financeiro'],
   },
   {
+    id: 'primeiro-cliente',
+    title: 'Cadastrar e localizar um cliente',
+    detail: 'Confirme nome, contato, cidade e histórico antes de iniciar a venda.',
+    action: 'Treinar clientes',
+    target: 'clientes',
+    roles: ['Admin', 'Sócia', 'Comercial'],
+  },
+  {
     id: 'primeiro-pedido',
-    title: 'Registrar o primeiro pedido',
-    detail: 'Escolha cliente, produto, quantidade, preço e prazo.',
-    action: 'Treinar pedido',
+    title: 'Criar orçamento e confirmar pedido',
+    detail: 'Escolha cliente, produto, quantidade, preço e prazo; confira antes de confirmar.',
+    action: 'Treinar venda',
     target: 'pedido-guiado',
     roles: ['Admin', 'Sócia', 'Comercial'],
+  },
+  {
+    id: 'decidir-producao',
+    title: 'Conferir estoque e decidir a produção',
+    detail: 'Veja o disponível, o reservado e quanto realmente precisa ser produzido.',
+    action: 'Treinar PCP',
+    target: 'producao-necessidades',
+    roles: ['Admin', 'Sócia', 'Produção'],
   },
   {
     id: 'primeira-producao',
@@ -2102,9 +2126,17 @@ const implementationSteps: {
     roles: ['Admin', 'Sócia', 'Produção'],
   },
   {
+    id: 'consultar-estoque',
+    title: 'Consultar saldo e histórico de estoque',
+    detail: 'Localize matéria-prima e produto acabado e explique a origem do saldo.',
+    action: 'Treinar estoque',
+    target: 'estoque',
+    roles: ['Admin', 'Sócia', 'Comercial', 'Produção', 'Financeiro'],
+  },
+  {
     id: 'primeira-compra',
     title: 'Registrar a primeira compra',
-    detail: 'Crie ou receba uma compra de matéria-prima.',
+    detail: 'Crie uma necessidade, registre o recebimento e confira a entrada no estoque.',
     action: 'Treinar compra',
     target: 'notas',
     roles: ['Admin', 'Financeiro'],
@@ -2116,6 +2148,22 @@ const implementationSteps: {
     action: 'Treinar entrega',
     target: 'entregas',
     roles: ['Admin', 'Sócia', 'Comercial'],
+  },
+  {
+    id: 'conferir-financeiro',
+    title: 'Conferir entrada, saída e resultado',
+    detail: 'Localize uma venda, uma compra e confirme o efeito no resultado do mês.',
+    action: 'Treinar financeiro',
+    target: 'financeiro',
+    roles: ['Admin', 'Financeiro'],
+  },
+  {
+    id: 'usar-indicadores',
+    title: 'Interpretar os indicadores',
+    detail: 'Abra uma pendência, entenda o motivo e siga a ação indicada pelo sistema.',
+    action: 'Treinar indicadores',
+    target: 'indicadores',
+    roles: ['Admin', 'Financeiro'],
   },
   {
     id: 'inventario-inicial',
@@ -2140,10 +2188,13 @@ const helpGuides: HelpGuide[] = [
       'Abra Gestão e escolha Implantação com a equipe.',
       'Confirme que cada pessoa possui seu próprio usuário.',
       'Defina uma responsável para vendas, produção, compras, entregas e inventário.',
+      'Abra Validar fluxos e veja quais processos já foram comprovados pelos dados do sistema.',
+      'Use os botões das validações pendentes para executar uma situação real em cada módulo.',
       'Escolha a pessoa que será treinada e siga uma atividade por vez.',
       'Abra a atividade, realize uma situação real e volte para marcar como concluída.',
       'Registre dúvidas ou textos confusos no campo de dúvidas recorrentes.',
       'Conclua o inventário físico para estabelecer o estoque inicial real.',
+      'Exporte o acompanhamento para revisar a implantação com toda a equipe.',
       'A implantação termina quando todas as pessoas completarem sua rotina.',
     ],
   },
@@ -7801,6 +7852,143 @@ export default function SistemaMacaroca() {
     (total, item) => total + item.total,
     0,
   )
+  const validationScenarios: {
+    id: string
+    title: string
+    detail: string
+    successDetail: string
+    complete: boolean
+    target: Area
+    action: string
+  }[] = [
+    {
+      id: 'validar-acessos',
+      title: 'Usuários e permissões',
+      detail: 'Cada pessoa precisa ter sua própria conta e um perfil adequado à rotina.',
+      successDetail: `${state.users.length} usuário(s) individual(is) cadastrado(s).`,
+      complete: state.users.length > 1 && new Set(state.users.map((user) => user.role)).size > 1,
+      target: 'usuarios',
+      action: 'Revisar usuários',
+    },
+    {
+      id: 'validar-cadastros',
+      title: 'Produto pronto para vender',
+      detail: 'O produto precisa ter preço oficial, ficha com materiais e ao menos uma variação aprovada.',
+      successDetail: 'Existe produto ativo com preço, materiais e ficha aprovada.',
+      complete: state.products.some(
+        (product) =>
+          product.active !== false &&
+          Boolean(productSalePrice(product)) &&
+          productMaterials(product).length > 0 &&
+          product.variations.some(
+            (variation) =>
+              variation.sheetStatus === 'Aprovada' &&
+              Boolean(productSalePrice(product, variation.id)) &&
+              productMaterials(product, variation.id).length > 0,
+          ),
+      ),
+      target: 'produtos',
+      action: 'Revisar produtos',
+    },
+    {
+      id: 'validar-venda',
+      title: 'Venda e preço negociado',
+      detail: 'Confirme cliente, produto, quantidade, preço, pagamento, entrega e histórico do pedido.',
+      successDetail: 'Existe pedido registrado com cliente, preço e prazo.',
+      complete: state.orders.some(
+        (order) =>
+          order.documentType === 'Pedido' &&
+          order.status !== 'Cancelado' &&
+          Boolean(order.customerId || order.client) &&
+          orderUnitPrice(state, order) > 0 &&
+          Boolean(order.dueDate),
+      ),
+      target: 'vendas',
+      action: 'Validar vendas',
+    },
+    {
+      id: 'validar-pcp',
+      title: 'PCP e ordem vinculada',
+      detail: 'O sistema deve calcular a necessidade e criar uma OP ligada ao pedido correto.',
+      successDetail: 'Existe ordem de produção vinculada a um pedido.',
+      complete: state.productionOrders.some(
+        (op) => Boolean(op.orderId) && state.orders.some((order) => order.id === op.orderId),
+      ),
+      target: 'producao-necessidades',
+      action: 'Validar PCP',
+    },
+    {
+      id: 'validar-producao',
+      title: 'Registro da produção',
+      detail: 'Registre peças prontas e confirme responsável, data, quantidade e histórico da OP.',
+      successDetail: 'Existe apontamento de produção registrado em uma OP.',
+      complete: state.productionOrders.some((op) =>
+        (op.launches ?? []).some((launch) => launch.type === 'Produção' && launch.qty > 0),
+      ),
+      target: 'producao-guiada',
+      action: 'Validar produção',
+    },
+    {
+      id: 'validar-estoque',
+      title: 'Movimentação de estoque',
+      detail: 'A produção deve baixar materiais, adicionar produto pronto e manter o histórico.',
+      successDetail: 'Existem entradas e saídas explicadas no histórico de estoque.',
+      complete:
+        state.inventoryEntries.some((entry) => entry.kind === 'Consumo MP') &&
+        state.inventoryEntries.some((entry) => entry.kind === 'Entrada PA'),
+      target: 'movimentacoes',
+      action: 'Validar estoque',
+    },
+    {
+      id: 'validar-compra',
+      title: 'Compra e recebimento',
+      detail: 'Crie a compra, receba o material e confira custo e saldo atualizados.',
+      successDetail: 'Existe compra recebida total ou parcialmente.',
+      complete:
+        state.purchaseOrders.some((order) => order.receivedQty > 0) ||
+        state.purchaseNotes.length > 0,
+      target: 'notas',
+      action: 'Validar compras',
+    },
+    {
+      id: 'validar-entrega',
+      title: 'Separação e entrega',
+      detail: 'O pedido pronto deve gerar saída do produto acabado e terminar como entregue.',
+      successDetail: 'Existe pedido entregue com saída registrada.',
+      complete: state.orders.some(
+        (order) =>
+          order.status === 'Entregue' &&
+          state.inventoryEntries.some(
+            (entry) => entry.kind === 'Saída PA' && entry.source === `Entrega ${order.id}`,
+          ),
+      ),
+      target: 'entregas',
+      action: 'Validar entregas',
+    },
+    {
+      id: 'validar-financeiro',
+      title: 'Financeiro conectado',
+      detail: 'Venda e compra precisam aparecer como entradas ou saídas no período correto.',
+      successDetail: 'Existem lançamentos de entrada e saída no financeiro.',
+      complete:
+        state.cashEntries.some((entry) => entry.kind === 'Entrada') &&
+        state.cashEntries.some((entry) => entry.kind === 'Saída'),
+      target: 'financeiro',
+      action: 'Validar financeiro',
+    },
+    {
+      id: 'validar-sincronizacao',
+      title: 'Celular e computador sincronizados',
+      detail: 'Uma alteração salva em um dispositivo precisa aparecer no outro após atualizar.',
+      successDetail: 'O sistema está conectado ao ambiente compartilhado.',
+      complete: syncStatus === 'Compartilhado' || syncStatus === 'Salvando',
+      target: 'configuracoes',
+      action: 'Conferir conexão',
+    },
+  ]
+  const completedValidationScenarios = validationScenarios.filter(
+    (scenario) => scenario.complete,
+  ).length
   const implementationReadinessChecks = [
     {
       label: 'Usuários individuais',
@@ -7824,6 +8012,10 @@ export default function SistemaMacaroca() {
         implementationOverview.expectedInventoryItems > 0 &&
         implementationOverview.countedItems >= implementationOverview.expectedInventoryItems,
     },
+    {
+      label: 'Fluxos validados',
+      complete: completedValidationScenarios === validationScenarios.length,
+    },
   ]
   const implementationReadinessCompleted = implementationReadinessChecks.filter(
     (check) => check.complete,
@@ -7831,6 +8023,50 @@ export default function SistemaMacaroca() {
   const implementationReadinessPercent = Math.round(
     (implementationReadinessCompleted / implementationReadinessChecks.length) * 100,
   )
+  const exportImplementationReport = () => {
+    const rows: (string | number)[][] = [
+      ...validationScenarios.map((scenario) => [
+        'Validação',
+        scenario.title,
+        scenario.complete ? 'Aprovado' : 'Pendente',
+        scenario.complete ? scenario.successDetail : scenario.detail,
+      ]),
+      ...teamImplementationProgress.map(({ user, completed, total, percent }) => [
+        'Treinamento',
+        `${user.name} · ${user.role}`,
+        `${completed}/${total}`,
+        `${percent}% concluído`,
+      ]),
+      ...implementationAreas.map((area) => {
+        const responsibility = state.implementationResponsibilities.find(
+          (item) => item.id === area.id,
+        )
+        return [
+          'Responsabilidade',
+          area.area,
+          responsibility?.userId ? 'Definida' : 'Pendente',
+          state.users.find((user) => user.id === responsibility?.userId)?.name ?? '',
+        ]
+      }),
+      ...state.implementationQuestions.map((question) => [
+        'Dúvida',
+        question.text,
+        question.resolved ? 'Resolvida' : 'Em revisão',
+        `${question.createdBy} · ${formatDate(question.createdAt)}`,
+      ]),
+    ]
+    const headers = ['área', 'item', 'situação', 'detalhe']
+    const csv = [
+      headers.map(csvCell).join(';'),
+      ...rows.map((row) => row.map(csvCell).join(';')),
+    ].join('\n')
+    downloadTextFile(
+      `macaroca-validacao-equipe-${currentDateValue()}.csv`,
+      `\ufeff${csv}`,
+      'text/csv;charset=utf-8',
+    )
+    setMessage('Relatório de validação e treinamento exportado para Excel.')
+  }
 
   const navGroups: { title: string; items: { key: Area; label: string; icon: ReactNode }[] }[] = [
     {
@@ -9635,6 +9871,7 @@ export default function SistemaMacaroca() {
                     value={implementationView}
                     options={[
                       ['resumo', 'Visão geral'],
+                      ['validacao', 'Validar fluxos'],
                       ['treinamento', 'Treinamento'],
                       ['equipe', 'Responsabilidades'],
                       ['duvidas', 'Dúvidas e melhorias'],
@@ -9647,6 +9884,7 @@ export default function SistemaMacaroca() {
                   >
                     {([
                       ['resumo', 'Visão geral'],
+                      ['validacao', 'Validar fluxos'],
                       ['treinamento', 'Treinamento'],
                       ['equipe', 'Responsabilidades'],
                       ['duvidas', 'Dúvidas e melhorias'],
@@ -9666,11 +9904,19 @@ export default function SistemaMacaroca() {
                       </button>
                     ))}
                   </nav>
+                  <button
+                    type="button"
+                    onClick={exportImplementationReport}
+                    className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-fit"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Exportar acompanhamento
+                  </button>
                 </div>
 
                 {implementationView === 'resumo' && (
                   <>
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-5">
                   <PocketMetric
                     label="Usuários individuais"
                     value={state.users.length.toString()}
@@ -9688,6 +9934,12 @@ export default function SistemaMacaroca() {
                     value={`${implementationOverview.selectedCompleted}/${selectedImplementationSteps.length}`}
                     detail={selectedImplementationUser?.name ?? 'Escolha uma pessoa'}
                     tone={implementationOverview.selectedCompleted === selectedImplementationSteps.length ? 'green' : 'blue'}
+                  />
+                  <PocketMetric
+                    label="Fluxos validados"
+                    value={`${completedValidationScenarios}/${validationScenarios.length}`}
+                    detail="Testes aprovados automaticamente"
+                    tone={completedValidationScenarios === validationScenarios.length ? 'green' : 'amber'}
                   />
                   <PocketMetric
                     label="Dúvidas abertas"
@@ -9795,6 +10047,91 @@ export default function SistemaMacaroca() {
                     </div>
                   </Panel>
                   </>
+                )}
+
+                {implementationView === 'validacao' && (
+                  <div className="grid gap-5">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+                      <PocketMetric
+                        label="Fluxos aprovados"
+                        value={`${completedValidationScenarios}/${validationScenarios.length}`}
+                        detail="Confirmados pelos dados do sistema"
+                        tone={completedValidationScenarios === validationScenarios.length ? 'green' : 'blue'}
+                      />
+                      <PocketMetric
+                        label="Pendências"
+                        value={(validationScenarios.length - completedValidationScenarios).toString()}
+                        detail="Precisam de teste ou correção"
+                        tone={completedValidationScenarios === validationScenarios.length ? 'green' : 'amber'}
+                      />
+                      <PocketMetric
+                        label="Treinamento da equipe"
+                        value={`${teamTrainingCompleted}/${teamTrainingTotal}`}
+                        detail="Atividades concluídas"
+                        tone={teamTrainingCompleted === teamTrainingTotal && teamTrainingTotal > 0 ? 'green' : 'blue'}
+                      />
+                      <PocketMetric
+                        label="Conexão compartilhada"
+                        value={syncStatus === 'Compartilhado' || syncStatus === 'Salvando' ? 'Ativa' : syncStatus}
+                        detail="Mesmos dados em todos os dispositivos"
+                        tone={syncStatus === 'Compartilhado' || syncStatus === 'Salvando' ? 'green' : 'rose'}
+                      />
+                    </div>
+
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+                      <strong className="block">Valide usando situações reais</strong>
+                      Faça cada fluxo com um pedido, compra ou produção verdadeira. Evite criar registros fictícios no ambiente compartilhado; quando houver dúvida, registre-a antes de continuar.
+                    </div>
+
+                    <Panel title="Roteiro de validação do sistema">
+                      <div className="grid gap-3">
+                        {validationScenarios.map((scenario, index) => {
+                          const canOpenScenario = canAccessArea(scenario.target)
+                          return (
+                            <article
+                              key={scenario.id}
+                              className={`grid gap-3 rounded-md border p-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center ${
+                                scenario.complete
+                                  ? 'border-emerald-200 bg-emerald-50/60'
+                                  : 'border-slate-200 bg-white'
+                              }`}
+                            >
+                              <span
+                                className={`grid h-9 w-9 place-items-center rounded-md border text-sm font-semibold ${
+                                  scenario.complete
+                                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                                    : 'border-slate-300 bg-slate-50 text-slate-500'
+                                }`}
+                                aria-hidden="true"
+                              >
+                                {scenario.complete ? '✓' : index + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <strong className="text-sm text-slate-950">{scenario.title}</strong>
+                                  <StatusBadge tone={scenario.complete ? 'green' : 'amber'}>
+                                    {scenario.complete ? 'Aprovado' : 'Pendente'}
+                                  </StatusBadge>
+                                </div>
+                                <p className="mt-1 text-sm leading-5 text-slate-600">
+                                  {scenario.complete ? scenario.successDetail : scenario.detail}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={!canOpenScenario}
+                                onClick={() => setActiveArea(scenario.target)}
+                                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-[#312e81] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {canOpenScenario ? scenario.action : 'Validar com responsável'}
+                                {canOpenScenario && <ArrowRight className="h-4 w-4" />}
+                              </button>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </Panel>
+                  </div>
                 )}
 
                 {implementationView === 'treinamento' && (
