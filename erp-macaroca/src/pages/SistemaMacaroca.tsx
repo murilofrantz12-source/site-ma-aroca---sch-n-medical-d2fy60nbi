@@ -2441,7 +2441,7 @@ export default function SistemaMacaroca() {
   const [message, setMessage] = useState('Tudo certo por aqui.')
   const [newProductBrand, setNewProductBrand] = useState<BrandName>('Schön Medical')
   const [newProductName, setNewProductName] = useState('Novo modelo')
-  const [newProductCategory, setNewProductCategory] = useState('Peça sob demanda')
+  const [newProductCategory] = useState('Peça sob demanda')
   const [guidedProductStep, setGuidedProductStep] = useState(1)
   const [guidedProductBrand, setGuidedProductBrand] = useState<BrandName>('Maçaroca')
   const [guidedProductName, setGuidedProductName] = useState('')
@@ -7049,16 +7049,15 @@ export default function SistemaMacaroca() {
     const monthOrders = financeSummary.orderResults.filter((item) =>
       isMonth(item.order.orderDate, indicatorMonth),
     )
-    const monthOps = state.productionOrders.filter((op) =>
-      isMonth(
-        op.startedAt ||
-          op.launches.find((launch) => isMonth(launch.date, indicatorMonth))?.date ||
-          op.finishedAt,
-        indicatorMonth,
-      ),
-    )
-    const completedMonthOps = monthOps.filter(
-      (op) => op.status === 'Finalizada' && op.startedAt && op.finishedAt,
+    const plannedMonthOps = state.productionOrders.filter((op) => {
+      const planningDate = op.startedAt || op.launches?.[0]?.date || op.finishedAt
+      return isMonth(planningDate, indicatorMonth)
+    })
+    const completedMonthOps = state.productionOrders.filter(
+      (op) =>
+        op.status === 'Finalizada' &&
+        Boolean(op.startedAt && op.finishedAt) &&
+        isMonth(op.finishedAt, indicatorMonth),
     )
     const delayedOps = openProductionOrders
       .map((op) => {
@@ -7085,27 +7084,33 @@ export default function SistemaMacaroca() {
       })
       .filter((item) => item.needsAttention)
       .sort((left, right) => right.stoppedDays - left.stoppedDays)
-    const plannedQty = monthOps.reduce((total, op) => total + op.qty, 0)
-    const producedQty = monthOps.reduce((total, op) => total + op.produced, 0)
-    const monthLaunches = monthOps.flatMap((op) =>
+    const plannedQty = plannedMonthOps.reduce((total, op) => total + op.qty, 0)
+    const monthLaunches = state.productionOrders.flatMap((op) =>
       (op.launches ?? []).filter((launch) => isMonth(launch.date, indicatorMonth)),
     )
+    const producedFromLaunches = monthLaunches
+      .filter((launch) => launch.type === 'Produção')
+      .reduce((total, launch) => total + launch.qty, 0)
+    const legacyProducedQty = plannedMonthOps
+      .filter((op) => !(op.launches ?? []).length)
+      .reduce((total, op) => total + op.produced, 0)
+    const producedQty = producedFromLaunches + legacyProducedQty
     const lostQty = monthLaunches
       .filter((launch) => launch.type === 'Perda' || launch.type === 'Defeito')
       .reduce((total, launch) => total + launch.qty, 0)
     const reworkQty = monthLaunches
       .filter((launch) => launch.type === 'Retrabalho')
       .reduce((total, launch) => total + launch.qty, 0)
-    const leadTimes = completedMonthOps.map((op) =>
-      Math.max(
-        0,
-        Math.ceil(
-          (new Date(`${op.finishedAt}T12:00:00`).getTime() -
-            new Date(`${op.startedAt}T12:00:00`).getTime()) /
-            86400000,
-        ),
-      ),
-    )
+    const productionDate = (date: string) =>
+      new Date(date.includes('T') ? date : `${date}T12:00:00`)
+    const leadTimes = completedMonthOps
+      .map((op) => {
+        const started = productionDate(op.startedAt)
+        const finished = productionDate(op.finishedAt)
+        if (Number.isNaN(started.getTime()) || Number.isNaN(finished.getTime())) return undefined
+        return Math.max(0, Math.ceil((finished.getTime() - started.getTime()) / 86400000))
+      })
+      .filter((days): days is number => typeof days === 'number')
     const averageLeadTime = leadTimes.length
       ? leadTimes.reduce((total, days) => total + days, 0) / leadTimes.length
       : 0
@@ -7186,10 +7191,11 @@ export default function SistemaMacaroca() {
     const productMargins = financeSummary.productResults
       .map((item) => {
         const profit = item.realizedOrders ? item.realProfit : item.estimatedProfit
+        const revenue = item.realizedOrders ? item.realizedRevenue : item.revenue
         return {
           ...item,
           profit,
-          margin: item.revenue ? (profit / item.revenue) * 100 : 0,
+          margin: revenue ? (profit / revenue) * 100 : 0,
           basis: item.realizedOrders ? 'real' : 'estimada',
         }
       })
@@ -7258,6 +7264,7 @@ export default function SistemaMacaroca() {
       reworkQty,
       averageLeadTime,
       completedOps: completedMonthOps.length,
+      productionLaunches: monthLaunches.filter((launch) => launch.type === 'Produção').length,
       topProducts,
       priceDifferences,
       productMargins,
@@ -9347,7 +9354,7 @@ export default function SistemaMacaroca() {
 
                 {indicatorView === 'atencao' && (
                   <>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
                       <PocketMetric
                         label="Pedidos atrasados"
                         value={overdueSmartOrders.length.toString()}
@@ -9361,21 +9368,21 @@ export default function SistemaMacaroca() {
                         tone={indicatorSummary.delayedOps.length ? 'amber' : 'green'}
                       />
                       <PocketMetric
+                        label="Pedidos sem OP"
+                        value={ordersWaitingProductionOrder.length.toString()}
+                        detail={ordersWaitingProductionOrder.length ? 'Precisam de decisão do PCP' : 'Todos os pedidos encaminhados'}
+                        tone={ordersWaitingProductionOrder.length ? 'amber' : 'green'}
+                      />
+                      <PocketMetric
                         label="Estoque crítico"
                         value={generalPlan.attentionStock.length.toString()}
                         detail={generalPlan.attentionStock.length ? 'Itens para conferir ou comprar' : 'Nenhum item crítico'}
                         tone={generalPlan.attentionStock.length ? 'amber' : 'green'}
                       />
-                      <PocketMetric
-                        label="Preços abaixo do oficial"
-                        value={indicatorSummary.priceDifferences.filter((item) => item.difference < 0).length.toString()}
-                        detail="Produtos vendidos com diferença no mês"
-                        tone={indicatorSummary.priceDifferences.some((item) => item.difference < 0) ? 'amber' : 'neutral'}
-                      />
                     </div>
 
                     <div className="grid gap-5 xl:grid-cols-2">
-                      <Panel title="Pedidos atrasados">
+                      <Panel title="Pedidos atrasados e próximos do prazo">
                         <div className="grid gap-3">
                           {overdueSmartOrders
                             .slice()
@@ -9395,8 +9402,27 @@ export default function SistemaMacaroca() {
                                 />
                               )
                             })}
-                          {!overdueSmartOrders.length && (
-                            <EmptyLine text="Nenhum pedido com prazo vencido." />
+                          {nearDueOrders
+                            .slice()
+                            .sort((left, right) => (left.dueDate || '').localeCompare(right.dueDate || ''))
+                            .map((order) => {
+                              const product = state.products.find((item) => item.id === order.productId)
+                              const remainingDays = daysUntil(order.dueDate)
+                              return (
+                                <IndicatorActionRow
+                                  key={`near-${order.id}`}
+                                  badge={remainingDays === 0 ? 'Vence hoje' : `${remainingDays} dia(s) para o prazo`}
+                                  tone="amber"
+                                  title={`${order.id} · ${order.client}`}
+                                  detail={`${productDisplayName(product, order.variationId)} · ${order.qty} un · prazo ${formatDate(order.dueDate)}`}
+                                  value={order.status}
+                                  actionLabel={order.status === 'Pronto' ? 'Separar entrega' : 'Ver pedido'}
+                                  onAction={() => setActiveArea(order.status === 'Pronto' ? 'entregas' : 'vendas')}
+                                />
+                              )
+                            })}
+                          {!overdueSmartOrders.length && !nearDueOrders.length && (
+                            <EmptyLine text="Nenhum pedido atrasado ou próximo do prazo." />
                           )}
                         </div>
                       </Panel>
@@ -9425,6 +9451,32 @@ export default function SistemaMacaroca() {
                           )}
                         </div>
                       </Panel>
+
+                      <Panel title="Falta de material para produzir">
+                        <div className="grid gap-3">
+                          {materialShortageAlerts.map(({ op, product, missing }) => (
+                            <IndicatorActionRow
+                              key={`shortage-${op.id}`}
+                              badge="Compra necessária"
+                              tone="rose"
+                              title={`${op.id} · ${productDisplayName(product, op.variationId)}`}
+                              detail={missing
+                                .slice(0, 2)
+                                .map((item) => `${item.missing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${item.unit} de ${item.item}`)
+                                .join(' · ')}
+                              value={`${missing.length} item(ns)`}
+                              actionLabel="Preparar compra"
+                              onAction={() => {
+                                setPurchaseView('necessidades')
+                                setActiveArea('notas')
+                              }}
+                            />
+                          ))}
+                          {!materialShortageAlerts.length && (
+                            <EmptyLine text="As ordens abertas possuem os materiais necessários." />
+                          )}
+                        </div>
+                      </Panel>
                     </div>
                   </>
                 )}
@@ -9441,7 +9493,7 @@ export default function SistemaMacaroca() {
                       <PocketMetric
                         label="Realizado"
                         value={`${indicatorSummary.producedQty.toLocaleString('pt-BR')} un`}
-                        detail={`${indicatorSummary.completionRate.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% do planejado`}
+                        detail={`${indicatorSummary.completionRate.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% · ${indicatorSummary.productionLaunches} lançamento(s)`}
                         tone={indicatorSummary.completionRate >= 100 ? 'green' : 'blue'}
                       />
                       <PocketMetric
@@ -13934,28 +13986,6 @@ function ModuleHub({
         ))}
       </div>
     </section>
-  )
-}
-
-function AttentionRow({
-  label,
-  title,
-  detail,
-  tone,
-}: {
-  label: string
-  title: string
-  detail: string
-  tone: 'green' | 'amber' | 'rose'
-}) {
-  return (
-    <div className="rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-3">
-      <div className="mb-2">
-        <StatusBadge tone={tone}>{label}</StatusBadge>
-      </div>
-      <strong className="block text-sm">{title}</strong>
-      <span className="mt-1 block text-sm leading-5 text-black/52">{detail}</span>
-    </div>
   )
 }
 
