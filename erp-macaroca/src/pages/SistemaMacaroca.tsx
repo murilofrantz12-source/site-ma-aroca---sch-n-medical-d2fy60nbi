@@ -3784,10 +3784,52 @@ export default function SistemaMacaroca() {
     ? inventoryPhysicalQty(countCategory, countSelection.item)
     : 0
   const countDifference = countedQty - countSystemQty
-  const inventoryHistoryItems = Array.from(new Set(state.inventoryEntries.map((entry) => entry.item))).sort()
-  const filteredInventoryEntries = state.inventoryEntries.filter(
-    (entry) => inventoryHistoryItem === 'Todos' || entry.item === inventoryHistoryItem,
+  const inventoryHistoryItems = Array.from(
+    new Set([
+      ...rawInventoryItems.map((item) => item.item),
+      ...finishedInventoryItems.map((item) => item.item),
+      ...state.inventoryEntries.map((entry) => entry.item),
+    ]),
+  ).sort()
+  const inventoryLedger = useMemo(() => {
+    const balances = new Map<string, number>()
+
+    return state.inventoryEntries
+      .slice()
+      .reverse()
+      .map((entry) => {
+        const key = `${inventoryKindCategory(entry.kind)}::${entry.item}`
+        const balanceAfter =
+          (balances.get(key) ?? 0) + entry.qty * inventoryKindSign(entry.kind)
+        balances.set(key, balanceAfter)
+        return { entry, balanceAfter }
+      })
+      .reverse()
+  }, [state.inventoryEntries])
+  const filteredInventoryLedger = inventoryLedger.filter(
+    ({ entry }) => inventoryHistoryItem === 'Todos' || entry.item === inventoryHistoryItem,
   )
+  const filteredInventoryEntries = filteredInventoryLedger.map(({ entry }) => entry)
+  const selectedInventoryBalance =
+    inventoryHistoryItem === 'Todos'
+      ? null
+      : filteredInventoryLedger.reduce(
+          (total, { entry }) => total + entry.qty * inventoryKindSign(entry.kind),
+          0,
+        )
+  const selectedInventoryUnit =
+    inventoryHistoryItem === 'Todos'
+      ? ''
+      : filteredInventoryLedger[0]?.entry.unit ??
+        rawInventoryItems.find((item) => item.item === inventoryHistoryItem)?.unit ??
+        finishedInventoryItems.find((item) => item.item === inventoryHistoryItem)?.unit ??
+        ''
+  const openInventoryHistory = (item: string) => {
+    setInventoryHistoryItem(item)
+    setMovementView('historico')
+    setActiveArea('movimentacoes')
+    setMessage(`Histórico de ${item}. Confira cada entrada, saída e o saldo após o movimento.`)
+  }
 
   const updateProduct = (productId: string, updater: (product: Product) => Product) => {
     setState((current) => ({
@@ -12626,7 +12668,10 @@ export default function SistemaMacaroca() {
                       <StockSummary label="Disponível" value={`${finishedStockPositions.reduce((sum, item) => sum + item.available, 0)} un`} />
                       <StockSummary label="Produzindo" value={`${finishedStockPositions.reduce((sum, item) => sum + item.producing, 0)} un`} />
                     </div>
-                    <FinishedStockPositionTable rows={finishedStockPositions} />
+                    <FinishedStockPositionTable
+                      rows={finishedStockPositions}
+                      onOpenHistory={openInventoryHistory}
+                    />
                   </Panel>
                 )}
 
@@ -12639,7 +12684,10 @@ export default function SistemaMacaroca() {
                         <StockSummary label="Com falta para OP" value={rawStockPositions.filter((item) => item.shortage > 0).length.toString()} />
                         <StockSummary label="Valor físico" value={canSeeMoney ? money(stock.rawValue) : 'Restrito'} />
                       </div>
-                      <RawStockPositionTable rows={rawStockPositions} />
+                      <RawStockPositionTable
+                        rows={rawStockPositions}
+                        onOpenHistory={openInventoryHistory}
+                      />
                     </Panel>
 
                     <Panel title="O que precisa comprar">
@@ -12760,7 +12808,7 @@ export default function SistemaMacaroca() {
                       <div className="grid gap-3">
                         {state.inventoryCounts.length ? (
                           state.inventoryCounts.map((count) => (
-                            <div key={count.id} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_repeat(3,110px)] md:items-center">
+                            <div key={count.id} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_repeat(3,110px)_100px] md:items-center">
                               <div>
                                 <strong className="block">{count.item}</strong>
                                 <span className="mt-1 block text-xs text-[#6b7280]">
@@ -12775,6 +12823,14 @@ export default function SistemaMacaroca() {
                                 value={`${count.difference > 0 ? '+' : ''}${count.difference} ${count.unit}`}
                                 attention={count.difference !== 0}
                               />
+                              <button
+                                type="button"
+                                onClick={() => openInventoryHistory(count.item)}
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-xs font-medium"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Histórico
+                              </button>
                             </div>
                           ))
                         ) : (
@@ -12810,12 +12866,20 @@ export default function SistemaMacaroca() {
 
                 {movementView === 'historico' && (
                   <Panel title="Histórico por item">
-                    <div className="mb-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,150px)] sm:items-end">
+                    <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_repeat(4,150px)] xl:items-end">
                       <label className="grid gap-2">
                         <FieldLabel>Item para consultar</FieldLabel>
                         <select
                           value={inventoryHistoryItem}
-                          onChange={(event) => setInventoryHistoryItem(event.target.value)}
+                          onChange={(event) => {
+                            const item = event.target.value
+                            setInventoryHistoryItem(item)
+                            setMessage(
+                              item === 'Todos'
+                                ? 'Histórico completo de entradas e saídas do estoque.'
+                                : `Histórico de ${item}. Confira cada entrada, saída e o saldo após o movimento.`,
+                            )
+                          }}
                           className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm"
                         >
                           <option>Todos</option>
@@ -12831,11 +12895,25 @@ export default function SistemaMacaroca() {
                         label="Saídas"
                         value={filteredInventoryEntries.filter((entry) => inventoryKindDirection(entry.kind) === 'Saída').length.toString()}
                       />
+                      <StockSummary
+                        label={selectedInventoryBalance === null ? 'Itens no histórico' : 'Saldo atual'}
+                        value={
+                          selectedInventoryBalance === null
+                            ? inventoryHistoryItems.length.toString()
+                            : `${selectedInventoryBalance.toLocaleString('pt-BR')} ${selectedInventoryUnit}`
+                        }
+                        tone={selectedInventoryBalance !== null && selectedInventoryBalance < 0 ? 'attention' : 'neutral'}
+                      />
                     </div>
                     <div className="grid gap-3">
-                      {filteredInventoryEntries.length ? (
-                        filteredInventoryEntries.map((entry) => (
-                          <InventoryHistoryRow key={entry.id} entry={entry} showValue={canSeeMoney} />
+                      {filteredInventoryLedger.length ? (
+                        filteredInventoryLedger.map(({ entry, balanceAfter }) => (
+                          <InventoryHistoryRow
+                            key={entry.id}
+                            entry={entry}
+                            balanceAfter={balanceAfter}
+                            showValue={canSeeMoney}
+                          />
                         ))
                       ) : (
                         <EmptyLine text="Nenhuma movimentação encontrada para este item." />
@@ -14916,9 +14994,11 @@ function StockCountValue({
 
 function FinishedStockPositionTable({
   rows,
+  onOpenHistory,
 }: {
   rows: {
     key: string
+    item: string
     product: Product
     label: string
     physical: number
@@ -14927,6 +15007,7 @@ function FinishedStockPositionTable({
     available: number
     shortage: number
   }[]
+  onOpenHistory: (item: string) => void
 }) {
   return (
     <>
@@ -14946,6 +15027,14 @@ function FinishedStockPositionTable({
                 Faltam {row.shortage} un para atender as reservas.
               </p>
             )}
+            <button
+              type="button"
+              onClick={() => onOpenHistory(row.item)}
+              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium"
+            >
+              <FileText className="h-4 w-4" />
+              Ver histórico
+            </button>
           </div>
         ))}
       </div>
@@ -14958,6 +15047,7 @@ function FinishedStockPositionTable({
               <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Reservado</th>
               <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Disponível</th>
               <th className="border-b border-[#e5e7eb] px-3 py-3 text-left">Produzindo</th>
+              <th className="border-b border-[#e5e7eb] px-3 py-3 text-right">Histórico</th>
             </tr>
           </thead>
           <tbody>
@@ -14976,6 +15066,16 @@ function FinishedStockPositionTable({
                   {row.shortage > 0 && <span className="ml-2 text-xs text-rose-600">Faltam {row.shortage}</span>}
                 </td>
                 <td className="border-b border-[#e5e7eb] px-3 py-3">{row.producing} un</td>
+                <td className="border-b border-[#e5e7eb] px-3 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onOpenHistory(row.item)}
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-xs font-medium"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Ver
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -14987,6 +15087,7 @@ function FinishedStockPositionTable({
 
 function RawStockPositionTable({
   rows,
+  onOpenHistory,
 }: {
   rows: {
     item: string
@@ -14997,6 +15098,7 @@ function RawStockPositionTable({
     available: number
     shortage: number
   }[]
+  onOpenHistory: (item: string) => void
 }) {
   return (
     <div className="grid gap-3">
@@ -15005,7 +15107,7 @@ function RawStockPositionTable({
         const attentionQty = Math.max(row.shortage, minimumShortage)
         const attentionLabel = row.shortage > 0 ? 'Falta para OP' : 'Abaixo do mínimo'
         return (
-          <div key={row.item} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_repeat(4,120px)] md:items-center">
+          <div key={row.item} className="grid gap-3 rounded-md border border-[#e5e7eb] bg-white p-4 md:grid-cols-[minmax(0,1fr)_repeat(4,120px)_90px] md:items-center">
             <div>
               <strong className="block">{row.item}</strong>
               <span className="mt-1 block text-xs text-[#6b7280]">
@@ -15020,6 +15122,14 @@ function RawStockPositionTable({
               value={attentionQty > 0 ? `${attentionQty.toLocaleString('pt-BR')} ${row.unit}` : 'Atendido'}
               attention={attentionQty > 0}
             />
+            <button
+              type="button"
+              onClick={() => onOpenHistory(row.item)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-xs font-medium"
+            >
+              <FileText className="h-4 w-4" />
+              Histórico
+            </button>
           </div>
         )
       })}
@@ -15029,9 +15139,11 @@ function RawStockPositionTable({
 
 function InventoryHistoryRow({
   entry,
+  balanceAfter,
   showValue,
 }: {
   entry: InventoryEntry
+  balanceAfter: number
   showValue: boolean
 }) {
   const direction = inventoryKindDirection(entry.kind)
@@ -15060,6 +15172,9 @@ function InventoryHistoryRow({
         <strong className={direction === 'Entrada' ? 'text-emerald-700' : 'text-rose-700'}>
           {direction === 'Entrada' ? '+' : '-'}{entry.qty.toLocaleString('pt-BR')} {entry.unit}
         </strong>
+        <span className="mt-1 block text-xs font-medium text-[#4b5563]">
+          Saldo após: {balanceAfter.toLocaleString('pt-BR')} {entry.unit}
+        </span>
         {showValue && <span className="mt-1 block text-xs text-[#6b7280]">{money(entry.value)}</span>}
       </div>
     </div>
