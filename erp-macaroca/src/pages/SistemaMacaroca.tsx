@@ -1400,6 +1400,27 @@ const daysUntil = (date?: string) => {
   return Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
 }
 
+const financeDueStatus = (entry: CashEntry) => {
+  if (entry.paid) return { label: 'Realizado', tone: 'green' as const }
+  if (!entry.dueDate) return { label: 'Sem vencimento', tone: 'neutral' as const }
+  const remainingDays = daysUntil(entry.dueDate)
+  if (remainingDays < 0) {
+    const overdueDays = Math.abs(remainingDays)
+    return {
+      label: `${overdueDays} dia${overdueDays === 1 ? '' : 's'} em atraso`,
+      tone: 'rose' as const,
+    }
+  }
+  if (remainingDays === 0) return { label: 'Vence hoje', tone: 'amber' as const }
+  if (remainingDays <= 3) {
+    return {
+      label: `Vence em ${remainingDays} dia${remainingDays === 1 ? '' : 's'}`,
+      tone: 'amber' as const,
+    }
+  }
+  return { label: 'Pendente', tone: 'blue' as const }
+}
+
 const productionPriorityForDueDate = (dueDate?: string): ProductionPriority => {
   const remainingDays = daysUntil(dueDate)
   if (remainingDays < 0) return 'Urgente'
@@ -3330,6 +3351,8 @@ export default function SistemaMacaroca() {
           revenue,
           estimatedMaterialCost,
           realizedMaterialCost,
+          abnormalLossCost,
+          costDifference: realizedMaterialCost - estimatedMaterialCost,
           estimatedProfit,
           realProfit,
           estimatedMargin: revenue > 0 ? (estimatedProfit / revenue) * 100 : 0,
@@ -3347,6 +3370,10 @@ export default function SistemaMacaroca() {
     const monthReceived = monthEntries.filter((entry) => entry.kind === 'Entrada' && entry.paid)
     const monthPaid = monthEntries.filter((entry) => entry.kind === 'Saída' && entry.paid)
     const monthOrders = orderResults.filter((item) => isMonth(item.resultDate, financeMonth))
+    const monthOrdersWithRealizedCost = monthOrders.filter((item) => item.hasRealizedCost).length
+    const monthOrdersAwaitingRealizedCost = monthOrders.length - monthOrdersWithRealizedCost
+    const allMonthCostsRealized =
+      monthOrders.length === 0 || monthOrdersAwaitingRealizedCost === 0
     const monthRevenue = monthOrders.reduce((total, item) => total + item.revenue, 0)
     const monthEstimatedCost = monthOrders.reduce(
       (total, item) => total + item.estimatedMaterialCost,
@@ -3381,6 +3408,8 @@ export default function SistemaMacaroca() {
           estimatedProfit: 0,
           realProfit: 0,
           realizedOrders: 0,
+          realizedQty: 0,
+          realizedRevenue: 0,
         }
         current.orders += 1
         current.qty += item.order.qty
@@ -3389,6 +3418,8 @@ export default function SistemaMacaroca() {
         if (item.hasRealizedCost) {
           current.realProfit += item.realProfit
           current.realizedOrders += 1
+          current.realizedQty += item.order.qty
+          current.realizedRevenue += item.revenue
         }
         grouped.set(key, current)
         return grouped
@@ -3402,8 +3433,16 @@ export default function SistemaMacaroca() {
         estimatedProfit: number
         realProfit: number
         realizedOrders: number
+        realizedQty: number
+        realizedRevenue: number
       }>()).values(),
     ).sort((a, b) => b.realProfit - a.realProfit)
+    const overdueReceivables = receivableSales.filter(
+      (entry) => entry.dueDate && daysUntil(entry.dueDate) < 0,
+    )
+    const overduePayables = accountsPayable.filter(
+      (entry) => !entry.paid && entry.dueDate && daysUntil(entry.dueDate) < 0,
+    )
 
     return {
       receivedSales,
@@ -3411,8 +3450,12 @@ export default function SistemaMacaroca() {
       accountsPayable,
       rawMaterialPurchases,
       fixedExpenses,
+      overdueReceivables,
+      overduePayables,
       receivedSalesTotal: sum(receivedSales),
-      receivedSalesMonthTotal: sum(receivedSales.filter((entry) => isCurrentMonth(entry.dueDate))),
+      receivedSalesMonthTotal: sum(
+        receivedSales.filter((entry) => isCurrentMonth(financeEntryDate(entry))),
+      ),
       receivableSalesTotal: sum(receivableSales),
       accountsPayableTotal: sum(accountsPayable.filter((entry) => !entry.paid)),
       rawMaterialPurchasesTotal: sum(rawMaterialPurchases),
@@ -3432,6 +3475,9 @@ export default function SistemaMacaroca() {
       monthFixedCost: fixedCostForResult,
       monthEstimatedProfit,
       monthRealProfit,
+      monthOrdersWithRealizedCost,
+      monthOrdersAwaitingRealizedCost,
+      allMonthCostsRealized,
     }
   }, [financeMonth, state])
 
@@ -13202,12 +13248,43 @@ export default function SistemaMacaroca() {
 
                 {financeView === 'resumo' && (
                   <>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
                       <Metric label="Recebido no mês" value={money(financeSummary.monthReceivedTotal)} icon={<Banknote />} />
                       <Metric label="Valores a receber" value={money(financeSummary.receivableSalesTotal)} icon={<ReceiptText />} />
                       <Metric label="Contas a pagar" value={money(financeSummary.accountsPayableTotal)} icon={<WalletCards />} />
-                      <Metric label="Resultado real do mês" value={money(financeSummary.monthRealProfit)} icon={<Calculator />} />
+                      <Metric
+                        label={financeSummary.allMonthCostsRealized ? 'Resultado real do mês' : 'Resultado atualizado'}
+                        value={money(financeSummary.monthRealProfit)}
+                        icon={<Calculator />}
+                      />
                     </div>
+
+                    {(financeSummary.overdueReceivables.length > 0 ||
+                      financeSummary.overduePayables.length > 0 ||
+                      financeSummary.monthOrdersAwaitingRealizedCost > 0) && (
+                      <Panel title="Precisa de atenção">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <FinanceAttention
+                            label="Recebimentos vencidos"
+                            value={financeSummary.overdueReceivables.length}
+                            detail="Valores de clientes que passaram do vencimento."
+                            tone={financeSummary.overdueReceivables.length ? 'rose' : 'neutral'}
+                          />
+                          <FinanceAttention
+                            label="Contas vencidas"
+                            value={financeSummary.overduePayables.length}
+                            detail="Pagamentos que precisam ser regularizados."
+                            tone={financeSummary.overduePayables.length ? 'rose' : 'neutral'}
+                          />
+                          <FinanceAttention
+                            label="Custos ainda estimados"
+                            value={financeSummary.monthOrdersAwaitingRealizedCost}
+                            detail="Pedidos sem produção ou entrega suficiente para formar o custo real."
+                            tone={financeSummary.monthOrdersAwaitingRealizedCost ? 'amber' : 'neutral'}
+                          />
+                        </div>
+                      </Panel>
+                    )}
 
                     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
                       <Panel title="Resultado do mês">
@@ -13223,8 +13300,15 @@ export default function SistemaMacaroca() {
                               : 'border-rose-200 bg-rose-50'
                           }`}>
                             <div>
-                              <strong>Resultado real</strong>
+                              <strong>
+                                {financeSummary.allMonthCostsRealized
+                                  ? 'Resultado real'
+                                  : 'Resultado atualizado'}
+                              </strong>
                               <p className="text-sm text-slate-500">
+                                {financeSummary.monthOrdersAwaitingRealizedCost
+                                  ? `${financeSummary.monthOrdersAwaitingRealizedCost} pedido(s) ainda usam custo estimado. `
+                                  : ''}
                                 Estimativa original: {money(financeSummary.monthEstimatedProfit)}
                               </p>
                             </div>
@@ -13254,10 +13338,12 @@ export default function SistemaMacaroca() {
                       <Panel title="Valores a receber">
                         <div className="grid gap-3">
                           {financeSummary.receivableSales.length ? (
-                            financeSummary.receivableSales.map((entry) => (
+                            financeSummary.receivableSales.map((entry) => {
+                              const dueStatus = financeDueStatus(entry)
+                              return (
                               <div key={entry.id} className="flex flex-col justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
                                 <div>
-                                  <StatusBadge tone="amber">Pendente</StatusBadge>
+                                  <StatusBadge tone={dueStatus.tone}>{dueStatus.label}</StatusBadge>
                                   <p className="mt-2 font-medium">{entry.description}</p>
                                   <p className="text-sm text-slate-500">{entry.source} · {entry.dueDate ? formatDate(entry.dueDate) : 'Sem vencimento'}</p>
                                 </div>
@@ -13268,7 +13354,8 @@ export default function SistemaMacaroca() {
                                   </button>
                                 </div>
                               </div>
-                            ))
+                              )
+                            })
                           ) : (
                             <EmptyLine text="Nenhum valor pendente de recebimento." />
                           )}
@@ -13278,10 +13365,12 @@ export default function SistemaMacaroca() {
                       <Panel title="Contas a pagar">
                         <div className="grid gap-3">
                           {financeSummary.accountsPayable.filter((entry) => !entry.paid).length ? (
-                            financeSummary.accountsPayable.filter((entry) => !entry.paid).map((entry) => (
+                            financeSummary.accountsPayable.filter((entry) => !entry.paid).map((entry) => {
+                              const dueStatus = financeDueStatus(entry)
+                              return (
                               <div key={entry.id} className="flex flex-col justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
                                 <div>
-                                  <StatusBadge tone="amber">Pendente</StatusBadge>
+                                  <StatusBadge tone={dueStatus.tone}>{dueStatus.label}</StatusBadge>
                                   <p className="mt-2 font-medium">{entry.description}</p>
                                   <p className="text-sm text-slate-500">{entry.dueDate ? `Vence em ${formatDate(entry.dueDate)}` : 'Sem vencimento'} · {entry.source}</p>
                                 </div>
@@ -13292,7 +13381,8 @@ export default function SistemaMacaroca() {
                                   </button>
                                 </div>
                               </div>
-                            ))
+                              )
+                            })
                           ) : (
                             <EmptyLine text="Nenhuma conta pendente." />
                           )}
@@ -13331,6 +13421,26 @@ export default function SistemaMacaroca() {
                                 <FinanceValue label="Lucro estimado" value={money(item.estimatedProfit)} />
                                 <FinanceValue label="Lucro real" value={item.hasRealizedCost ? `${money(item.realProfit)} · ${item.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : 'Aguardando'} />
                               </div>
+                              <details className="rounded-md border border-slate-200 bg-white">
+                                <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-700">
+                                  Ver composição do resultado
+                                </summary>
+                                <div className="grid gap-2 border-t border-slate-200 p-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                                  <FinanceValue label="Impostos" value={money(item.taxCost)} />
+                                  <FinanceValue label="Comissão" value={money(item.commissionCost)} />
+                                  <FinanceValue label="Custos fixos" value={money(item.fixedCostShare)} />
+                                  <FinanceValue label="Perdas e defeitos" value={money(item.abnormalLossCost)} />
+                                  <FinanceValue
+                                    label="Diferença de custo"
+                                    value={item.hasRealizedCost ? money(item.costDifference) : 'Aguardando'}
+                                  />
+                                  <FinanceValue label="Margem prevista" value={`${item.estimatedMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} />
+                                  <FinanceValue
+                                    label="Margem realizada"
+                                    value={item.hasRealizedCost ? `${item.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : 'Aguardando'}
+                                  />
+                                </div>
+                              </details>
                             </article>
                           ))
                         ) : (
@@ -13347,8 +13457,12 @@ export default function SistemaMacaroca() {
                               key={item.key}
                               badge={`${item.orders} pedido(s)`}
                               title={productDisplayName(item.product, item.variationId)}
-                              detail={`${item.qty} un vendidas · Receita ${money(item.revenue)} · ${item.realizedOrders} pedido(s) com custo real`}
-                              value={item.realizedOrders ? money(item.realProfit) : `Prev. ${money(item.estimatedProfit)}`}
+                              detail={`${item.qty} un vendidas · Receita ${money(item.revenue)} · ${item.realizedQty} un com custo real (${item.realizedOrders}/${item.orders} pedidos)`}
+                              value={
+                                item.realizedOrders
+                                  ? `${money(item.realProfit)} · ${((item.realProfit / item.realizedRevenue) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% real`
+                                  : `Prev. ${money(item.estimatedProfit)}`
+                              }
                             />
                           ))
                         ) : (
@@ -13519,6 +13633,34 @@ function FinanceValue({ label, value }: { label: string; value: string }) {
         {label}
       </span>
       <strong className="mt-1 block break-words text-sm leading-5 text-slate-900">{value}</strong>
+    </div>
+  )
+}
+
+function FinanceAttention({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string
+  value: number
+  detail: string
+  tone: 'neutral' | 'amber' | 'rose'
+}) {
+  const toneClass = {
+    neutral: 'border-slate-200 bg-slate-50',
+    amber: 'border-amber-200 bg-amber-50',
+    rose: 'border-rose-200 bg-rose-50',
+  }[tone]
+
+  return (
+    <div className={`min-w-0 rounded-md border p-4 ${toneClass}`}>
+      <span className="block text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">
+        {label}
+      </span>
+      <strong className="mt-2 block text-2xl text-slate-950">{value}</strong>
+      <p className="mt-1 text-sm leading-5 text-slate-600">{detail}</p>
     </div>
   )
 }
@@ -13851,12 +13993,12 @@ function MiniStat({
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-4 shadow-[0_8px_24px_rgba(49,35,30,0.035)]">
-      <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-md bg-[#eef2ff] text-[#3730a3] [&_svg]:h-5 [&_svg]:w-5">
+    <div className="min-w-0 rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-3 shadow-[0_8px_24px_rgba(49,35,30,0.035)] sm:p-4">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-[#eef2ff] text-[#3730a3] sm:mb-4 sm:h-9 sm:w-9 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-5 sm:[&_svg]:w-5">
         {icon}
       </div>
-      <span className="text-sm text-black/50">{label}</span>
-      <strong className="mt-1 block text-xl font-semibold">{value}</strong>
+      <span className="block text-xs leading-4 text-black/50 sm:text-sm">{label}</span>
+      <strong className="mt-1 block break-words text-base font-semibold leading-tight sm:text-xl">{value}</strong>
     </div>
   )
 }
