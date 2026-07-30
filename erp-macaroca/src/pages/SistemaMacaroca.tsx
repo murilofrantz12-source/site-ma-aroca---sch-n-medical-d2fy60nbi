@@ -8716,9 +8716,9 @@ export default function SistemaMacaroca() {
 
   if (!authReady) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#f8fafc] px-5 text-[#111827]">
+      <div className="grid min-h-screen place-items-center bg-[#f6f7f7] px-5 text-[#111827]">
         <div className="text-center">
-          <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#3730a3]" />
+          <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#733247]" />
           <p className="mt-3 text-sm text-black/55">Conferindo acesso seguro...</p>
         </div>
       </div>
@@ -8727,7 +8727,7 @@ export default function SistemaMacaroca() {
 
   if (!loggedUser) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#f8fafc] px-5 text-[#111827]">
+      <div className="grid min-h-screen place-items-center bg-[#f6f7f7] px-5 text-[#111827]">
         <div className="w-full max-w-md rounded-lg border border-[#d9c7bd] bg-[#ffffff] p-7 shadow-[0_22px_60px_rgba(49,35,30,0.10)]">
           {isTestEnvironment && (
             <div className="mb-5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-amber-900">
@@ -8755,7 +8755,7 @@ export default function SistemaMacaroca() {
                 type="password"
                 value={loginPassword}
                 onChange={(event) => setLoginPassword(event.target.value)}
-                className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#733247]"
               />
             </label>
             {loginError && (
@@ -8765,7 +8765,7 @@ export default function SistemaMacaroca() {
             )}
             <button
               type="submit"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white shadow-[0_10px_24px_rgba(33,31,28,0.18)] transition hover:bg-[#3730a3]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white shadow-[0_10px_24px_rgba(33,31,28,0.18)] transition hover:bg-[#733247]"
             >
               Acessar sistema
               <ArrowRight className="h-4 w-4" />
@@ -8780,7 +8780,7 @@ export default function SistemaMacaroca() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#111827]">
+    <div className="min-h-screen bg-[#f6f7f7] text-[#111827]">
       <style>
         {`
           .document-print-sheet { display: none; }
@@ -8849,10 +8849,10 @@ export default function SistemaMacaroca() {
           onClose={() => setSelectedAuditEvent(null)}
         />
       )}
-      <div className={`macaroca-system grid min-h-screen transition-[grid-template-columns] duration-300 ${sidebarCompact ? 'lg:grid-cols-[88px_minmax(0,_1fr)]' : 'lg:grid-cols-[292px_minmax(0,_1fr)]'}`}>
-        <aside className="border-b border-[#e5e7eb] bg-white transition-all duration-300 lg:border-b-0 lg:border-r">
+      <div className={`macaroca-system grid min-h-screen bg-[#f6f7f7] transition-[grid-template-columns] duration-300 ${sidebarCompact ? 'lg:grid-cols-[88px_minmax(0,_1fr)]' : 'lg:grid-cols-[292px_minmax(0,_1fr)]'}`}>
+        <aside className="border-b border-[#e6dfe1] bg-[#fbf8f9] transition-all duration-300 lg:border-b-0 lg:border-r">
           <div className={`flex items-center gap-3 border-b border-[#e5e7eb] px-4 py-3 lg:px-5 lg:py-5 ${sidebarCompact ? 'lg:flex-col lg:px-3' : ''}`}>
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-[#111827] p-1.5 shadow-[0_10px_24px_rgba(33,31,28,0.12)] lg:h-16 lg:w-16 lg:p-2">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-md bg-[#2c3035] p-1.5 shadow-[0_10px_24px_rgba(33,31,28,0.12)] lg:h-16 lg:w-16 lg:p-2">
               <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
             </div>
             <div className={sidebarCompact ? 'lg:hidden' : ''}>
@@ -8896,8 +8896,8 @@ export default function SistemaMacaroca() {
                       }}
                       className={`flex h-11 items-center gap-3 rounded-md px-3 text-left text-sm transition ${
                         activeArea === item.key
-                          ? 'bg-[#312e81] text-white shadow-sm'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
+                          ? 'bg-[#8f3f59] text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-[#faedf1] hover:text-[#733247]'
                       } ${sidebarCompact ? 'lg:justify-center lg:px-0' : ''}`}
                       title={sidebarCompact ? item.label : undefined}
                     >
@@ -8914,7 +8914,7 @@ export default function SistemaMacaroca() {
         </aside>
 
         <main className="min-w-0">
-          <header className="sticky top-0 z-20 border-b border-[#e5e7eb] bg-white/95 px-4 py-3 backdrop-blur md:px-8 md:py-4">
+          <header className="sticky top-0 z-20 border-b border-[#e1e4e6] bg-white/95 px-4 py-3 backdrop-blur md:px-8 md:py-4">
             <div className="mx-auto flex max-w-[1220px] flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex min-w-0 items-center gap-4">
                 {parentModuleHub && (
@@ -8928,7 +8928,7 @@ export default function SistemaMacaroca() {
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                 )}
-                <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[#111827] p-2 sm:flex">
+                <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-md bg-[#2c3035] p-2 sm:flex">
                   <img src={companyLogo} alt={state.company.name} className="max-h-full max-w-full object-contain" />
                 </div>
                 <div className="min-w-0">
@@ -8943,7 +8943,7 @@ export default function SistemaMacaroca() {
                   </div>
                 )}
                 <div className="flex h-9 items-center gap-2 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2.5 text-sm">
-                  <ShieldCheck className="h-4 w-4 text-[#3730a3]" />
+                  <ShieldCheck className="h-4 w-4 text-[#733247]" />
                   <span className="hidden text-black/55 xl:inline">{currentUserName}</span>
                   <strong>{userRole}</strong>
                 </div>
@@ -8967,7 +8967,7 @@ export default function SistemaMacaroca() {
                   <button
                     type="button"
                     onClick={() => navigateFromMenu('notas')}
-                    className="hidden h-9 items-center gap-2 rounded-md bg-[#312e81] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3] md:inline-flex"
+                    className="hidden h-9 items-center gap-2 rounded-md bg-[#8f3f59] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#733247] md:inline-flex"
                   >
                     <FileText className="h-4 w-4" />
                     Compra
@@ -8977,7 +8977,7 @@ export default function SistemaMacaroca() {
                   <button
                     type="button"
                     onClick={() => navigateFromMenu('pedido-guiado')}
-                    className="hidden h-9 items-center gap-2 rounded-md bg-[#111827] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#3730a3] md:inline-flex"
+                    className="hidden h-9 items-center gap-2 rounded-md bg-[#8f3f59] px-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#733247] md:inline-flex"
                   >
                     <Plus className="h-4 w-4" />
                     Nova venda
@@ -9025,7 +9025,7 @@ export default function SistemaMacaroca() {
                 <section className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-[#ffffff] shadow-[0_12px_34px_rgba(49,35,30,0.045)]">
                   <div className="grid gap-4 border-b border-[#e5e7eb] bg-[#ffffff] p-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-stretch">
                     <div className="flex min-w-0 items-center gap-4">
-                      <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#111827] p-2">
+                      <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md bg-[#2c3035] p-2">
                         <img src={companyLogo} alt={state.company.name} className="max-h-12 max-w-12 object-contain" />
                       </div>
                       <div className="min-w-0">
@@ -9083,7 +9083,7 @@ export default function SistemaMacaroca() {
                           value={guideSearch}
                           onChange={(event) => setGuideSearch(event.target.value)}
                           placeholder="Ex.: criar pedido, definir preço, produzir, estoque..."
-                          className="h-11 min-w-0 flex-1 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none transition focus:border-[#3730a3] focus:ring-2 focus:ring-[#3730a3]/10"
+                          className="h-11 min-w-0 flex-1 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none transition focus:border-[#733247] focus:ring-2 focus:ring-[#733247]/10"
                         />
                         {guideSearch && (
                           <button
@@ -9104,7 +9104,7 @@ export default function SistemaMacaroca() {
                           key={term}
                           type="button"
                           onClick={() => setGuideSearch(term)}
-                          className="h-9 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[#3730a3] hover:text-[#3730a3]"
+                          className="h-9 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[#733247] hover:text-[#733247]"
                         >
                           {term}
                         </button>
@@ -9128,8 +9128,8 @@ export default function SistemaMacaroca() {
                       key={guide.id}
                       className="overflow-hidden rounded-md border border-[#dfe3e8] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.035)]"
                     >
-                      <div className="border-b border-[#e5e7eb] bg-[#f8fafc] px-4 py-4 md:px-5">
-                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#3730a3]">
+                      <div className="border-b border-[#e5e7eb] bg-[#f6f7f7] px-4 py-4 md:px-5">
+                        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[#733247]">
                           {guide.category}
                         </span>
                         <h3 className="mt-1 text-lg font-semibold text-[#111827]">{guide.title}</h3>
@@ -9138,7 +9138,7 @@ export default function SistemaMacaroca() {
                       <ol className="grid gap-3 p-4 md:p-5">
                         {guide.steps.map((step, index) => (
                           <li key={step} className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-3 text-sm leading-5 text-slate-700">
-                            <span className="grid h-7 w-7 place-items-center rounded-full bg-[#eef2ff] text-xs font-semibold text-[#3730a3]">
+                            <span className="grid h-7 w-7 place-items-center rounded-full bg-[#faedf1] text-xs font-semibold text-[#733247]">
                               {index + 1}
                             </span>
                             <span className="pt-1">{step}</span>
@@ -9156,7 +9156,7 @@ export default function SistemaMacaroca() {
                               setActiveArea(guide.target)
                               setMessage(`Guia aberto: ${guide.title}. Siga os passos e use esta tela para concluir.`)
                             }}
-                            className="ml-auto inline-flex h-9 items-center gap-2 rounded-md bg-[#111827] px-3 text-sm font-medium text-white transition hover:bg-[#3730a3]"
+                            className="ml-auto inline-flex h-9 items-center gap-2 rounded-md bg-[#8f3f59] px-3 text-sm font-medium text-white transition hover:bg-[#733247]"
                           >
                             {guide.action}
                             <ArrowRight className="h-4 w-4" />
@@ -9242,7 +9242,7 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={() => setActiveArea('pedido-guiado')}
-                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-3 text-sm font-medium text-white"
+                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#8f3f59] px-3 text-sm font-medium text-white"
                       >
                         Nova venda
                       </button>
@@ -9303,7 +9303,7 @@ export default function SistemaMacaroca() {
                         onClick={() => setActiveArea('vendas')}
                         className="rounded-md border border-[#d1d5db] bg-[#ffffff] px-3 py-2.5 text-left"
                       >
-                        <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#3730a3]">Mais atrasado / mais próximo</span>
+                        <span className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#733247]">Mais atrasado / mais próximo</span>
                         <strong className="mt-1 block text-sm text-[#111827]">
                           {oldestPendingOrder.id} · {oldestPendingOrder.client}
                         </strong>
@@ -9370,7 +9370,7 @@ export default function SistemaMacaroca() {
                   </MobileSummaryPanel>
                 </section>
 
-                <section className="hidden overflow-hidden rounded-lg border border-[#2f2b27] bg-[#111827] text-white shadow-[0_18px_44px_rgba(33,31,28,0.14)] md:block">
+                <section className="hidden overflow-hidden rounded-lg border border-[#3d4248] bg-[#2c3035] text-white shadow-[0_18px_44px_rgba(33,31,28,0.14)] md:block">
                   <div className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:p-6">
                     <div className="min-w-0">
                       <span className="text-sm text-white/58">Resumo para acompanhar pelo celular</span>
@@ -9592,7 +9592,7 @@ export default function SistemaMacaroca() {
                                   {canNegotiatePrice && <MiniStat label="Margem real" value={`${pricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} tone={orderPriceApproved(order) ? 'green' : 'rose'} />}
                                 </div>
                                 <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
-                                  <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">Ver detalhes da venda</summary>
+                                  <summary className="cursor-pointer text-sm font-medium text-[#733247]">Ver detalhes da venda</summary>
                                   <div className="mt-3 grid gap-1 text-sm text-black/55">
                                     <span>Telefone: {order.phone || 'Não informado'}</span>
                                     <span>Cidade: {order.city || 'Não informada'}</span>
@@ -9610,13 +9610,13 @@ export default function SistemaMacaroca() {
                               </div>
                               <div className="grid min-w-[180px] gap-2">
                                 {nextAction && (
-                                  <div className="rounded-md border border-[#111827]/10 bg-white p-3">
+                                  <div className="rounded-md border border-[#8f3f59]/10 bg-white p-3">
                                     <span className="text-xs font-medium uppercase text-black/40">Próxima ação</span>
                                     <p className="mt-1 text-sm leading-5 text-black/60">{nextAction.detail}</p>
                                     <button
                                       type="button"
                                       onClick={nextAction.onClick}
-                                      className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#111827] px-3 text-sm font-medium text-white transition hover:bg-[#3730a3]"
+                                      className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#8f3f59] px-3 text-sm font-medium text-white transition hover:bg-[#733247]"
                                     >
                                       {nextAction.label}
                                     </button>
@@ -9625,7 +9625,7 @@ export default function SistemaMacaroca() {
                                 <button
                                   type="button"
                                   onClick={() => setPreviewOrderId(order.id)}
-                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-3 text-sm font-medium text-[#1f2937]"
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#e9c7d1] bg-[#faedf1] px-3 text-sm font-medium text-[#1f2937]"
                                 >
                                   <ReceiptText className="h-4 w-4" />
                                   Ver pedido
@@ -9638,7 +9638,7 @@ export default function SistemaMacaroca() {
                                       value={Math.round(unitPrice)}
                                       onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
                                       disabled={order.status !== 'Aberto' || hasOp}
-                                      className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5] disabled:bg-[#f3f4f6] disabled:text-black/40"
+                                      className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#8f3f59] disabled:bg-[#f3f4f6] disabled:text-black/40"
                                     />
                                   </label>
                                 )}
@@ -9753,7 +9753,7 @@ export default function SistemaMacaroca() {
                                 <MiniStat label="Cliente" value={order.city || 'Sem cidade'} />
                               </div>
                               <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
-                                <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">
+                                <summary className="cursor-pointer text-sm font-medium text-[#733247]">
                                   Conferir dados da entrega
                                 </summary>
                                 <div className="mt-3 grid gap-1 text-sm text-black/55">
@@ -9773,7 +9773,7 @@ export default function SistemaMacaroca() {
                             </div>
 
                             <div className="grid min-w-[220px] gap-2">
-                              <div className="rounded-md border border-[#111827]/10 bg-white p-3">
+                              <div className="rounded-md border border-[#8f3f59]/10 bg-white p-3">
                                 <span className="text-xs font-medium uppercase text-black/40">Próxima ação</span>
                                 <p className="mt-1 text-sm leading-5 text-black/60">
                                   {canDeliver
@@ -9784,7 +9784,7 @@ export default function SistemaMacaroca() {
                                   type="button"
                                   onClick={() => updateOrderStatus(order.id, 'Entregue')}
                                   disabled={!canDeliver}
-                                  className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#111827] px-3 text-sm font-medium text-white transition hover:bg-[#3730a3] disabled:cursor-not-allowed disabled:opacity-45"
+                                  className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-[#8f3f59] px-3 text-sm font-medium text-white transition hover:bg-[#733247] disabled:cursor-not-allowed disabled:opacity-45"
                                 >
                                   Registrar entrega
                                 </button>
@@ -9792,7 +9792,7 @@ export default function SistemaMacaroca() {
                               <button
                                 type="button"
                                 onClick={() => setPreviewOrderId(order.id)}
-                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-3 text-sm font-medium text-[#1f2937]"
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#e9c7d1] bg-[#faedf1] px-3 text-sm font-medium text-[#1f2937]"
                               >
                                 <ReceiptText className="h-4 w-4" />
                                 Ver pedido
@@ -9811,7 +9811,7 @@ export default function SistemaMacaroca() {
                         <button
                           type="button"
                           onClick={() => setActiveArea('vendas')}
-                          className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                          className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                         >
                           Ver vendas em aberto
                         </button>
@@ -9870,7 +9870,7 @@ export default function SistemaMacaroca() {
                               type="checkbox"
                               checked={pcpSelectablePlans.every((plan) => pcpSelectedOrderIds.includes(plan.order.id))}
                               onChange={toggleAllPcpOrders}
-                              className="h-4 w-4 accent-[#3730a3]"
+                              className="h-4 w-4 accent-[#733247]"
                             />
                             Selecionar todos os pedidos que precisam produzir
                           </label>
@@ -9889,7 +9889,7 @@ export default function SistemaMacaroca() {
                             key={plan.order.id}
                             className={`rounded-md border p-4 transition ${
                               selected
-                                ? 'border-[#818cf8] bg-[#f5f3ff]'
+                                ? 'border-[#bb7187] bg-[#f5f3ff]'
                                 : 'border-[#e5e7eb] bg-[#ffffff]'
                             }`}
                           >
@@ -9899,7 +9899,7 @@ export default function SistemaMacaroca() {
                                 checked={selected}
                                 onChange={() => togglePcpOrder(plan.order.id)}
                                 aria-label={`Selecionar ${plan.order.id}`}
-                                className="mt-1 h-5 w-5 accent-[#3730a3]"
+                                className="mt-1 h-5 w-5 accent-[#733247]"
                               />
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -9938,7 +9938,7 @@ export default function SistemaMacaroca() {
                                       [plan.order.id]: Math.max(0, Number(event.target.value)),
                                     }))
                                   }
-                                  className="h-11 w-full rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                                  className="h-11 w-full rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#733247]"
                                 />
                                 <span className="text-xs leading-4 text-black/45">Sugestão: {plan.suggestedQty} un</span>
                                 {extraStockQty > 0 && (
@@ -10009,7 +10009,7 @@ export default function SistemaMacaroca() {
                           type="button"
                           onClick={generateSelectedPcpOrders}
                           disabled={!selectedPcpPlans.length}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <Scissors className="h-4 w-4" />
                           Gerar OPs selecionadas
@@ -10154,7 +10154,7 @@ export default function SistemaMacaroca() {
                         aria-current={implementationView === view ? 'page' : undefined}
                         className={`min-h-10 rounded-md border px-3 text-sm font-medium ${
                           implementationView === view
-                            ? 'border-[#312e81] bg-[#312e81] text-white'
+                            ? 'border-[#8f3f59] bg-[#8f3f59] text-white'
                             : 'border-slate-200 bg-white text-slate-700'
                         }`}
                       >
@@ -10224,7 +10224,7 @@ export default function SistemaMacaroca() {
                       <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                         <div
                           className={`h-full rounded-full ${
-                            implementationReadinessPercent === 100 ? 'bg-emerald-600' : 'bg-[#312e81]'
+                            implementationReadinessPercent === 100 ? 'bg-emerald-600' : 'bg-[#8f3f59]'
                           }`}
                           style={{ width: `${implementationReadinessPercent}%` }}
                         />
@@ -10246,8 +10246,8 @@ export default function SistemaMacaroca() {
                       </div>
                     </div>
 
-                    <div className="rounded-md border border-indigo-200 bg-indigo-50 p-4">
-                      <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[#312e81]">
+                    <div className="rounded-md border border-[#e9c7d1] bg-[#faedf1] p-4">
+                      <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[#8f3f59]">
                         Próximo passo de {selectedImplementationUser?.name ?? 'treinamento'}
                       </span>
                       {nextImplementationStep ? (
@@ -10261,7 +10261,7 @@ export default function SistemaMacaroca() {
                               if (nextImplementationStep.id === 'inventario-inicial') setStockView('inventario')
                               setActiveArea(nextImplementationStep.target)
                             }}
-                            className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                            className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                           >
                             {canAccessArea(nextImplementationStep.target)
                               ? nextImplementationStep.action
@@ -10298,7 +10298,7 @@ export default function SistemaMacaroca() {
                           setStockView('inventario')
                           setActiveArea('estoque')
                         }}
-                        className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                        className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
                         {canAdjustInventory ? 'Continuar inventário' : 'Inventário com o Admin'}
                       </button>
@@ -10379,7 +10379,7 @@ export default function SistemaMacaroca() {
                                 type="button"
                                 disabled={!canOpenScenario}
                                 onClick={() => setActiveArea(scenario.target)}
-                                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-[#312e81] disabled:cursor-not-allowed disabled:opacity-40"
+                                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-[#8f3f59] disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 {canOpenScenario ? scenario.action : 'Validar com responsável'}
                                 {canOpenScenario && <ArrowRight className="h-4 w-4" />}
@@ -10460,7 +10460,7 @@ export default function SistemaMacaroca() {
                                   if (step.id === 'inventario-inicial') setStockView('inventario')
                                   setActiveArea(step.target)
                                 }}
-                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-[#312e81] disabled:cursor-not-allowed disabled:opacity-40"
+                                className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-[#8f3f59] disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 {canOpenStep ? step.action : 'Fora da sua função'}
                               </button>
@@ -10492,7 +10492,7 @@ export default function SistemaMacaroca() {
                           </div>
                           <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                             <div
-                              className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-600' : 'bg-[#312e81]'}`}
+                              className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-600' : 'bg-[#8f3f59]'}`}
                               style={{ width: `${percent}%` }}
                             />
                           </div>
@@ -10503,7 +10503,7 @@ export default function SistemaMacaroca() {
                         <button
                           type="button"
                           onClick={() => setActiveArea('usuarios')}
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white"
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-semibold text-white"
                         >
                           <Plus className="h-4 w-4" />
                           Cadastrar usuário
@@ -10676,7 +10676,7 @@ export default function SistemaMacaroca() {
                                 void loadCloudState()
                               }
                             }}
-                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white"
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-semibold text-white"
                           >
                             <RefreshCw className="h-4 w-4" />
                             Atualizar do banco
@@ -10756,13 +10756,13 @@ export default function SistemaMacaroca() {
                           onChange={(event) => setImplementationQuestion(event.target.value)}
                           rows={3}
                           placeholder="Ex.: não entendi qual preço usar no pedido"
-                          className="min-h-24 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#312e81]"
+                          className="min-h-24 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#8f3f59]"
                         />
                       </label>
                       <button
                         type="button"
                         onClick={addImplementationQuestion}
-                        className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white sm:w-fit"
+                        className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-semibold text-white sm:w-fit"
                       >
                         Registrar dúvida
                       </button>
@@ -10787,7 +10787,7 @@ export default function SistemaMacaroca() {
                               <button
                                 type="button"
                                 onClick={() => toggleImplementationQuestion(question.id)}
-                                className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-[#312e81]"
+                                className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-[#8f3f59]"
                               >
                                 {question.resolved ? 'Reabrir' : 'Marcar resolvida'}
                               </button>
@@ -10849,7 +10849,7 @@ export default function SistemaMacaroca() {
                         aria-current={indicatorView === key ? 'page' : undefined}
                         className={`min-h-10 shrink-0 rounded-md border px-3 text-sm font-medium transition ${
                           indicatorView === key
-                            ? 'border-[#312e81] bg-[#312e81] text-white'
+                            ? 'border-[#8f3f59] bg-[#8f3f59] text-white'
                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                         }`}
                       >
@@ -11042,7 +11042,7 @@ export default function SistemaMacaroca() {
                             aria-pressed={alertCategoryFilter === key}
                             className={`min-h-9 rounded-md border px-3 text-sm font-medium ${
                               alertCategoryFilter === key
-                                ? 'border-[#312e81] bg-[#312e81] text-white'
+                                ? 'border-[#8f3f59] bg-[#8f3f59] text-white'
                                 : 'border-slate-200 bg-white text-slate-700'
                             }`}
                           >
@@ -11097,7 +11097,7 @@ export default function SistemaMacaroca() {
                             </div>
                             <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                               <div
-                                className="h-full rounded-full bg-[#312e81]"
+                                className="h-full rounded-full bg-[#8f3f59]"
                                 style={{ width: `${Math.min(100, indicatorSummary.completionRate)}%` }}
                               />
                             </div>
@@ -11109,7 +11109,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={() => setActiveArea('producao')}
-                            className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white sm:w-fit"
+                            className="inline-flex min-h-10 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-semibold text-white sm:w-fit"
                           >
                             Acompanhar ordens
                           </button>
@@ -11430,7 +11430,7 @@ export default function SistemaMacaroca() {
                           autoComplete="current-password"
                           value={currentPassword}
                           onChange={(event) => setCurrentPassword(event.target.value)}
-                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                         />
                       </label>
                       <label className="grid gap-2">
@@ -11442,7 +11442,7 @@ export default function SistemaMacaroca() {
                           placeholder={normalizedStoreEnabled ? 'Pelo menos 8 caracteres' : undefined}
                           value={newAccountPassword}
                           onChange={(event) => setNewAccountPassword(event.target.value)}
-                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                         />
                       </label>
                       <label className="grid gap-2">
@@ -11453,13 +11453,13 @@ export default function SistemaMacaroca() {
                           autoComplete="new-password"
                           value={confirmAccountPassword}
                           onChange={(event) => setConfirmAccountPassword(event.target.value)}
-                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                          className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                         />
                       </label>
                       <button
                         type="button"
                         onClick={() => void updateOwnPassword()}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                       >
                         Salvar nova senha
                       </button>
@@ -11486,7 +11486,7 @@ export default function SistemaMacaroca() {
                                 type="file"
                                 accept="image/*"
                                 onChange={(event) => uploadCompanyLogo(event.target.files?.[0])}
-                                className="h-11 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#111827] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+                                className="h-11 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#8f3f59] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
                               />
                             </label>
                           </div>
@@ -11497,7 +11497,7 @@ export default function SistemaMacaroca() {
                               value={state.company.budgetDefaultText}
                               onChange={(event) => updateCompanySetting('budgetDefaultText', event.target.value)}
                               rows={3}
-                              className="min-h-24 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#4f46e5] focus:bg-white"
+                              className="min-h-24 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#8f3f59] focus:bg-white"
                             />
                           </label>
 
@@ -11513,7 +11513,7 @@ export default function SistemaMacaroca() {
                                 value={state.company.budgetDefaultNotes}
                                 onChange={(event) => updateCompanySetting('budgetDefaultNotes', event.target.value)}
                                 rows={3}
-                                className="min-h-24 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#4f46e5] focus:bg-white"
+                                className="min-h-24 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-2 text-sm leading-5 outline-none transition focus:border-[#8f3f59] focus:bg-white"
                               />
                             </label>
                           </div>
@@ -11559,7 +11559,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={() => void refreshSharedState()}
-                            className="mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#111827] transition hover:border-[#3730a3] hover:text-[#3730a3]"
+                            className="mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium text-[#111827] transition hover:border-[#733247] hover:text-[#733247]"
                           >
                             <RefreshCw className="h-4 w-4" />
                             Sincronizar agora
@@ -11579,7 +11579,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={exportBackupJson}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                           >
                             <FileText className="h-4 w-4" />
                             Exportar JSON
@@ -11859,16 +11859,16 @@ export default function SistemaMacaroca() {
                         <button
                           type="button"
                           onClick={() => createGuidedOrder('Orçamento')}
-                          className="grid min-h-32 gap-2 rounded-md border border-[#d1d5db] bg-white p-5 text-left transition hover:border-[#3730a3]"
+                          className="grid min-h-32 gap-2 rounded-md border border-[#d1d5db] bg-white p-5 text-left transition hover:border-[#733247]"
                         >
-                          <ReceiptText className="h-5 w-5 text-[#3730a3]" />
+                          <ReceiptText className="h-5 w-5 text-[#733247]" />
                           <strong>Salvar como orçamento</strong>
                           <span className="text-sm leading-5 text-black/55">Não reserva estoque e não entra no financeiro. Pode ser impresso, duplicado ou convertido depois.</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => createGuidedOrder('Pedido')}
-                          className="grid min-h-32 gap-2 rounded-md bg-[#111827] p-5 text-left text-white transition hover:bg-[#3730a3]"
+                          className="grid min-h-32 gap-2 rounded-md bg-[#8f3f59] p-5 text-left text-white transition hover:bg-[#733247]"
                         >
                           <PackageCheck className="h-5 w-5" />
                           <strong>Confirmar como pedido</strong>
@@ -11898,7 +11898,7 @@ export default function SistemaMacaroca() {
                           setGuidedProductionType('Produção')
                           setGuidedProductionNotes('')
                         }}
-                        className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#4f46e5]"
+                        className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#8f3f59]"
                       >
                         {openProductionOrders.map((op) => {
                           const product = state.products.find((item) => item.id === op.productId)
@@ -11984,14 +11984,14 @@ export default function SistemaMacaroca() {
                             <span className="text-sm text-[#6b7280]">Controle da ordem</span>
                             <h3 className="mt-1 text-lg font-semibold">O que fazer agora</h3>
                           </div>
-                          <span className="text-sm font-medium text-[#4f46e5]">{currentUserName}</span>
+                          <span className="text-sm font-medium text-[#8f3f59]">{currentUserName}</span>
                         </div>
                         <div className="mt-5 grid gap-2 sm:grid-cols-2">
                           {guidedOp.status === 'Não iniciada' && (
                             <button
                               type="button"
                               onClick={() => updateProductionStatus(guidedOp.id, 'Em produção')}
-                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white sm:col-span-2"
+                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white sm:col-span-2"
                             >
                               Iniciar produção
                             </button>
@@ -12000,7 +12000,7 @@ export default function SistemaMacaroca() {
                             <button
                               type="button"
                               onClick={() => updateProductionStatus(guidedOp.id, 'Em produção')}
-                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white sm:col-span-2"
+                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white sm:col-span-2"
                             >
                               Retomar produção
                             </button>
@@ -12053,7 +12053,7 @@ export default function SistemaMacaroca() {
                               aria-pressed={guidedProductionType === eventType}
                               className={`h-11 rounded-md border px-3 text-sm font-medium transition ${
                                 guidedProductionType === eventType
-                                  ? 'border-[#111827] bg-[#111827] text-white'
+                                  ? 'border-[#8f3f59] bg-[#8f3f59] text-white'
                                   : 'border-[#d1d5db] bg-white text-[#374151] hover:border-[#9ca3af]'
                               }`}
                             >
@@ -12079,7 +12079,7 @@ export default function SistemaMacaroca() {
                                   ? 'Ex.: lote conferido'
                                   : 'Explique o que aconteceu'
                               }
-                              className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#4f46e5]"
+                              className="h-11 min-w-0 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#8f3f59]"
                             />
                           </label>
                         </div>
@@ -12097,7 +12097,7 @@ export default function SistemaMacaroca() {
                             !!guidedMissingMaterials.length ||
                             (guidedProductionType !== 'Produção' && !guidedProductionNotes.trim())
                           }
-                          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {guidedProductionType === 'Produção' ? 'Registrar peças prontas' : `Registrar ${guidedProductionType.toLowerCase()}`}
                         </button>
@@ -12234,7 +12234,7 @@ export default function SistemaMacaroca() {
                             }
                             setGuidedProductStep(2)
                           }}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                         >
                           Próximo: tamanho e modelo
                           <ArrowRight className="h-4 w-4" />
@@ -12287,7 +12287,7 @@ export default function SistemaMacaroca() {
                               }
                               setGuidedProductStep(3)
                             }}
-                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                           >
                             Próximo: materiais usados
                             <ArrowRight className="h-4 w-4" />
@@ -12346,7 +12346,7 @@ export default function SistemaMacaroca() {
                               }
                               setGuidedProductStep(4)
                             }}
-                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                           >
                             Conferir cadastro
                             <ArrowRight className="h-4 w-4" />
@@ -12427,14 +12427,14 @@ export default function SistemaMacaroca() {
                             <strong className="block">Produto ativo</strong>
                             <span className="text-black/50">Pode ser usado em novos pedidos.</span>
                           </span>
-                          <span className={`h-6 w-11 rounded-full p-1 ${guidedProductActive ? 'bg-[#111827]' : 'bg-[#d1d5db]'}`}>
+                          <span className={`h-6 w-11 rounded-full p-1 ${guidedProductActive ? 'bg-[#8f3f59]' : 'bg-[#d1d5db]'}`}>
                             <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${guidedProductActive ? 'translate-x-5' : ''}`} />
                           </span>
                         </button>
 
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => setGuidedProductStep(3)} className="inline-flex h-11 items-center justify-center rounded-md border border-black/10 bg-white px-4 text-sm font-medium">Voltar</button>
-                          <button type="button" onClick={createGuidedProduct} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white">
+                          <button type="button" onClick={createGuidedProduct} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white">
                             Salvar peça e ficha
                             <ArrowRight className="h-4 w-4" />
                           </button>
@@ -12484,7 +12484,7 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={createProduct}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                       >
                         <Plus className="h-4 w-4" />
                         Criar
@@ -12567,13 +12567,13 @@ export default function SistemaMacaroca() {
                         <strong className="block">Produto {selectedProduct.active === false ? 'desativado' : 'ativo'}</strong>
                         <span className="text-xs text-black/45">{selectedProduct.active === false ? 'Não aparece em novos pedidos' : 'Disponível para pedidos'}</span>
                       </span>
-                      <span className={`h-6 w-11 rounded-full p-1 ${selectedProduct.active === false ? 'bg-[#d1d5db]' : 'bg-[#111827]'}`}>
+                      <span className={`h-6 w-11 rounded-full p-1 ${selectedProduct.active === false ? 'bg-[#d1d5db]' : 'bg-[#8f3f59]'}`}>
                         <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${selectedProduct.active === false ? '' : 'translate-x-5'}`} />
                       </span>
                     </button>
                   </div>
 
-                  <div className="mt-5 grid gap-4 rounded-md border border-[#3730a3]/20 bg-[#f9fafb] p-4">
+                  <div className="mt-5 grid gap-4 rounded-md border border-[#733247]/20 bg-[#f9fafb] p-4">
                     <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
                       <label className="grid flex-1 gap-2">
                         <FieldLabel>Variação da peça</FieldLabel>
@@ -12592,7 +12592,7 @@ export default function SistemaMacaroca() {
                       <button
                         type="button"
                         onClick={createVariation}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                       >
                         <Plus className="h-4 w-4" />
                         Nova variação
@@ -12775,7 +12775,7 @@ export default function SistemaMacaroca() {
                                     onChange={(event) =>
                                       selectVariationMaterial(selectedVariation.id, material.id, event.target.value)
                                     }
-                                    className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                                    className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                                   >
                                     <option value="" disabled>
                                       Escolha uma matéria-prima
@@ -12837,7 +12837,7 @@ export default function SistemaMacaroca() {
                                 <select
                                   value={material.rawMaterialId ?? ''}
                                   onChange={(event) => selectProductMaterial(material.id, event.target.value)}
-                                  className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                                  className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                                 >
                                   <option value="" disabled>
                                     Escolha uma matéria-prima
@@ -13135,7 +13135,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createRawMaterial}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -13148,7 +13148,7 @@ export default function SistemaMacaroca() {
                   <Panel title="Matérias-primas cadastradas">
                     <a
                       href="#cadastro-materia-prima"
-                      className="mb-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white xl:hidden"
+                      className="mb-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white xl:hidden"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar nova matéria-prima
@@ -13210,7 +13210,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createSupplier}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -13245,7 +13245,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createCustomer}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -13303,7 +13303,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createBrand}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar
@@ -13341,7 +13341,7 @@ export default function SistemaMacaroca() {
                         placeholder={normalizedStoreEnabled ? 'Senha temporária com 8 ou mais caracteres' : undefined}
                         value={newUserPassword}
                         onChange={(event) => setNewUserPassword(event.target.value)}
-                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                        className="h-11 rounded-md border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                       />
                       {normalizedStoreEnabled && (
                         <span className="text-xs leading-5 text-black/48">
@@ -13367,7 +13367,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={() => void createUser()}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Cadastrar usuário
@@ -13416,7 +13416,7 @@ export default function SistemaMacaroca() {
                       aria-pressed={purchaseView === view}
                       className={`h-10 min-w-max rounded-md px-4 text-sm font-medium ${
                         purchaseView === view
-                          ? 'bg-[#111827] text-white'
+                          ? 'bg-[#8f3f59] text-white'
                           : 'bg-transparent text-[#4b5563] hover:bg-white'
                       }`}
                     >
@@ -13460,7 +13460,7 @@ export default function SistemaMacaroca() {
                                   type="button"
                                   onClick={() => preparePurchaseFromSuggestion(suggestion)}
                                   disabled={!canManagePurchases}
-                                  className="inline-flex h-10 min-w-max items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                  className="inline-flex h-10 min-w-max items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   Pedir {suggestion.suggestedPurchaseQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {suggestion.purchaseUnit}
                                 </button>
@@ -13544,7 +13544,7 @@ export default function SistemaMacaroca() {
                           <button
                             type="button"
                             onClick={createPurchaseOrder}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                           >
                             Criar pedido de compra
                             <ArrowRight className="h-4 w-4" />
@@ -13615,7 +13615,7 @@ export default function SistemaMacaroca() {
                                         selectPurchaseOrderForReceipt(order.id)
                                         setPurchaseView('recebimentos')
                                       }}
-                                      className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                                      className="inline-flex h-10 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                                     >
                                       Registrar chegada
                                     </button>
@@ -13740,7 +13740,7 @@ export default function SistemaMacaroca() {
                               type="button"
                               onClick={receivePurchaseOrder}
                               disabled={!receiptNumber.trim() || receiptQty <= 0 || receiptQty > selectedReceivingPendingQty}
-                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                              className="inline-flex h-11 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               Confirmar recebimento
                             </button>
@@ -13936,7 +13936,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createOrder}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                     >
                       {orderDocumentType === 'Pedido' ? 'Registrar pedido' : 'Registrar orçamento'}
                       <ArrowRight className="h-4 w-4" />
@@ -13989,7 +13989,7 @@ export default function SistemaMacaroca() {
                               {order.cancellationReason && <p>Cancelamento: {order.cancellationReason}</p>}
                             </div>
                             <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
-                              <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">
+                              <summary className="cursor-pointer text-sm font-medium text-[#733247]">
                                 Linha do tempo do pedido
                               </summary>
                               <div className="mt-3">
@@ -14014,7 +14014,7 @@ export default function SistemaMacaroca() {
                             <button
                               type="button"
                               onClick={() => openProductionDecision(order)}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
+                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white disabled:opacity-40"
                               disabled={order.documentType !== 'Pedido' || order.status !== 'Aberto' || !orderPriceApproved(order)}
                             >
                               Analisar produção
@@ -14024,7 +14024,7 @@ export default function SistemaMacaroca() {
                                 <button
                                   type="button"
                                   onClick={() => convertBudgetToOrder(order)}
-                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#3730a3] px-4 text-sm font-medium text-white"
+                                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#733247] px-4 text-sm font-medium text-white"
                                   disabled={!orderPriceApproved(order)}
                                 >
                                   Virar pedido
@@ -14041,7 +14041,7 @@ export default function SistemaMacaroca() {
                             <button
                               type="button"
                               onClick={() => setPreviewOrderId(order.id)}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-4 text-sm font-medium text-[#1f2937]"
+                              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#e9c7d1] bg-[#faedf1] px-4 text-sm font-medium text-[#1f2937]"
                             >
                               <ReceiptText className="h-4 w-4" />
                               {order.documentType}
@@ -14054,7 +14054,7 @@ export default function SistemaMacaroca() {
                                   value={Math.round(price)}
                                   onChange={(event) => updateOrderUnitPrice(order.id, Number(event.target.value))}
                                   disabled={order.status !== 'Aberto' || state.productionOrders.some((op) => op.orderId === order.id)}
-                                  className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5] disabled:bg-[#f3f4f6] disabled:text-black/40"
+                                  className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#8f3f59] disabled:bg-[#f3f4f6] disabled:text-black/40"
                                 />
                               </label>
                             )}
@@ -14183,7 +14183,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={createStockProductionOrder}
-                      className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                      className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                     >
                       <Plus className="h-4 w-4" />
                       Criar produção
@@ -14226,7 +14226,7 @@ export default function SistemaMacaroca() {
                                   {order ? `Pedido ${order.id} · ${order.client}` : 'Produção para estoque'}
                                 </p>
                                 <details className="mt-3 rounded-md border border-[#e5e7eb] bg-[#ffffff] p-3">
-                                  <summary className="cursor-pointer text-sm font-medium text-[#3730a3]">
+                                  <summary className="cursor-pointer text-sm font-medium text-[#733247]">
                                     Ajustar detalhes da ordem
                                   </summary>
                                   <div className="mt-3 grid gap-2">
@@ -14237,7 +14237,7 @@ export default function SistemaMacaroca() {
                                         onChange={(event) =>
                                           updateProductionOrder(op.id, 'responsible', event.target.value)
                                         }
-                                        className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
+                                        className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#8f3f59]"
                                       />
                                     </label>
                                     <div className="grid grid-cols-2 gap-2">
@@ -14248,7 +14248,7 @@ export default function SistemaMacaroca() {
                                           onChange={(event) =>
                                             updateProductionOrder(op.id, 'startedAt', event.target.value)
                                           }
-                                          className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
+                                          className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#8f3f59]"
                                         />
                                       </label>
                                       <label className="grid gap-1">
@@ -14258,7 +14258,7 @@ export default function SistemaMacaroca() {
                                           onChange={(event) =>
                                             updateProductionOrder(op.id, 'finishedAt', event.target.value)
                                           }
-                                          className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
+                                          className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#8f3f59]"
                                         />
                                       </label>
                                     </div>
@@ -14269,7 +14269,7 @@ export default function SistemaMacaroca() {
                                         onChange={(event) =>
                                           updateProductionOrder(op.id, 'priority', event.target.value)
                                         }
-                                        className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#4f46e5]"
+                                        className="h-9 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 text-sm outline-none focus:border-[#8f3f59]"
                                       >
                                         {(['Baixa', 'Normal', 'Alta', 'Urgente'] as ProductionPriority[]).map((priority) => (
                                           <option key={priority} value={priority}>
@@ -14286,14 +14286,14 @@ export default function SistemaMacaroca() {
                                         onChange={(event) =>
                                           updateProductionOrder(op.id, 'notes', event.target.value)
                                         }
-                                        className="min-h-16 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 py-2 text-sm outline-none focus:border-[#4f46e5]"
+                                        className="min-h-16 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-2 py-2 text-sm outline-none focus:border-[#8f3f59]"
                                       />
                                     </label>
                                   </div>
                                 </details>
                                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/10">
                                   <span
-                                    className="block h-full rounded-full bg-[#3730a3]"
+                                    className="block h-full rounded-full bg-[#733247]"
                                     style={{ width: `${Math.min(100, (op.produced / op.qty) * 100)}%` }}
                                   />
                                 </div>
@@ -14306,7 +14306,7 @@ export default function SistemaMacaroca() {
                                     {op.launches?.length ? (
                                       op.launches.slice(-4).reverse().map((launch) => (
                                         <div key={launch.id} className="grid grid-cols-[90px_1fr] gap-2 rounded-md bg-[#ffffff] px-2 py-2">
-                                          <strong className="text-[#3730a3]">{launch.type} · {launch.qty} un</strong>
+                                          <strong className="text-[#733247]">{launch.type} · {launch.qty} un</strong>
                                           <span>
                                             {formatDate(launch.date)}
                                             {launch.responsible ? ` · ${launch.responsible}` : ''}
@@ -14339,7 +14339,7 @@ export default function SistemaMacaroca() {
                                         <button
                                           type="button"
                                           onClick={() => updateProductionStatus(op.id, 'Em produção')}
-                                          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                                          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                                         >
                                           Iniciar produção
                                         </button>
@@ -14356,13 +14356,13 @@ export default function SistemaMacaroca() {
                                               [op.id]: Number(event.target.value),
                                             }))
                                           }
-                                          className="h-10 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none focus:border-[#4f46e5]"
+                                          className="h-10 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none focus:border-[#8f3f59]"
                                           aria-label={`Quantidade produzida para ${op.id}`}
                                         />
                                         <button
                                           type="button"
                                           onClick={() => registerProduction(op)}
-                                          className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white transition hover:bg-[#3730a3]"
+                                          className="inline-flex h-10 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white transition hover:bg-[#733247]"
                                         >
                                           Lançar
                                         </button>
@@ -14399,7 +14399,7 @@ export default function SistemaMacaroca() {
                                     <button
                                       type="button"
                                       onClick={() => downloadProductionOrderPdf(op.id)}
-                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#c7d2fe] bg-[#eef2ff] px-3 text-sm font-medium text-[#1f2937] transition hover:bg-white"
+                                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#e9c7d1] bg-[#faedf1] px-3 text-sm font-medium text-[#1f2937] transition hover:bg-white"
                                     >
                                       <FileText className="h-4 w-4" />
                                       PDF
@@ -14451,7 +14451,7 @@ export default function SistemaMacaroca() {
                       aria-pressed={stockView === view}
                       className={`h-10 min-w-max rounded-md px-4 text-sm font-medium ${
                         stockView === view
-                          ? 'bg-[#111827] text-white'
+                          ? 'bg-[#8f3f59] text-white'
                           : 'bg-white text-[#4b5563] hover:bg-[#f3f4f6]'
                       }`}
                     >
@@ -14517,7 +14517,7 @@ export default function SistemaMacaroca() {
                                     preparePurchaseFromSuggestion(item)
                                     setActiveArea('notas')
                                   }}
-                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+                                  className="inline-flex h-10 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
                                 >
                                   Pedir {item.suggestedPurchaseQty.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} {item.purchaseUnit}
                                 </button>
@@ -14587,14 +14587,14 @@ export default function SistemaMacaroca() {
                               onChange={(event) => setCountNotes(event.target.value)}
                               rows={3}
                               placeholder="Obrigatória quando houver diferença"
-                              className="min-h-24 rounded-md border border-[#d1d5db] bg-white px-3 py-2 text-sm outline-none focus:border-[#4f46e5]"
+                              className="min-h-24 rounded-md border border-[#d1d5db] bg-white px-3 py-2 text-sm outline-none focus:border-[#8f3f59]"
                             />
                           </label>
                           <button
                             type="button"
                             onClick={registerInventoryCount}
                             disabled={!countSelection || countedQty < 0 || (countDifference !== 0 && !countNotes.trim())}
-                            className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
+                            className="inline-flex h-11 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white disabled:opacity-40"
                           >
                             Concluir contagem
                           </button>
@@ -14649,7 +14649,7 @@ export default function SistemaMacaroca() {
                   <button
                     type="button"
                     onClick={() => setMovementView('historico')}
-                    className={`h-10 rounded-md px-4 text-sm font-medium ${movementView === 'historico' ? 'bg-[#111827] text-white' : 'text-[#4b5563]'}`}
+                    className={`h-10 rounded-md px-4 text-sm font-medium ${movementView === 'historico' ? 'bg-[#8f3f59] text-white' : 'text-[#4b5563]'}`}
                   >
                     Histórico
                   </button>
@@ -14657,7 +14657,7 @@ export default function SistemaMacaroca() {
                     <button
                       type="button"
                       onClick={() => setMovementView('ajuste')}
-                      className={`h-10 rounded-md px-4 text-sm font-medium ${movementView === 'ajuste' ? 'bg-[#111827] text-white' : 'text-[#4b5563]'}`}
+                      className={`h-10 rounded-md px-4 text-sm font-medium ${movementView === 'ajuste' ? 'bg-[#8f3f59] text-white' : 'text-[#4b5563]'}`}
                     >
                       Novo ajuste
                     </button>
@@ -14770,7 +14770,7 @@ export default function SistemaMacaroca() {
                           onChange={(event) => setAdjustmentReason(event.target.value)}
                           rows={3}
                           placeholder="Ex.: correção após conferência física"
-                          className="min-h-24 rounded-md border border-[#d1d5db] bg-white px-3 py-2 text-sm outline-none focus:border-[#4f46e5]"
+                          className="min-h-24 rounded-md border border-[#d1d5db] bg-white px-3 py-2 text-sm outline-none focus:border-[#8f3f59]"
                         />
                       </label>
                       <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 text-sm text-[#4b5563]">
@@ -14780,7 +14780,7 @@ export default function SistemaMacaroca() {
                         type="button"
                         onClick={registerInventoryAdjustment}
                         disabled={!adjustmentSelection || adjustmentQty <= 0 || !adjustmentReason.trim()}
-                        className="inline-flex h-11 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white disabled:opacity-40"
+                        className="inline-flex h-11 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white disabled:opacity-40"
                       >
                         Registrar ajuste
                       </button>
@@ -14820,7 +14820,7 @@ export default function SistemaMacaroca() {
                         value={auditSearch}
                         onChange={(event) => setAuditSearch(event.target.value)}
                         placeholder="Pedido, pessoa ou campo"
-                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                       />
                     </label>
                     <label className="grid gap-2">
@@ -14828,7 +14828,7 @@ export default function SistemaMacaroca() {
                       <select
                         value={auditActionFilter}
                         onChange={(event) => setAuditActionFilter(event.target.value as 'ALL' | AuditEvent['action'])}
-                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                       >
                         <option value="ALL">Todas</option>
                         <option value="INSERT">Criações</option>
@@ -14841,7 +14841,7 @@ export default function SistemaMacaroca() {
                       <select
                         value={auditEntityFilter}
                         onChange={(event) => setAuditEntityFilter(event.target.value)}
-                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                       >
                         <option value="ALL">Todas</option>
                         {auditEntityOptions.map((entity) => (
@@ -14856,7 +14856,7 @@ export default function SistemaMacaroca() {
                       <select
                         value={auditUserFilter}
                         onChange={(event) => setAuditUserFilter(event.target.value)}
-                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                       >
                         <option value="ALL">Todas</option>
                         {auditUserOptions.map((userName) => (
@@ -14869,7 +14869,7 @@ export default function SistemaMacaroca() {
                       <select
                         value={auditPeriodFilter}
                         onChange={(event) => setAuditPeriodFilter(event.target.value as '7' | '30' | 'ALL')}
-                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                        className="h-11 min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#733247]"
                       >
                         <option value="7">7 dias</option>
                         <option value="30">30 dias</option>
@@ -14932,7 +14932,7 @@ export default function SistemaMacaroca() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedAuditEvent(event)}
-                                className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[#3730a3] hover:text-[#3730a3]"
+                                className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[#733247] hover:text-[#733247]"
                               >
                                 Conferir
                               </button>
@@ -14978,7 +14978,7 @@ export default function SistemaMacaroca() {
                         onClick={() => setFinanceView(view)}
                         className={`min-h-10 shrink-0 rounded-md border px-3 text-sm font-medium transition ${
                           financeView === view
-                            ? 'border-[#312e81] bg-[#312e81] text-white'
+                            ? 'border-[#8f3f59] bg-[#8f3f59] text-white'
                             : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-white'
                         }`}
                       >
@@ -14992,7 +14992,7 @@ export default function SistemaMacaroca() {
                       type="month"
                       value={financeMonth}
                       onChange={(event) => setFinanceMonth(event.target.value || currentMonthValue())}
-                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#312e81]"
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#8f3f59]"
                     />
                   </label>
                 </div>
@@ -15100,7 +15100,7 @@ export default function SistemaMacaroca() {
                                 </div>
                                 <div className="grid gap-2 sm:justify-items-end">
                                   <strong>{money(entry.value)}</strong>
-                                  <button type="button" onClick={() => updateFinancePaid(entry.id, true)} className="h-9 rounded-md bg-[#111827] px-3 text-xs font-medium text-white">
+                                  <button type="button" onClick={() => updateFinancePaid(entry.id, true)} className="h-9 rounded-md bg-[#8f3f59] px-3 text-xs font-medium text-white">
                                     Marcar recebida
                                   </button>
                                 </div>
@@ -15127,7 +15127,7 @@ export default function SistemaMacaroca() {
                                 </div>
                                 <div className="grid gap-2 sm:justify-items-end">
                                   <strong>{money(entry.value)}</strong>
-                                  <button type="button" onClick={() => updateFinancePaid(entry.id, true)} className="h-9 rounded-md bg-[#111827] px-3 text-xs font-medium text-white">
+                                  <button type="button" onClick={() => updateFinancePaid(entry.id, true)} className="h-9 rounded-md bg-[#8f3f59] px-3 text-xs font-medium text-white">
                                     Marcar paga
                                   </button>
                                 </div>
@@ -15292,10 +15292,10 @@ export default function SistemaMacaroca() {
                         <SoftInput label="Vencimento / data" value={financeDueDate} onChange={setFinanceDueDate} />
                         <SoftNumber label="Valor" value={financeValue} onChange={setFinanceValue} />
                         <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
-                          <input type="checkbox" checked={financePaid} onChange={(event) => setFinancePaid(event.target.checked)} className="h-4 w-4 accent-[#3730a3]" />
+                          <input type="checkbox" checked={financePaid} onChange={(event) => setFinancePaid(event.target.checked)} className="h-4 w-4 accent-[#733247]" />
                           Já foi pago ou recebido
                         </label>
-                        <button type="button" onClick={addFinanceEntry} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white">
+                        <button type="button" onClick={addFinanceEntry} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white">
                           Registrar lançamento
                         </button>
                       </div>
@@ -15357,7 +15357,7 @@ function MobileSummaryPanel({
           <button
             type="button"
             onClick={onAction}
-            className="text-xs font-semibold text-[#3730a3]"
+            className="text-xs font-semibold text-[#733247]"
           >
             {actionLabel}
           </button>
@@ -15370,7 +15370,7 @@ function MobileSummaryPanel({
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="min-w-0 rounded-lg border border-[#e5e7eb] bg-white p-5 shadow-sm md:p-6">
+    <section className="min-w-0 rounded-lg border border-[#e1e4e6] bg-white p-5 shadow-sm md:p-6">
       <h2 className="mb-5 text-[1.08rem] font-semibold leading-tight tracking-tight text-slate-950 md:text-[1.18rem]">{title}</h2>
       {children}
     </section>
@@ -15440,11 +15440,11 @@ function PocketMetric({
   tone?: 'neutral' | 'green' | 'blue' | 'amber' | 'rose'
 }) {
   const toneClass = {
-    neutral: 'border-slate-200 border-l-slate-400 bg-white',
-    green: 'border-slate-200 border-l-emerald-600 bg-white',
-    blue: 'border-slate-200 border-l-indigo-600 bg-white',
-    amber: 'border-slate-200 border-l-amber-500 bg-white',
-    rose: 'border-slate-200 border-l-rose-500 bg-white',
+    neutral: 'border-[#e1e4e6] border-l-[#8a9499] bg-white',
+    green: 'border-[#c8e1d1] border-l-[#47705c] bg-[#f7fbf8]',
+    blue: 'border-[#cbdde7] border-l-[#4d6f86] bg-[#f5f9fb]',
+    amber: 'border-[#efd8a7] border-l-[#8a5a16] bg-[#fffbf2]',
+    rose: 'border-[#efc6cd] border-l-[#9b3c4b] bg-[#fff7f8]',
   }[tone]
 
   return (
@@ -15472,16 +15472,23 @@ function ModuleTile({
   onClick: () => void
 }) {
   const toneClass = {
-    dark: 'border-[#312e81] bg-[#312e81] text-white shadow-sm',
-    rose: 'border-slate-200 bg-white text-slate-950',
-    green: 'border-slate-200 bg-white text-slate-950',
-    blue: 'border-slate-200 bg-white text-slate-950',
-    amber: 'border-slate-200 bg-white text-slate-950',
-    neutral: 'border-slate-200 bg-white text-slate-950',
+    dark: 'border-[#8f3f59] bg-[#8f3f59] text-white shadow-sm',
+    rose: 'border-[#efc6cd] bg-[#fff7f8] text-slate-950',
+    green: 'border-[#c8e1d1] bg-[#f7fbf8] text-slate-950',
+    blue: 'border-[#cbdde7] bg-[#f5f9fb] text-slate-950',
+    amber: 'border-[#efd8a7] bg-[#fffbf2] text-slate-950',
+    neutral: 'border-[#e1e4e6] bg-white text-slate-950',
   }[tone]
   const mutedClass = tone === 'dark' ? 'text-white/70' : 'text-slate-500'
-  const iconClass = tone === 'dark' ? 'bg-white/12 text-white' : 'bg-slate-100 text-[#312e81]'
-  const badgeClass = tone === 'dark' ? 'bg-white/12 text-white/82' : 'bg-slate-100 text-slate-600'
+  const iconClass = {
+    dark: 'bg-white/12 text-white',
+    rose: 'bg-[#fff0f2] text-[#9b3c4b]',
+    green: 'bg-[#edf6f0] text-[#47705c]',
+    blue: 'bg-[#eef5f8] text-[#4d6f86]',
+    amber: 'bg-[#fff7e6] text-[#8a5a16]',
+    neutral: 'bg-[#faedf1] text-[#8f3f59]',
+  }[tone]
+  const badgeClass = tone === 'dark' ? 'bg-white/12 text-white/82' : 'bg-white/75 text-slate-600 ring-1 ring-black/5'
 
   return (
     <button
@@ -15499,7 +15506,7 @@ function ModuleTile({
         <strong className="block text-sm leading-5 sm:text-lg sm:leading-6">{title}</strong>
         <span className={`mt-2 hidden text-sm leading-5 sm:block ${mutedClass}`}>{detail}</span>
       </div>
-      <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium sm:mt-4 sm:gap-2 sm:text-sm ${tone === 'dark' ? 'text-white' : 'text-[#312e81]'}`}>
+      <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium sm:mt-4 sm:gap-2 sm:text-sm ${tone === 'dark' ? 'text-white' : 'text-[#8f3f59]'}`}>
         Abrir
         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
       </span>
@@ -15527,7 +15534,7 @@ function MobileViewSelect({
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-[#312e81] focus:ring-2 focus:ring-[#312e81]/15"
+        className="h-11 min-w-0 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-[#8f3f59] focus:ring-2 focus:ring-[#8f3f59]/15"
       >
         {options.map(([optionValue, optionLabel]) => (
           <option key={optionValue} value={optionValue}>
@@ -15588,12 +15595,12 @@ function ModuleSectionTabs({
               aria-current={isActive ? 'page' : undefined}
               className={`flex min-h-12 min-w-[152px] items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium leading-4 transition sm:min-w-0 sm:text-sm ${
                 isActive
-                  ? 'border-[#312e81] bg-[#312e81] text-white shadow-sm'
+                  ? 'border-[#8f3f59] bg-[#8f3f59] text-white shadow-sm'
                   : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-950'
               }`}
             >
               <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md [&_svg]:h-4 [&_svg]:w-4 ${
-                isActive ? 'bg-white/12' : 'bg-white text-[#312e81]'
+                isActive ? 'bg-white/12' : 'bg-white text-[#8f3f59]'
               }`}>
                 {item.icon}
               </span>
@@ -15657,12 +15664,12 @@ function ModuleHub({
             onClick={() => onOpen(item.key)}
             className={`group relative grid min-h-[138px] grid-cols-1 grid-rows-[40px_1fr] gap-2 rounded-lg border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[170px] sm:grid-cols-[48px_minmax(0,1fr)] sm:grid-rows-none sm:gap-4 sm:p-5 ${
               item.primary
-                ? 'border-[#312e81] bg-[#312e81] text-white'
+                ? 'border-[#8f3f59] bg-[#8f3f59] text-white'
                 : 'border-slate-200 bg-white text-slate-950 hover:border-slate-300'
             } ${items.length % 2 === 1 && index === items.length - 1 ? 'sm:col-span-2' : ''}`}
           >
             <span className={`grid h-10 w-10 place-items-center rounded-md sm:h-12 sm:w-12 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-5 sm:[&_svg]:w-5 ${
-              item.primary ? 'bg-white/12 text-white' : 'bg-slate-100 text-[#312e81]'
+              item.primary ? 'bg-white/12 text-white' : 'bg-[#faedf1] text-[#8f3f59]'
             }`}>
               {item.icon}
             </span>
@@ -15671,7 +15678,7 @@ function ModuleHub({
               <span className={`mt-2 hidden text-sm leading-5 sm:block ${item.primary ? 'text-white/72' : 'text-slate-500'}`}>
                 {item.detail}
               </span>
-              <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium sm:mt-4 sm:gap-2 sm:text-sm ${item.primary ? 'text-white' : 'text-[#312e81]'}`}>
+              <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium sm:mt-4 sm:gap-2 sm:text-sm ${item.primary ? 'text-white' : 'text-[#8f3f59]'}`}>
                 Abrir
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </span>
@@ -15723,7 +15730,7 @@ function MiniStat({
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
     <div className="min-w-0 rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-3 shadow-[0_8px_24px_rgba(49,35,30,0.035)] sm:p-4">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-[#eef2ff] text-[#3730a3] sm:mb-4 sm:h-9 sm:w-9 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-5 sm:[&_svg]:w-5">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-[#faedf1] text-[#8f3f59] sm:mb-4 sm:h-9 sm:w-9 [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-5 sm:[&_svg]:w-5">
         {icon}
       </div>
       <span className="block text-xs leading-4 text-black/50 sm:text-sm">{label}</span>
@@ -15750,7 +15757,7 @@ function DashboardBlock({
           <span className="text-sm text-black/50">{title}</span>
           <strong className="mt-1 block text-3xl font-semibold">{value}</strong>
         </div>
-        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#eef2ff] text-[#3730a3] [&_svg]:h-5 [&_svg]:w-5">
+        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#faedf1] text-[#8f3f59] [&_svg]:h-5 [&_svg]:w-5">
           {icon}
         </span>
       </div>
@@ -15794,7 +15801,7 @@ function SmartAlertList({ alerts, limit }: { alerts: SmartAlert[]; limit?: numbe
           <button
             type="button"
             onClick={alert.onClick}
-            className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#111827] px-4 text-sm font-medium text-white transition hover:bg-[#3730a3]"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white transition hover:bg-[#733247]"
           >
             {alert.actionLabel}
           </button>
@@ -15807,13 +15814,13 @@ function SmartAlertList({ alerts, limit }: { alerts: SmartAlert[]; limit?: numbe
 function OrderTimeline({ items }: { items: OrderTimelineItem[] }) {
   const statusClass: Record<TimelineStatus, string> = {
     done: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-    current: 'border-[#c7d2fe] bg-[#eef2ff] text-[#3730a3]',
+    current: 'border-[#e9c7d1] bg-[#faedf1] text-[#733247]',
     pending: 'border-[#e5e7eb] bg-[#ffffff] text-black/42',
   }
 
   const dotClass: Record<TimelineStatus, string> = {
     done: 'bg-emerald-600',
-    current: 'bg-[#3730a3]',
+    current: 'bg-[#8f3f59]',
     pending: 'bg-[#d1d5db]',
   }
 
@@ -15877,14 +15884,14 @@ function StepButton({
       onClick={onClick}
       className={`flex min-h-12 items-center gap-3 rounded-md border px-3 text-left text-sm transition ${
         active
-          ? 'border-[#818cf8] bg-[#eef2ff] text-[#1f2937]'
+          ? 'border-[#dca7b7] bg-[#faedf1] text-[#542535]'
           : done
             ? 'border-[#e5e7eb] bg-[#ffffff] text-black/70'
             : 'border-[#e5e7eb] bg-[#ffffff] text-black/55'
       }`}
     >
       <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${
-        active || done ? 'bg-[#111827] text-white' : 'bg-[#f3f4f6] text-black/55'
+        active ? 'bg-[#8f3f59] text-white' : done ? 'bg-[#47705c] text-white' : 'bg-[#f3f4f6] text-black/55'
       }`}>
         {done ? 'OK' : number}
       </span>
@@ -15916,7 +15923,7 @@ function FlowButtons({
       <button
         type="button"
         onClick={onNext}
-        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+        className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
       >
         {nextLabel}
         <ArrowRight className="h-4 w-4" />
@@ -15942,13 +15949,13 @@ function QuickTaskButton({
       onClick={onClick}
       className="group flex min-h-[104px] items-start gap-4 rounded-lg border border-[#e5e7eb] bg-[#ffffff] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#9ca3af] hover:bg-[#ffffff] hover:shadow-[0_12px_28px_rgba(49,35,30,0.065)]"
     >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-[#111827] text-white transition group-hover:bg-[#3730a3] [&_svg]:h-5 [&_svg]:w-5">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-[#8f3f59] text-white transition group-hover:bg-[#733247] [&_svg]:h-5 [&_svg]:w-5">
         {icon}
       </span>
       <span className="min-w-0">
         <strong className="block text-lg font-medium">{title}</strong>
         <span className="mt-1 block text-sm leading-5 text-black/52">{detail}</span>
-        <span className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[#3730a3]">
+        <span className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[#733247]">
           Abrir
           <ArrowRight className="h-4 w-4" />
         </span>
@@ -15981,7 +15988,7 @@ function PricePanel({
   return (
     <aside className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-indigo-50 text-[#312e81]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#faedf1] text-[#8f3f59]">
           <Calculator className="h-5 w-5" />
         </div>
         <div>
@@ -16011,7 +16018,7 @@ function PriceLine({ label, value, featured = false }: { label: string; value: s
   return (
     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
       <span className="text-sm text-slate-500">{label}</span>
-      <strong className={featured ? 'text-2xl text-[#312e81]' : 'text-lg text-slate-900'}>{value}</strong>
+      <strong className={featured ? 'text-2xl text-[#8f3f59]' : 'text-lg text-slate-900'}>{value}</strong>
     </div>
   )
 }
@@ -16037,7 +16044,7 @@ function PercentControl({
         max="60"
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="accent-[#312e81]"
+        className="accent-[#8f3f59]"
       />
     </label>
   )
@@ -16073,7 +16080,7 @@ function SoftInput({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#8f3f59] focus:bg-white"
       />
     </label>
   )
@@ -16100,7 +16107,7 @@ function SuggestionInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Escolha ou digite"
-        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#8f3f59] focus:bg-white"
       />
       <datalist id={listId}>
         {options.map((option) => (
@@ -16130,7 +16137,7 @@ function UnitInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Escolha ou digite"
-        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#8f3f59] focus:bg-white"
       />
       <datalist id={listId}>
         {measurementUnits.map((unit) => (
@@ -16159,7 +16166,7 @@ function SoftTextarea({
         value={value}
         rows={4}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-28 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#4f46e5] focus:bg-white"
+        className="min-h-28 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 py-3 text-sm outline-none transition placeholder:text-black/30 focus:border-[#8f3f59] focus:bg-white"
       />
     </label>
   )
@@ -16185,7 +16192,7 @@ function SoftNumber({
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition focus:border-[#4f46e5] focus:bg-white"
+        className="h-11 min-w-0 rounded-md border border-[#e5e7eb] bg-[#ffffff] px-3 text-sm outline-none transition focus:border-[#8f3f59] focus:bg-white"
       />
     </label>
   )
@@ -16247,8 +16254,8 @@ function AuditEventDialog({
                       <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Antes</span>
                       <span className="mt-1 block break-words text-sm text-slate-700">{auditValuePreview(change.before)}</span>
                     </div>
-                    <div className="min-w-0 rounded-md border border-indigo-200 bg-indigo-50/60 p-3">
-                      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-500">Depois</span>
+                    <div className="min-w-0 rounded-md border border-[#e9c7d1] bg-[#faedf1] p-3">
+                      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8f3f59]">Depois</span>
                       <span className="mt-1 block break-words text-sm text-slate-900">{auditValuePreview(change.after)}</span>
                     </div>
                   </div>
@@ -16337,7 +16344,7 @@ function ProductionDecisionPreview({
                 min={1}
                 value={qty}
                 onChange={(event) => onQtyChange(Math.max(1, Number(event.target.value)))}
-                className="h-11 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#3730a3]"
+                className="h-11 rounded-md border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#733247]"
               />
             </label>
           </div>
@@ -16359,7 +16366,7 @@ function ProductionDecisionPreview({
             <button
               type="button"
               onClick={onConfirm}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
             >
               Gerar OP com {qty} un
               <ArrowRight className="h-4 w-4" />
@@ -16410,7 +16417,7 @@ function ProductionOrderPreview({
             <button
               type="button"
               onClick={onDownloadPdf}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
             >
               <FileText className="h-4 w-4" />
               Baixar PDF
@@ -16436,7 +16443,7 @@ function ProductionOrderPreview({
 
         <div className="overflow-auto bg-[#f5f5f3] p-5">
           <article className="mx-auto max-w-5xl overflow-hidden rounded-md border border-black/10 bg-white text-[#111] shadow-sm">
-            <header className="grid gap-6 border-b-2 border-[#111827] bg-[#f9fafb] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
+            <header className="grid gap-6 border-b-2 border-[#8f3f59] bg-[#f9fafb] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
               <div className={`flex h-24 items-center justify-center rounded-md border border-black/10 px-5 ${brandDoc.darkLogo ? 'bg-[#111]' : 'bg-white'}`}>
                 <img src={brandDoc.logo} alt={brandDoc.name} className="max-h-20 w-auto object-contain" />
               </div>
@@ -16757,7 +16764,7 @@ function OrderBudgetPreview({
             <button
               type="button"
               onClick={onDownloadPdf}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#111827] px-4 text-sm font-medium text-white"
+              className="inline-flex h-10 items-center gap-2 rounded-md bg-[#8f3f59] px-4 text-sm font-medium text-white"
             >
               <FileText className="h-4 w-4" />
               Baixar PDF
@@ -16783,7 +16790,7 @@ function OrderBudgetPreview({
 
         <div className="overflow-auto bg-[#f5f5f3] p-5">
           <article className="mx-auto max-w-5xl overflow-hidden rounded-md border border-black/10 bg-white text-[#111] shadow-sm">
-            <header className="grid gap-6 border-b-2 border-[#111827] bg-[#f9fafb] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
+            <header className="grid gap-6 border-b-2 border-[#8f3f59] bg-[#f9fafb] p-6 md:grid-cols-[240px_1fr_220px] md:items-center">
               <div className={`flex h-24 items-center justify-center rounded-md border border-black/10 px-5 ${brandDoc.darkLogo ? 'bg-[#111]' : 'bg-white'}`}>
                 <img src={brandDoc.logo} alt={brandDoc.name} className="max-h-20 w-auto object-contain" />
               </div>
@@ -16857,7 +16864,7 @@ function OrderBudgetPreview({
                   </>
                 )}
               </div>
-              <div className="rounded-md border border-[#111827] p-4 text-sm">
+              <div className="rounded-md border border-[#8f3f59] p-4 text-sm">
                 <div className="flex justify-between border-b border-black/10 pb-3">
                   <span>Valor unitário</span>
                   <strong>{money(unitPrice)}</strong>
@@ -17287,11 +17294,11 @@ function priorityWeight(priority: ProductionPriority) {
 
 function StatusBadge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'green' | 'blue' | 'amber' | 'rose' }) {
   const toneClass = {
-    neutral: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
-    green: 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200',
-    blue: 'bg-sky-50 text-sky-800 ring-1 ring-sky-200',
-    amber: 'bg-amber-50 text-amber-800 ring-1 ring-amber-200',
-    rose: 'bg-rose-50 text-rose-800 ring-1 ring-rose-200',
+    neutral: 'bg-[#f1f3f3] text-[#566065] ring-1 ring-[#dfe3e4]',
+    green: 'bg-[#edf6f0] text-[#365d49] ring-1 ring-[#c8e1d1]',
+    blue: 'bg-[#eef5f8] text-[#3f6178] ring-1 ring-[#cbdde7]',
+    amber: 'bg-[#fff7e6] text-[#7a5015] ring-1 ring-[#efd8a7]',
+    rose: 'bg-[#fff0f2] text-[#8f3444] ring-1 ring-[#efc6cd]',
   }[tone]
 
   return <span className={`rounded-md px-2 py-1 text-xs font-medium ${toneClass}`}>{children}</span>
@@ -17353,7 +17360,7 @@ function IndicatorActionRow({
         <button
           type="button"
           onClick={onAction}
-          className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-[#312e81] transition hover:border-slate-300 hover:bg-slate-50"
+          className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-md border border-[#e9c7d1] bg-white px-3 text-xs font-semibold text-[#8f3f59] transition hover:bg-[#faedf1]"
         >
           {actionLabel}
         </button>
