@@ -102,7 +102,7 @@ type FinanceCategory =
   | 'Outro'
 type FinanceView = 'resumo' | 'resultados' | 'caixa' | 'lancamentos'
 type IndicatorView = 'resumo' | 'atencao' | 'producao' | 'produtos' | 'estoque'
-type ImplementationView = 'resumo' | 'validacao' | 'treinamento' | 'equipe' | 'duvidas'
+type ImplementationView = 'resumo' | 'validacao' | 'treinamento' | 'equipe' | 'duvidas' | 'estabilidade'
 type TimelineStatus = 'done' | 'current' | 'pending'
 type TechnicalSheetStatus = 'Rascunho' | 'Aprovada' | 'Desativada'
 type PriceApprovalStatus = 'Não necessária' | 'Pendente' | 'Aprovada' | 'Recusada'
@@ -2216,6 +2216,26 @@ const helpGuides: HelpGuide[] = [
     ],
   },
   {
+    id: 'manter-sistema-estavel',
+    category: 'Começar a usar',
+    title: 'Como conferir a estabilidade do sistema',
+    summary: 'Revise conexão, integridade dos dados, backup e prontidão antes de ampliar o uso diário.',
+    keywords: ['estabilidade', 'saúde', 'integridade', 'backup', 'sincronização', 'erro', 'liberar uso'],
+    target: 'implantacao',
+    action: 'Abrir estabilidade',
+    steps: [
+      'Abra Gestão e escolha Implantação com a equipe.',
+      'Entre na aba Estabilidade.',
+      'Confira primeiro os erros críticos, pois eles podem comprometer vínculos ou saldos.',
+      'Abra cada ação indicada e corrija o cadastro ou processo relacionado.',
+      'Use Atualizar do banco para confirmar que o aparelho está com os dados compartilhados mais recentes.',
+      'No perfil Admin, baixe um backup completo em JSON pelo menos uma vez por semana.',
+      'Use a exportação para Excel quando precisar conferir os registros em uma planilha.',
+      'Conclua os fluxos, treinamentos, responsabilidades e o inventário indicados no checklist.',
+      'Considere a implantação encerrada somente quando todas as condições estiverem atendidas.',
+    ],
+  },
+  {
     id: 'novo-orcamento',
     category: 'Vendas',
     title: 'Como criar um orçamento',
@@ -2733,6 +2753,9 @@ export default function SistemaMacaroca() {
   const [implementationView, setImplementationView] = useState<ImplementationView>('resumo')
   const [implementationUserId, setImplementationUserId] = useState('')
   const [implementationQuestion, setImplementationQuestion] = useState('')
+  const [lastBackupAt, setLastBackupAt] = useState(() =>
+    typeof window === 'undefined' ? '' : window.localStorage.getItem('macaroca-last-backup-at') ?? '',
+  )
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [moduleContext, setModuleContext] = useState<Area | null>(null)
@@ -6665,11 +6688,14 @@ export default function SistemaMacaroca() {
   ]
 
   const exportBackupJson = () => {
+    const exportedAt = new Date().toISOString()
     downloadTextFile(
       `macaroca-backup-${fileDateTime()}.json`,
-      JSON.stringify({ exportedAt: new Date().toISOString(), storageKey, data: state }, null, 2),
+      JSON.stringify({ exportedAt, storageKey, data: state }, null, 2),
       'application/json;charset=utf-8',
     )
+    window.localStorage.setItem('macaroca-last-backup-at', exportedAt)
+    setLastBackupAt(exportedAt)
     setMessage('Backup completo em JSON exportado.')
   }
 
@@ -7989,6 +8015,236 @@ export default function SistemaMacaroca() {
   const completedValidationScenarios = validationScenarios.filter(
     (scenario) => scenario.complete,
   ).length
+  const trackedIdCollections = [
+    { name: 'usuários', values: state.users },
+    { name: 'marcas', values: state.brands },
+    { name: 'matérias-primas', values: state.rawMaterials },
+    { name: 'fornecedores', values: state.suppliers },
+    { name: 'clientes', values: state.customers },
+    { name: 'produtos', values: state.products },
+    { name: 'compras', values: state.purchaseOrders },
+    { name: 'notas de compra', values: state.purchaseNotes },
+    { name: 'pedidos', values: state.orders },
+    { name: 'ordens de produção', values: state.productionOrders },
+    { name: 'movimentações', values: state.inventoryEntries },
+    { name: 'lançamentos financeiros', values: state.cashEntries },
+  ]
+  const duplicateRecordIds = trackedIdCollections.flatMap((collection) => {
+    const seen = new Set<string>()
+    const duplicated = new Set<string>()
+    collection.values.forEach((item) => {
+      if (seen.has(item.id)) duplicated.add(item.id)
+      seen.add(item.id)
+    })
+    return [...duplicated].map((id) => `${collection.name}: ${id}`)
+  })
+  const orphanOrders = state.orders.filter(
+    (order) => !state.products.some((product) => product.id === order.productId),
+  )
+  const orphanProductionOrders = state.productionOrders.filter(
+    (op) =>
+      !state.products.some((product) => product.id === op.productId) ||
+      Boolean(op.orderId && !state.orders.some((order) => order.id === op.orderId)),
+  )
+  const invalidProductionOrders = state.productionOrders.filter(
+    (op) => op.qty <= 0 || op.produced < 0 || op.produced > op.qty,
+  )
+  const invalidInventoryEntries = state.inventoryEntries.filter(
+    (entry) => entry.qty <= 0 || !entry.item.trim() || !entry.source.trim(),
+  )
+  const incompleteOrders = state.orders.filter(
+    (order) =>
+      order.status !== 'Cancelado' &&
+      (!order.client.trim() || !order.dueDate || order.qty <= 0 || orderUnitPrice(state, order) <= 0),
+  )
+  const incompleteProducts = state.products.filter(
+    (product) =>
+      product.active !== false &&
+      (!productSalePrice(product) ||
+        productMaterials(product).length === 0 ||
+        !product.variations.some(
+          (variation) =>
+            variation.sheetStatus === 'Aprovada' &&
+            productMaterials(product, variation.id).length > 0,
+        )),
+  )
+  const invalidMaterials = state.rawMaterials.filter(
+    (material) =>
+      !material.name.trim() ||
+      !material.unit.trim() ||
+      !material.purchaseUnit.trim() ||
+      material.purchaseToStockFactor <= 0 ||
+      material.avgCost < 0 ||
+      material.minimumStock < 0,
+  )
+  const negativeStockItems = [
+    ...stock.rawItems.filter((item) => item.qty < 0),
+    ...stock.finishedItems.filter((item) => item.qty < 0),
+  ]
+  const pendingPriceApprovals = state.orders.filter(
+    (order) =>
+      order.status !== 'Cancelado' &&
+      order.pricing?.approvalStatus === 'Pendente',
+  )
+  const backupAgeDays = lastBackupAt
+    ? Math.max(0, Math.floor((Date.now() - new Date(lastBackupAt).getTime()) / 86400000))
+    : Number.POSITIVE_INFINITY
+  const recentBackup = backupAgeDays <= 7
+  const stabilityIssues: {
+    id: string
+    severity: 'Crítico' | 'Atenção'
+    title: string
+    detail: string
+    target: Area
+    action: string
+  }[] = []
+  if (syncStatus !== 'Compartilhado' && syncStatus !== 'Salvando') {
+    stabilityIssues.push({
+      id: 'conexao',
+      severity: 'Crítico',
+      title: 'Banco compartilhado não confirmado',
+      detail: `Situação atual: ${syncStatus}. Alterações podem ficar somente neste aparelho.`,
+      target: 'configuracoes',
+      action: 'Conferir conexão',
+    })
+  }
+  if (duplicateRecordIds.length) {
+    stabilityIssues.push({
+      id: 'duplicados',
+      severity: 'Crítico',
+      title: 'Identificadores duplicados',
+      detail: `${duplicateRecordIds.length} duplicidade(s): ${duplicateRecordIds.slice(0, 3).join(', ')}.`,
+      target: 'historico',
+      action: 'Abrir histórico',
+    })
+  }
+  if (orphanOrders.length || orphanProductionOrders.length) {
+    stabilityIssues.push({
+      id: 'vinculos',
+      severity: 'Crítico',
+      title: 'Registros com vínculos quebrados',
+      detail: `${orphanOrders.length} pedido(s) sem produto e ${orphanProductionOrders.length} OP(s) sem pedido ou produto relacionado.`,
+      target: orphanOrders.length ? 'vendas' : 'producao',
+      action: 'Revisar vínculos',
+    })
+  }
+  if (invalidProductionOrders.length || invalidInventoryEntries.length) {
+    stabilityIssues.push({
+      id: 'quantidades',
+      severity: 'Crítico',
+      title: 'Quantidades inconsistentes',
+      detail: `${invalidProductionOrders.length} OP(s) e ${invalidInventoryEntries.length} movimentação(ões) precisam de revisão.`,
+      target: invalidProductionOrders.length ? 'producao' : 'movimentacoes',
+      action: 'Revisar quantidades',
+    })
+  }
+  if (negativeStockItems.length) {
+    stabilityIssues.push({
+      id: 'estoque-negativo',
+      severity: 'Crítico',
+      title: 'Saldo negativo em estoque',
+      detail: `${negativeStockItems.length} item(ns) estão com saldo abaixo de zero.`,
+      target: 'estoque',
+      action: 'Conferir estoque',
+    })
+  }
+  if (incompleteOrders.length) {
+    stabilityIssues.push({
+      id: 'pedidos-incompletos',
+      severity: 'Atenção',
+      title: 'Pedidos com dados essenciais pendentes',
+      detail: `${incompleteOrders.length} pedido(s) sem cliente, prazo, quantidade ou preço válido.`,
+      target: 'vendas',
+      action: 'Revisar pedidos',
+    })
+  }
+  if (incompleteProducts.length) {
+    stabilityIssues.push({
+      id: 'produtos-incompletos',
+      severity: 'Atenção',
+      title: 'Produtos ainda não prontos para uso',
+      detail: `${incompleteProducts.length} produto(s) ativo(s) precisam de preço, materiais ou ficha aprovada.`,
+      target: 'produtos',
+      action: 'Revisar produtos',
+    })
+  }
+  if (invalidMaterials.length) {
+    stabilityIssues.push({
+      id: 'materiais-incompletos',
+      severity: 'Atenção',
+      title: 'Matérias-primas com configuração incompleta',
+      detail: `${invalidMaterials.length} material(is) precisam de unidade, conversão, custo ou estoque mínimo válido.`,
+      target: 'materias',
+      action: 'Revisar materiais',
+    })
+  }
+  if (pendingPriceApprovals.length) {
+    stabilityIssues.push({
+      id: 'precos-pendentes',
+      severity: 'Atenção',
+      title: 'Preços aguardando aprovação',
+      detail: `${pendingPriceApprovals.length} pedido(s) possuem negociação abaixo do limite ou pendente de decisão.`,
+      target: 'vendas',
+      action: 'Revisar preços',
+    })
+  }
+  if (!recentBackup) {
+    stabilityIssues.push({
+      id: 'backup',
+      severity: 'Atenção',
+      title: 'Backup semanal pendente neste aparelho',
+      detail: lastBackupAt
+        ? `O último backup deste aparelho foi feito há ${backupAgeDays} dia(s).`
+        : 'Ainda não há registro de backup completo neste aparelho.',
+      target: 'configuracoes',
+      action: 'Abrir backup',
+    })
+  }
+  const stabilityCriticalCount = stabilityIssues.filter(
+    (issue) => issue.severity === 'Crítico',
+  ).length
+  const stabilityWarningCount = stabilityIssues.length - stabilityCriticalCount
+  const stabilityScore = Math.max(
+    0,
+    100 - stabilityCriticalCount * 20 - stabilityWarningCount * 5,
+  )
+  const dailyOperationChecks = [
+    {
+      label: 'Banco compartilhado ativo',
+      complete: syncStatus === 'Compartilhado' || syncStatus === 'Salvando',
+    },
+    {
+      label: 'Nenhum erro crítico de integridade',
+      complete: stabilityCriticalCount === 0,
+    },
+    {
+      label: 'Backup completo nos últimos 7 dias',
+      complete: recentBackup,
+    },
+    {
+      label: 'Todos os fluxos principais validados',
+      complete: completedValidationScenarios === validationScenarios.length,
+    },
+    {
+      label: 'Treinamento de toda a equipe concluído',
+      complete: teamTrainingTotal > 0 && teamTrainingCompleted === teamTrainingTotal,
+    },
+    {
+      label: 'Responsáveis definidos para todas as rotinas',
+      complete: implementationOverview.assignedResponsibilities === implementationAreas.length,
+    },
+    {
+      label: 'Inventário inicial concluído',
+      complete:
+        implementationOverview.expectedInventoryItems > 0 &&
+        implementationOverview.countedItems >= implementationOverview.expectedInventoryItems,
+    },
+    {
+      label: 'Nenhuma dúvida de implantação aberta',
+      complete: implementationOverview.openQuestions === 0,
+    },
+  ]
+  const dailyOperationCompleted = dailyOperationChecks.filter((check) => check.complete).length
   const implementationReadinessChecks = [
     {
       label: 'Usuários individuais',
@@ -9874,6 +10130,7 @@ export default function SistemaMacaroca() {
                       ['validacao', 'Validar fluxos'],
                       ['treinamento', 'Treinamento'],
                       ['equipe', 'Responsabilidades'],
+                      ['estabilidade', 'Estabilidade'],
                       ['duvidas', 'Dúvidas e melhorias'],
                     ]}
                     onChange={(value) => setImplementationView(value as ImplementationView)}
@@ -9887,6 +10144,7 @@ export default function SistemaMacaroca() {
                       ['validacao', 'Validar fluxos'],
                       ['treinamento', 'Treinamento'],
                       ['equipe', 'Responsabilidades'],
+                      ['estabilidade', 'Estabilidade'],
                       ['duvidas', 'Dúvidas e melhorias'],
                     ] as [ImplementationView, string][]).map(([view, label]) => (
                       <button
@@ -10296,6 +10554,196 @@ export default function SistemaMacaroca() {
                       })}
                     </div>
                   </Panel>
+                )}
+
+                {implementationView === 'estabilidade' && (
+                  <div className="grid gap-5">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+                      <PocketMetric
+                        label="Saúde do sistema"
+                        value={`${stabilityScore}%`}
+                        detail={`${stabilityIssues.length} ponto(s) para revisar`}
+                        tone={stabilityCriticalCount ? 'rose' : stabilityWarningCount ? 'amber' : 'green'}
+                      />
+                      <PocketMetric
+                        label="Erros críticos"
+                        value={stabilityCriticalCount.toString()}
+                        detail="Podem comprometer saldos ou vínculos"
+                        tone={stabilityCriticalCount ? 'rose' : 'green'}
+                      />
+                      <PocketMetric
+                        label="Pontos de atenção"
+                        value={stabilityWarningCount.toString()}
+                        detail="Não bloqueiam, mas precisam de revisão"
+                        tone={stabilityWarningCount ? 'amber' : 'green'}
+                      />
+                      <PocketMetric
+                        label="Último backup"
+                        value={
+                          lastBackupAt
+                            ? backupAgeDays === 0
+                              ? 'Hoje'
+                              : `${backupAgeDays} dia(s)`
+                            : 'Pendente'
+                        }
+                        detail="Recomendação: uma vez por semana"
+                        tone={recentBackup ? 'green' : 'amber'}
+                      />
+                    </div>
+
+                    <div
+                      className={`rounded-md border p-4 ${
+                        stabilityCriticalCount
+                          ? 'border-rose-200 bg-rose-50 text-rose-950'
+                          : stabilityWarningCount
+                            ? 'border-amber-200 bg-amber-50 text-amber-950'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-950'
+                      }`}
+                    >
+                      <strong className="block">
+                        {stabilityCriticalCount
+                          ? 'O sistema precisa de correções antes da liberação total'
+                          : stabilityWarningCount
+                            ? 'O sistema está operacional, com ajustes preventivos pendentes'
+                            : 'O sistema está estável para a rotina diária'}
+                      </strong>
+                      <p className="mt-1 text-sm leading-6">
+                        A análise verifica conexão, vínculos, quantidades, estoque, preços, cadastros e segurança de recuperação.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+                      <Panel title="Auditoria de integridade">
+                        <div className="grid gap-3">
+                          {stabilityIssues.map((issue) => (
+                            <IndicatorActionRow
+                              key={issue.id}
+                              badge={issue.severity}
+                              tone={issue.severity === 'Crítico' ? 'rose' : 'amber'}
+                              title={issue.title}
+                              detail={issue.detail}
+                              value={issue.severity === 'Crítico' ? 'Corrigir' : 'Revisar'}
+                              actionLabel={issue.id === 'backup' && userRole === 'Admin' ? 'Fazer backup' : issue.action}
+                              onAction={() => {
+                                if (issue.id === 'backup' && userRole === 'Admin') {
+                                  exportBackupJson()
+                                  return
+                                }
+                                setActiveArea(issue.target)
+                              }}
+                            />
+                          ))}
+                          {!stabilityIssues.length && (
+                            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-5 text-center text-sm text-emerald-900">
+                              Nenhuma inconsistência encontrada. Continue realizando o backup semanal e acompanhando os alertas.
+                            </div>
+                          )}
+                        </div>
+                      </Panel>
+
+                      <Panel title="Controle e recuperação">
+                        <div className="grid gap-3">
+                          <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                            <span className="text-xs font-semibold uppercase tracking-[0.06em] text-slate-400">
+                              Banco compartilhado
+                            </span>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <StatusBadge
+                                tone={
+                                  syncStatus === 'Compartilhado'
+                                    ? 'green'
+                                    : syncStatus === 'Salvando'
+                                      ? 'blue'
+                                      : 'rose'
+                                }
+                              >
+                                {syncStatus}
+                              </StatusBadge>
+                              {lastCloudSync && (
+                                <span className="text-xs text-slate-500">
+                                  {formatDateTime(lastCloudSync)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-2 text-sm leading-5 text-slate-600">{syncDetail}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (normalizedStoreEnabled && authProfile) {
+                                void loadNormalizedState('Dados conferidos manualmente com o banco compartilhado.')
+                              } else {
+                                void loadCloudState()
+                              }
+                            }}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#312e81] px-4 text-sm font-semibold text-white"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            Atualizar do banco
+                          </button>
+                          {userRole === 'Admin' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={exportBackupJson}
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800"
+                              >
+                                <ShieldCheck className="h-4 w-4" />
+                                Baixar backup completo
+                              </button>
+                              <button
+                                type="button"
+                                onClick={exportBackupCsv}
+                                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Exportar dados para Excel
+                              </button>
+                            </>
+                          ) : (
+                            <p className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                              O backup completo fica disponível somente para o perfil Admin.
+                            </p>
+                          )}
+                        </div>
+                      </Panel>
+                    </div>
+
+                    <Panel title="Checklist para liberar o uso diário">
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        {dailyOperationChecks.map((check) => (
+                          <div
+                            key={check.label}
+                            className={`flex min-w-0 items-start gap-2 rounded-md border px-3 py-3 text-sm ${
+                              check.complete
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                                : 'border-slate-200 bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <span className="font-bold" aria-hidden="true">{check.complete ? '✓' : '○'}</span>
+                            <span className="break-words">{check.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex flex-col justify-between gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
+                        <div>
+                          <strong className="text-slate-950">
+                            {dailyOperationCompleted} de {dailyOperationChecks.length} condições atendidas
+                          </strong>
+                          <p className="mt-1 text-sm text-slate-500">
+                            Conclua os itens pendentes antes de considerar a implantação encerrada.
+                          </p>
+                        </div>
+                        <StatusBadge
+                          tone={dailyOperationCompleted === dailyOperationChecks.length ? 'green' : 'blue'}
+                        >
+                          {dailyOperationCompleted === dailyOperationChecks.length
+                            ? 'Liberado para uso'
+                            : 'Implantação em andamento'}
+                        </StatusBadge>
+                      </div>
+                    </Panel>
+                  </div>
                 )}
 
                 {implementationView === 'duvidas' && (
