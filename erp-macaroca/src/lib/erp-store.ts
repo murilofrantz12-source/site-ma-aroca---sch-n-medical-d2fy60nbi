@@ -97,6 +97,7 @@ const stateRecords = (state: Record<string, unknown>) => {
     data: {
       tax: state.tax ?? 0,
       commission: state.commission ?? 0,
+      variableCost: state.variableCost ?? 0,
       fixedCost: state.fixedCost ?? 0,
       profit: state.profit ?? 0,
     },
@@ -149,6 +150,7 @@ export async function loadErpState(
   if (pricing) {
     nextState.tax = pricing.data.tax ?? 0
     nextState.commission = pricing.data.commission ?? 0
+    nextState.variableCost = pricing.data.variableCost ?? 0
     nextState.fixedCost = pricing.data.fixedCost ?? 0
     nextState.profit = pricing.data.profit ?? 0
   }

@@ -314,6 +314,7 @@ type OrderPricing = {
   negotiatedPrice: number
   tax: number
   commission: number
+  variableCost: number
   fixedCost: number
   desiredProfit: number
   realProfit: number
@@ -466,6 +467,7 @@ type AppState = {
   cashEntries: CashEntry[]
   tax: number
   commission: number
+  variableCost: number
   fixedCost: number
   profit: number
 }
@@ -937,6 +939,7 @@ const initialState: AppState = {
   ],
   tax: 5,
   commission: 10,
+  variableCost: 0,
   fixedCost: 0,
   profit: 52,
 }
@@ -1116,6 +1119,7 @@ const normalizeState = (state: AppState, includePrototypeDefaults = true): AppSt
     customers,
     tax: state.tax ?? 5,
     commission: looksLikeOldPriceProfile ? 10 : state.commission,
+    variableCost: state.variableCost ?? 0,
     fixedCost: looksLikeOldPriceProfile ? 0 : state.fixedCost,
     profit: looksLikeOldPriceProfile ? 52 : state.profit,
     products: mergeById(includePrototypeDefaults ? initialState.products : [], state.products).map((product) => {
@@ -1344,6 +1348,7 @@ const auditFieldLabels: Record<string, string> = {
   client: 'Cliente',
   color: 'Cor',
   commission: 'Comissão',
+  variableCost: 'Outros custos variáveis',
   cost: 'Custo',
   createdAt: 'Data de criação',
   createdBy: 'Criado por',
@@ -1791,8 +1796,15 @@ const productionOrderMissingMaterials = (state: AppState, product: Product, op: 
     })
     .filter((item) => item.missing > 0)
 
-const idealPrice = (cost: number, tax: number, commission: number, fixedCost: number, profit: number) => {
-  const divider = 1 - (tax + commission + fixedCost + profit) / 100
+const idealPrice = (
+  cost: number,
+  tax: number,
+  commission: number,
+  variableCost: number,
+  fixedCost: number,
+  profit: number,
+) => {
+  const divider = 1 - (tax + commission + variableCost + fixedCost + profit) / 100
   return divider > 0 ? cost / divider : 0
 }
 
@@ -1801,13 +1813,14 @@ const priceBreakdown = (
   negotiatedPrice: number,
   tax: number,
   commission: number,
+  variableCost: number,
   fixedCost: number,
   desiredProfit: number,
   officialPrice = 0,
 ) => {
-  const variableRate = Math.max(0, tax + commission + fixedCost)
-  const minimumPrice = idealPrice(cost, tax, commission, fixedCost, 0)
-  const suggestedPrice = idealPrice(cost, tax, commission, fixedCost, desiredProfit)
+  const variableRate = Math.max(0, tax + commission + variableCost + fixedCost)
+  const minimumPrice = idealPrice(cost, tax, commission, variableCost, fixedCost, 0)
+  const suggestedPrice = idealPrice(cost, tax, commission, variableCost, fixedCost, desiredProfit)
   const price = Math.max(0, negotiatedPrice)
   const variableValue = price * (variableRate / 100)
   const realProfit = price - cost - variableValue
@@ -1824,6 +1837,7 @@ const priceBreakdown = (
     negotiatedPrice: price,
     tax,
     commission,
+    variableCost,
     fixedCost,
     desiredProfit,
     realProfit,
@@ -1866,6 +1880,7 @@ const makeOrderPricing = (
     negotiatedPrice,
     state.tax,
     state.commission,
+    state.variableCost,
     state.fixedCost,
     state.profit,
     officialPrice,
@@ -1891,11 +1906,16 @@ const makeOrderPricing = (
 const orderUnitPrice = (state: AppState, order: Order) => {
   if (typeof order.unitPrice === 'number' && Number.isFinite(order.unitPrice)) return order.unitPrice
   const product = state.products.find((item) => item.id === order.productId)
-  return productSalePrice(product, order.variationId) ?? (product ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.fixedCost, state.profit) : 0)
+  return productSalePrice(product, order.variationId) ?? (product ? idealPrice(productCost(product, order.variationId), state.tax, state.commission, state.variableCost, state.fixedCost, state.profit) : 0)
 }
 
 const orderPricingDetails = (state: AppState, order: Order): OrderPricing => {
-  if (order.pricing) return order.pricing
+  if (order.pricing) {
+    return {
+      ...order.pricing,
+      variableCost: order.pricing.variableCost ?? 0,
+    }
+  }
   const product = state.products.find((item) => item.id === order.productId)
   const negotiatedPrice = orderUnitPrice(state, order)
   const breakdown = priceBreakdown(
@@ -1903,6 +1923,7 @@ const orderPricingDetails = (state: AppState, order: Order): OrderPricing => {
     negotiatedPrice,
     state.tax,
     state.commission,
+    state.variableCost,
     state.fixedCost,
     state.profit,
     productSalePrice(product, order.variationId) ?? 0,
@@ -3406,9 +3427,12 @@ export default function SistemaMacaroca() {
   const newMaterialStockCost = newMaterialCost / newMaterialFactor
   const newMaterialSimulationCost = newMaterialSimulationQty * newMaterialStockCost
   const selectedCost = selectedProduct ? productCost(selectedProduct, activeVariationId) : 0
-  const selectedPrice = idealPrice(selectedCost, state.tax, state.commission, state.fixedCost, state.profit)
-  const selectedMinimumPrice = idealPrice(selectedCost, state.tax, state.commission, state.fixedCost, 0)
+  const selectedPrice = idealPrice(selectedCost, state.tax, state.commission, state.variableCost, state.fixedCost, state.profit)
+  const selectedMinimumPrice = idealPrice(selectedCost, state.tax, state.commission, state.variableCost, state.fixedCost, 0)
   const selectedSalePrice = productSalePrice(selectedProduct, activeVariationId)
+  const pricingAllocatedPercent =
+    state.tax + state.commission + state.variableCost + state.fixedCost + state.profit
+  const pricingParametersValid = pricingAllocatedPercent < 100
   const guidedProductCost = guidedProductMaterials.reduce(
     (total, material) => total + materialPlannedCost(material),
     0,
@@ -3417,6 +3441,7 @@ export default function SistemaMacaroca() {
     guidedProductCost,
     state.tax,
     state.commission,
+    state.variableCost,
     state.fixedCost,
     state.profit,
   )
@@ -3424,6 +3449,7 @@ export default function SistemaMacaroca() {
     guidedProductCost,
     state.tax,
     state.commission,
+    state.variableCost,
     state.fixedCost,
     0,
   )
@@ -3432,6 +3458,7 @@ export default function SistemaMacaroca() {
     guidedProductPrice,
     state.tax,
     state.commission,
+    state.variableCost,
     state.fixedCost,
     state.profit,
     guidedProductPrice,
@@ -3448,6 +3475,7 @@ export default function SistemaMacaroca() {
     finalOrderUnitPrice,
     state.tax,
     state.commission,
+    state.variableCost,
     state.fixedCost,
     state.profit,
     selectedSalePrice ?? 0,
@@ -3507,9 +3535,10 @@ export default function SistemaMacaroca() {
         const estimatedMaterialCost = pricing.cost * order.qty
         const taxCost = revenue * (pricing.tax / 100)
         const commissionCost = revenue * (pricing.commission / 100)
+        const variableCost = revenue * ((pricing.variableCost ?? 0) / 100)
         const fixedCostShare = revenue * (pricing.fixedCost / 100)
         const estimatedProfit =
-          revenue - estimatedMaterialCost - taxCost - commissionCost - fixedCostShare
+          revenue - estimatedMaterialCost - taxCost - commissionCost - variableCost - fixedCostShare
         const relatedOps = state.productionOrders.filter((op) => op.orderId === order.id)
         const relatedOpIds = relatedOps.map((op) => op.id)
         const productionEntries = state.inventoryEntries.filter((entry) =>
@@ -3532,7 +3561,7 @@ export default function SistemaMacaroca() {
           (deliveryEntry?.value ?? finishedProductionCost) + abnormalLossCost
         const hasRealizedCost = Boolean(deliveryEntry || finishedProductionCost || abnormalLossCost)
         const realProfit = hasRealizedCost
-          ? revenue - realizedMaterialCost - taxCost - commissionCost - fixedCostShare
+          ? revenue - realizedMaterialCost - taxCost - commissionCost - variableCost - fixedCostShare
           : 0
         const realMargin = hasRealizedCost && revenue > 0 ? (realProfit / revenue) * 100 : 0
         const resultDate =
@@ -3554,6 +3583,7 @@ export default function SistemaMacaroca() {
           realMargin,
           taxCost,
           commissionCost,
+          variableCost,
           fixedCostShare,
           hasRealizedCost,
           resultDate,
@@ -3581,15 +3611,16 @@ export default function SistemaMacaroca() {
     )
     const monthTaxes = monthOrders.reduce((total, item) => total + item.taxCost, 0)
     const monthCommissions = monthOrders.reduce((total, item) => total + item.commissionCost, 0)
+    const monthVariableCosts = monthOrders.reduce((total, item) => total + item.variableCost, 0)
     const monthFixedAllocation = monthOrders.reduce((total, item) => total + item.fixedCostShare, 0)
     const monthFixedExpenses = fixedExpenses
       .filter((entry) => entry.paid && isMonth(financeEntryDate(entry), financeMonth))
       .reduce((total, entry) => total + entry.value, 0)
     const fixedCostForResult = monthFixedExpenses || monthFixedAllocation
     const monthEstimatedProfit =
-      monthRevenue - monthEstimatedCost - monthTaxes - monthCommissions - fixedCostForResult
+      monthRevenue - monthEstimatedCost - monthTaxes - monthCommissions - monthVariableCosts - fixedCostForResult
     const monthRealProfit =
-      monthRevenue - monthRealizedCost - monthTaxes - monthCommissions - fixedCostForResult
+      monthRevenue - monthRealizedCost - monthTaxes - monthCommissions - monthVariableCosts - fixedCostForResult
     const productResults = Array.from(
       orderResults.reduce((grouped, item) => {
         const key = `${item.order.productId}:${item.order.variationId ?? ''}`
@@ -3667,6 +3698,7 @@ export default function SistemaMacaroca() {
       monthRealizedCost,
       monthTaxes,
       monthCommissions,
+      monthVariableCosts,
       monthFixedCost: fixedCostForResult,
       monthEstimatedProfit,
       monthRealProfit,
@@ -5708,6 +5740,7 @@ export default function SistemaMacaroca() {
       productCost(product, variationId),
       state.tax,
       state.commission,
+      state.variableCost,
       state.fixedCost,
       0,
     )
@@ -12880,6 +12913,7 @@ export default function SistemaMacaroca() {
                   price={selectedPrice}
                   tax={state.tax}
                   commission={state.commission}
+                  variableCost={state.variableCost}
                   fixedCost={state.fixedCost}
                   profit={state.profit}
                   onChange={(field, value) => {
@@ -12898,10 +12932,80 @@ export default function SistemaMacaroca() {
 
             {activeArea === 'precos' && (
               <section className="grid gap-5">
+                <Panel title="Parâmetros de precificação">
+                  <div className="grid gap-5">
+                    <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+                      <div>
+                        <p className="max-w-3xl text-sm leading-6 text-black/60">
+                          Informe os percentuais usados pela Maçaroca. O sistema salva automaticamente e recalcula o preço mínimo, o preço sugerido e o markup de todas as peças.
+                        </p>
+                        <p className="mt-1 text-xs text-black/42">
+                          O custo da matéria-prima vem da ficha técnica de cada produto.
+                        </p>
+                      </div>
+                      <StatusBadge tone={pricingParametersValid ? 'green' : 'rose'}>
+                        {pricingParametersValid ? 'Cálculo válido' : 'Revisar percentuais'}
+                      </StatusBadge>
+                    </div>
+
+                    <div className="grid gap-5 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-4 md:grid-cols-2 xl:grid-cols-5">
+                      <PercentControl
+                        label="Impostos"
+                        value={state.tax}
+                        onChange={(value) => setState((current) => ({ ...current, tax: value }))}
+                      />
+                      <PercentControl
+                        label="Comissão"
+                        value={state.commission}
+                        onChange={(value) => setState((current) => ({ ...current, commission: value }))}
+                      />
+                      <PercentControl
+                        label="Outros custos variáveis"
+                        value={state.variableCost}
+                        onChange={(value) => setState((current) => ({ ...current, variableCost: value }))}
+                      />
+                      <PercentControl
+                        label="Rateio de custos fixos"
+                        value={state.fixedCost}
+                        onChange={(value) => setState((current) => ({ ...current, fixedCost: value }))}
+                      />
+                      <PercentControl
+                        label="Lucro desejado"
+                        value={state.profit}
+                        onChange={(value) => setState((current) => ({ ...current, profit: value }))}
+                      />
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <MiniStat
+                        label="Custos variáveis sobre a venda"
+                        value={`${(state.tax + state.commission + state.variableCost).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                        tone="neutral"
+                      />
+                      <MiniStat
+                        label="Total distribuído"
+                        value={`${pricingAllocatedPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                        tone={pricingParametersValid ? 'green' : 'rose'}
+                      />
+                      <MiniStat
+                        label="Percentual restante para o custo"
+                        value={`${Math.max(0, 100 - pricingAllocatedPercent).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`}
+                        tone={pricingParametersValid ? 'green' : 'rose'}
+                      />
+                    </div>
+
+                    {!pricingParametersValid && (
+                      <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-900">
+                        A soma precisa ficar abaixo de 100%. Reduza algum percentual para o sistema voltar a calcular os preços.
+                      </div>
+                    )}
+                  </div>
+                </Panel>
+
                 <Panel title="Como o preço funciona">
                   <div className="grid gap-3 md:grid-cols-3">
                     <ProcessStep title="1. Custo da ficha" detail="Vem da matéria-prima cadastrada na peça ou variação." />
-                    <ProcessStep title="2. Preço sugerido" detail="Calculado com imposto, comissão, custo fixo e lucro desejado." />
+                    <ProcessStep title="2. Preço sugerido" detail="Calculado com impostos, comissão, demais variáveis, custos fixos e lucro." />
                     <ProcessStep title="3. Preço definido" detail="É o valor oficial usado em orçamento e pedido." />
                   </div>
                 </Panel>
@@ -12909,14 +13013,15 @@ export default function SistemaMacaroca() {
                 <div className="grid gap-4">
                   {state.products.map((product) => {
                     const baseCost = productCost(product)
-                    const baseMinimumPrice = idealPrice(baseCost, state.tax, state.commission, state.fixedCost, 0)
-                    const baseSuggestedPrice = idealPrice(baseCost, state.tax, state.commission, state.fixedCost, state.profit)
+                    const baseMinimumPrice = idealPrice(baseCost, state.tax, state.commission, state.variableCost, state.fixedCost, 0)
+                    const baseSuggestedPrice = idealPrice(baseCost, state.tax, state.commission, state.variableCost, state.fixedCost, state.profit)
                     const baseSalePrice = productSalePrice(product)
                     const basePricing = priceBreakdown(
                       baseCost,
                       baseSalePrice ?? 0,
                       state.tax,
                       state.commission,
+                      state.variableCost,
                       state.fixedCost,
                       state.profit,
                       baseSalePrice ?? 0,
@@ -12944,15 +13049,17 @@ export default function SistemaMacaroca() {
                             <button
                               type="button"
                               onClick={() => updateProductSalePrice(product.id, undefined, baseSuggestedPrice)}
+                              disabled={!pricingParametersValid}
                               className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-white px-3 text-sm font-medium"
                             >
                               Usar sugerido
                             </button>
                           </div>
                           {baseSalePrice ? (
-                            <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                               <MiniStat label="Sobra por peça" value={money(basePricing.realProfit)} tone={basePricing.realProfit >= 0 ? 'green' : 'rose'} />
                               <MiniStat label="Margem oficial" value={`${basePricing.realMargin.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`} tone={basePricing.realMargin >= 0 ? 'green' : 'rose'} />
+                              <MiniStat label="Markup sugerido" value={baseCost > 0 && pricingParametersValid ? `${(baseSuggestedPrice / baseCost).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}x` : '-'} tone="neutral" />
                               <MiniStat label="Situação" value={priceNeedsApproval(baseSalePrice, baseMinimumPrice) ? 'Abaixo do mínimo' : 'Preço saudável'} tone={priceNeedsApproval(baseSalePrice, baseMinimumPrice) ? 'rose' : 'green'} />
                             </div>
                           ) : null}
@@ -12960,14 +13067,15 @@ export default function SistemaMacaroca() {
                           <div className="grid gap-3">
                             {product.variations.map((variation) => {
                               const cost = productCost(product, variation.id)
-                              const minimum = idealPrice(cost, state.tax, state.commission, state.fixedCost, 0)
-                              const suggested = idealPrice(cost, state.tax, state.commission, state.fixedCost, state.profit)
+                              const minimum = idealPrice(cost, state.tax, state.commission, state.variableCost, state.fixedCost, 0)
+                              const suggested = idealPrice(cost, state.tax, state.commission, state.variableCost, state.fixedCost, state.profit)
                               const salePrice = productSalePrice(product, variation.id)
                               const pricing = priceBreakdown(
                                 cost,
                                 salePrice ?? 0,
                                 state.tax,
                                 state.commission,
+                                state.variableCost,
                                 state.fixedCost,
                                 state.profit,
                                 salePrice ?? 0,
@@ -13001,6 +13109,7 @@ export default function SistemaMacaroca() {
                                   <button
                                     type="button"
                                     onClick={() => updateProductSalePrice(product.id, variation.id, suggested)}
+                                    disabled={!pricingParametersValid}
                                     className="inline-flex h-11 items-center justify-center rounded-md border border-[#d1d5db] bg-[#ffffff] px-3 text-sm font-medium"
                                   >
                                     Usar sugerido
@@ -15044,6 +15153,7 @@ export default function SistemaMacaroca() {
                           <RecordRow badge="Custo" title="Matéria-prima utilizada" detail={`Previsto: ${money(financeSummary.monthEstimatedCost)}`} value={`-${money(financeSummary.monthRealizedCost)}`} />
                           <RecordRow badge="Variável" title="Impostos" detail="Conforme o percentual salvo em cada pedido" value={`-${money(financeSummary.monthTaxes)}`} />
                           <RecordRow badge="Variável" title="Comissões" detail="Calculadas sobre as vendas do período" value={`-${money(financeSummary.monthCommissions)}`} />
+                          <RecordRow badge="Variável" title="Outros custos variáveis" detail="Taxas e despesas percentuais configuradas na precificação" value={`-${money(financeSummary.monthVariableCosts)}`} />
                           <RecordRow badge="Fixo" title="Despesas fixas" detail="Usa lançamentos pagos; sem lançamentos, usa o rateio configurado" value={`-${money(financeSummary.monthFixedCost)}`} />
                           <div className={`mt-2 flex flex-col justify-between gap-2 rounded-md border p-4 sm:flex-row sm:items-center ${
                             financeSummary.monthRealProfit >= 0
@@ -15179,6 +15289,7 @@ export default function SistemaMacaroca() {
                                 <div className="grid gap-2 border-t border-slate-200 p-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
                                   <FinanceValue label="Impostos" value={money(item.taxCost)} />
                                   <FinanceValue label="Comissão" value={money(item.commissionCost)} />
+                                  <FinanceValue label="Outros variáveis" value={money(item.variableCost)} />
                                   <FinanceValue label="Custos fixos" value={money(item.fixedCostShare)} />
                                   <FinanceValue label="Perdas e defeitos" value={money(item.abnormalLossCost)} />
                                   <FinanceValue
@@ -15969,6 +16080,7 @@ function PricePanel({
   price,
   tax,
   commission,
+  variableCost,
   fixedCost,
   profit,
   onChange,
@@ -15977,13 +16089,15 @@ function PricePanel({
   price: number
   tax: number
   commission: number
+  variableCost: number
   fixedCost: number
   profit: number
-  onChange: (field: 'tax' | 'commission' | 'fixedCost' | 'profit', value: number) => void
+  onChange: (field: 'tax' | 'commission' | 'variableCost' | 'fixedCost' | 'profit', value: number) => void
 }) {
-  const minimumPrice = idealPrice(cost, tax, commission, fixedCost, 0)
-  const allocatedPercent = tax + commission + fixedCost + profit
+  const minimumPrice = idealPrice(cost, tax, commission, variableCost, fixedCost, 0)
+  const allocatedPercent = tax + commission + variableCost + fixedCost + profit
   const calculationValid = allocatedPercent < 100
+  const markup = cost > 0 && calculationValid ? price / cost : 0
 
   return (
     <aside className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
@@ -16000,13 +16114,15 @@ function PricePanel({
         <PriceLine label="Custo da ficha com perdas" value={money(cost)} />
         <PriceLine label="Preço mínimo" value={money(minimumPrice)} />
         <PriceLine label="Preço sugerido" value={calculationValid ? money(price) : 'Revisar percentuais'} featured />
+        <PriceLine label="Markup sugerido" value={markup > 0 ? `${markup.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}x` : '-'} />
         <PercentControl label="Impostos" value={tax} onChange={(value) => onChange('tax', value)} />
         <PercentControl label="Comissão" value={commission} onChange={(value) => onChange('commission', value)} />
+        <PercentControl label="Outros custos variáveis" value={variableCost} onChange={(value) => onChange('variableCost', value)} />
         <PercentControl label="Rateio de custos fixos" value={fixedCost} onChange={(value) => onChange('fixedCost', value)} />
         <PercentControl label="Lucro desejado" value={profit} onChange={(value) => onChange('profit', value)} />
         <div className={`rounded-md border p-3 text-sm leading-5 ${calculationValid ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-rose-200 bg-rose-50 text-rose-900'}`}>
           {calculationValid
-            ? `${allocatedPercent}% do preço está distribuído entre impostos, comissão, custos fixos e lucro.`
+            ? `${allocatedPercent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% do preço está distribuído entre impostos, comissão, custos variáveis, custos fixos e lucro.`
             : 'A soma dos percentuais precisa ficar abaixo de 100% para o preço ser calculado.'}
         </div>
       </div>
@@ -16034,18 +16150,31 @@ function PercentControl({
 }) {
   return (
     <label className="grid gap-2">
-      <span className="flex items-center justify-between text-sm text-slate-600">
-        {label}
-        <strong>{value}%</strong>
+      <span className="text-sm text-slate-600">{label}</span>
+      <span className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3">
+        <input
+          type="range"
+          min="0"
+          max="80"
+          step="0.1"
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="min-w-0 accent-[#8f3f59]"
+        />
+        <span className="flex h-10 items-center rounded-md border border-slate-200 bg-white px-2 focus-within:border-[#8f3f59]">
+          <input
+            type="number"
+            min="0"
+            max="99"
+            step="0.1"
+            value={value}
+            onChange={(event) => onChange(Math.max(0, Number(event.target.value) || 0))}
+            className="min-w-0 flex-1 bg-transparent text-right text-sm font-semibold outline-none"
+            aria-label={`${label} em porcentagem`}
+          />
+          <span className="ml-1 text-xs text-slate-500">%</span>
+        </span>
       </span>
-      <input
-        type="range"
-        min="0"
-        max="60"
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="accent-[#8f3f59]"
-      />
     </label>
   )
 }
@@ -16739,7 +16868,7 @@ function OrderBudgetPreview({
   const variation = productVariation(product, order.variationId)
   const brandDoc = documentBrand(product.brand, state.company)
   const unitCost = productCost(product, order.variationId)
-  const suggestedPrice = idealPrice(unitCost, state.tax, state.commission, state.fixedCost, state.profit)
+  const suggestedPrice = idealPrice(unitCost, state.tax, state.commission, state.variableCost, state.fixedCost, state.profit)
   const unitPrice = orderUnitPrice(state, order)
   const total = unitPrice * order.qty
   const relatedOp = state.productionOrders.find((op) => op.orderId === order.id)
