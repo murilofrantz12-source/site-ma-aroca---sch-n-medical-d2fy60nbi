@@ -51,7 +51,10 @@ export default function Index() {
               >
                 <Link to="/colecoes">{t.home.seeCatalog}</Link>
               </Button>
-              <WhatsAppChoice className="inline-flex w-full sm:w-auto items-center justify-center rounded-none border border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-6 sm:px-8 h-12 bg-transparent backdrop-blur-sm transition-colors">
+              <WhatsAppChoice
+                menuPlacement="top"
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-none border border-white text-white hover:bg-white hover:text-black text-xs tracking-widest uppercase px-6 sm:px-8 h-12 bg-transparent backdrop-blur-sm transition-colors"
+              >
                 {t.home.whatsapp}
               </WhatsAppChoice>
               <Button

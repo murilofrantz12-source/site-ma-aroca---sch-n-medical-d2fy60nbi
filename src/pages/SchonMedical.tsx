@@ -86,6 +86,7 @@ export default function SchonMedical() {
             </span>
             <WhatsAppChoice
               message={t.whatsapp.schonMessage}
+              menuPlacement="top"
               className="inline-flex w-full max-w-xs sm:w-auto sm:max-w-none items-center justify-center rounded-none uppercase tracking-widest bg-[#11130f] text-white hover:bg-[#2a2d25] px-8 h-14 text-xs transition-colors"
             >
               {t.schon.requestBudget}
@@ -213,6 +214,7 @@ export default function SchonMedical() {
             </p>
             <WhatsAppChoice
               message={t.whatsapp.schonMessage}
+              menuPlacement="top"
               className="inline-flex w-full max-w-xs sm:w-auto sm:max-w-none items-center justify-center rounded-none border border-[#b8f24a] text-[#b8f24a] hover:bg-[#b8f24a] hover:text-[#11130f] uppercase tracking-widest bg-transparent h-14 px-10 text-xs transition-colors"
             >
               {t.schon.talkToConsultant}
