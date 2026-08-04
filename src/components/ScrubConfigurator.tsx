@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronDown, Download, MessageCircle } from 'lucide-react'
 import { WhatsAppChoice } from '@/components/WhatsAppChoice'
 import { useLanguage } from '@/lib/i18n'
@@ -594,6 +594,28 @@ export function ScrubConfigurator() {
   const [activeStep, setActiveStep] = useState<StepId | null>('topColor')
   const [hasDownloadedPreview, setHasDownloadedPreview] = useState(false)
 
+  useEffect(() => {
+    setTopColor((current) =>
+      config.topColors.find((color) => color.value === current.value) ?? config.topColors[0],
+    )
+    setBottomColor((current) =>
+      config.bottomColors.find((color) => color.value === current.value) ?? config.bottomColors[0],
+    )
+    setRibbonColor((current) =>
+      config.ribbonColors.find((color) => color.value === current.value) ?? config.ribbonColors[0],
+    )
+    setLabelColor((current) =>
+      config.labelColors.find((color) => color.value === current.value) ?? config.labelColors[0],
+    )
+    setTopSize((current) =>
+      config.sizes.includes(current) ? current : config.sizes[2] ?? config.sizes[0],
+    )
+    setBottomSize((current) =>
+      config.sizes.includes(current) ? current : config.sizes[2] ?? config.sizes[0],
+    )
+    setModel((current) => config.models.find((item) => item.name === current.name) ?? config.models[0])
+  }, [config])
+
   const quoteItems = useMemo<QuoteCardItem[]>(
     () => [
       { color: topColor.value, label: config.labels.topColor, value: topColor.name },
@@ -615,6 +637,7 @@ export function ScrubConfigurator() {
       labelColor.name,
       labelColor.value,
       model.bottomPrice,
+      model.deliveryFee,
       model.name,
       model.setPrice,
       model.topPrice,
