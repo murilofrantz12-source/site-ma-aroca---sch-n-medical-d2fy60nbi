@@ -10,8 +10,9 @@ type SEOPage = {
 }
 
 const baseTitle = 'Maçaroca'
-const iconPath = '/favicon.png?v=4'
-const icoPath = '/favicon.ico?v=4'
+const iconPath = '/favicon-48x48.png'
+const icoPath = '/favicon.ico'
+const appleIconPath = '/apple-touch-icon.png'
 const imagePath = '/og-image.png?v=4'
 
 const organizationDescription: Record<Language, string> = {
@@ -217,7 +218,7 @@ export function SEO() {
     setLink('canonical', canonicalUrl)
     setLink('icon', iconPath)
     setLink('shortcut icon', icoPath)
-    setLink('apple-touch-icon', iconPath)
+    setLink('apple-touch-icon', appleIconPath)
 
     const structuredData = {
       '@context': 'https://schema.org',
