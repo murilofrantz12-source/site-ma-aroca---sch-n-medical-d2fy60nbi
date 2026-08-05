@@ -275,10 +275,15 @@ export function SEO() {
                   {
                     '@type': 'Offer',
                     itemOffered: {
-                      '@type': 'Product',
-                      name: 'Peças autorais sob demanda',
+                      '@type': 'Service',
+                      name: 'Atendimento sob consulta para peças autorais',
                       brand: { '@id': `${origin}/#macaroca-brand` },
-                      category: 'Moda autoral feminina',
+                      serviceType: 'Moda autoral feminina sob demanda',
+                      areaServed: [
+                        { '@type': 'Country', name: 'Brasil' },
+                        { '@type': 'Country', name: 'Paraguai' },
+                      ],
+                      provider: { '@id': `${origin}/#organization` },
                     },
                   },
                 ],
@@ -290,10 +295,15 @@ export function SEO() {
                   {
                     '@type': 'Offer',
                     itemOffered: {
-                      '@type': 'Product',
-                      name: 'Scrubs sob demanda',
+                      '@type': 'Service',
+                      name: 'Atendimento sob consulta para scrubs Schön Medical',
                       brand: { '@id': `${origin}/#schon-medical-brand` },
-                      category: 'Uniformes profissionais para saúde',
+                      serviceType: 'Scrubs sob demanda',
+                      areaServed: [
+                        { '@type': 'Country', name: 'Brasil' },
+                        { '@type': 'Country', name: 'Paraguai' },
+                      ],
+                      provider: { '@id': `${origin}/#organization` },
                     },
                   },
                 ],
