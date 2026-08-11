@@ -10,108 +10,106 @@ type SEOPage = {
 }
 
 const baseTitle = 'Maçaroca'
-const iconPath = '/favicon-48x48.png'
-const icoPath = '/favicon.ico'
-const appleIconPath = '/apple-touch-icon.png'
-const imagePath = '/og-image.png?v=4'
+const siteOrigin = 'https://xn--maaroca-vxa.com'
+const imagePath = '/og-image.png?v=10'
 
 const organizationDescription: Record<Language, string> = {
-  pt: 'Moda autoral Maçaroca e scrubs Schön Medical sob demanda, com atendimento online, orientação de medidas e produção por demanda.',
-  es: 'Moda de autor Maçaroca y scrubs Schön Medical a pedido, con atención online, orientación de medidas y producción bajo demanda.',
-  en: 'Maçaroca authorial fashion and made-to-order Schön Medical scrubs, with online service, measurement guidance and demand-based production.',
+  pt: 'Maçaroca é moda feminina autoral, peças sob medida e sob demanda. A Schön Medical, by Maçaroca, reúne scrubs, pijama médico e uniformes para profissionais da saúde.',
+  es: 'Maçaroca es moda femenina de autor, piezas a medida y a pedido. Schön Medical, by Maçaroca, reúne scrubs, pijama médico y uniformes para profesionales de la salud.',
+  en: 'Maçaroca creates authorial womenswear, made-to-measure and made-to-order pieces. Schön Medical by Maçaroca offers scrubs and medical uniforms for healthcare professionals.',
 }
 
 const pages: Record<string, Record<Language, SEOPage>> = {
   '/': {
     pt: {
-      title: 'Maçaroca',
+      title: 'Maçaroca | Moda feminina autoral e sob medida',
       description:
-        'Moda autoral Maçaroca, peças sob demanda e scrubs Schön Medical para profissionais que buscam conforto, presença e identidade.',
+        'Maçaroca cria moda feminina autoral, peças sob medida e sob demanda com presença, identidade e acabamento de luxo.',
       keywords:
-        'Maçaroca, Macaroca, Maçaroca moda, Schön Medical, Schon Medical, moda autoral, moda feminina, roupas sob demanda, roupas sob medida, scrubs, scrub feminino, uniformes profissionais, uniformes para saúde',
+        'Maçaroca, Macaroca, Maçaroca moda, Macaroca moda, moda, moda feminina, moda autoral, moda sob medida, sob medida, luxo Maçaroca, luxo maçarora, peças sob demanda',
     },
     es: {
-      title: 'Maçaroca',
+      title: 'Maçaroca | Moda femenina de autor y a medida',
       description:
-        'Moda femenina de autor, piezas a pedido y scrubs Schön Medical para profesionales que buscan comodidad, presencia e identidad.',
+        'Maçaroca crea moda femenina de autor, piezas a medida y a pedido con presencia, identidad y acabado de lujo.',
       keywords:
-        'Maçaroca, Macaroca, Maçaroca moda, Schön Medical, Schon Medical, moda de autor, moda femenina, ropa a pedido, ropa a medida, scrubs, uniformes profesionales, uniformes de salud',
+        'Maçaroca, Macaroca, Maçaroca moda, Macaroca moda, moda, moda femenina, moda de autor, moda a medida, a medida, lujo Maçaroca, luxo maçarora, piezas a pedido',
     },
     en: {
-      title: 'Maçaroca',
+      title: 'Maçaroca | Authorial womenswear and made-to-measure fashion',
       description:
-        'Authorial womenswear, made-to-order pieces and Schön Medical scrubs for professionals seeking comfort, presence and identity.',
+        'Maçaroca creates authorial womenswear, made-to-measure and made-to-order pieces with presence, identity and a luxury finish.',
       keywords:
-        'Maçaroca, Macaroca, Maçaroca fashion, Schön Medical, Schon Medical, authorial fashion, womenswear, made-to-order clothing, custom clothing, scrubs, professional uniforms, healthcare uniforms',
+        'Maçaroca, Macaroca, Maçaroca fashion, Macaroca fashion, fashion, womenswear, authorial fashion, made to measure, made-to-order fashion, luxury Maçaroca, luxo maçarora',
     },
   },
   '/colecoes': {
     pt: {
-      title: 'Catálogo | Maçaroca',
+      title: 'Catálogo | Maçaroca e Schön Medical',
       description:
-        'Conheça a seleção Maçaroca e Schön Medical: peças autorais, scrubs completos e pedidos sob medida.',
+        'Curadoria Maçaroca e Schön Medical: moda feminina autoral, peças sob medida, scrubs e pijama médico sob demanda.',
       keywords:
-        'catálogo Maçaroca, catálogo Schön Medical, catálogo de scrubs, scrubs sob demanda, roupas sob medida, peças autorais, moda autoral feminina',
+        'catálogo Maçaroca, catálogo Schön Medical, Maçaroca moda, moda feminina, scrub, scrubs, pijama médico, pijama medico, peças sob medida',
     },
     es: {
-      title: 'Catálogo | Maçaroca',
+      title: 'Catálogo | Maçaroca y Schön Medical',
       description:
-        'Conoce la selección Maçaroca y Schön Medical: piezas de autor, scrubs completos y pedidos a medida.',
+        'Curaduría Maçaroca y Schön Medical: moda femenina de autor, piezas a medida, scrubs y pijama médico a pedido.',
       keywords:
-        'catálogo Maçaroca, catálogo Schön Medical, catálogo de scrubs, scrubs a pedido, ropa a medida, piezas de autor, moda femenina de autor',
+        'catálogo Maçaroca, catálogo Schön Medical, Maçaroca moda, moda femenina, scrub, scrubs, pijama médico, pijama medico, piezas a medida',
     },
     en: {
-      title: 'Catalog | Maçaroca',
+      title: 'Catalog | Maçaroca and Schön Medical',
       description:
-        'Explore the Maçaroca and Schön Medical selection: authorial pieces, complete scrubs and made-to-order requests.',
+        'Maçaroca and Schön Medical curation: authorial womenswear, made-to-measure pieces, scrubs and medical uniforms made to order.',
       keywords:
-        'Maçaroca catalog, Schön Medical catalog, scrub catalog, made-to-order scrubs, custom clothing, authorial pieces, womenswear',
+        'Maçaroca catalog, Schön Medical catalog, Maçaroca fashion, womenswear, scrub, scrubs, medical uniform, medical scrubs, made to measure',
     },
   },
   '/schon-medical': {
     pt: {
-      title: 'Schön Medical | Scrubs sob demanda by Maçaroca',
+      title: 'Schön Medical | Scrubs e pijama médico sob demanda',
       description:
-        'Scrubs Schön Medical sob demanda, com orientação de medidas, cores disponíveis e conforto para longas rotinas.',
+        'Schön Medical by Maçaroca: scrubs, pijama médico e uniformes para profissionais da saúde, feitos sob demanda com orientação de medidas, cores e conforto para longas rotinas.',
       keywords:
-        'Schön Medical, Schon Medical, scrub sob demanda, scrubs coloridos, scrub feminino, uniformes saúde, uniformes profissionais, Maçaroca',
+        'Schön, Schon, Schön Medical, Schon Medical, scrub, scrubs, pijama médico, pijama medico, uniforme médico, uniforme medico, uniformes saúde, scrubs sob demanda, Maçaroca',
     },
     es: {
-      title: 'Schön Medical | Scrubs a pedido by Maçaroca',
+      title: 'Schön Medical | Scrubs y pijama médico a pedido',
       description:
-        'Scrubs Schön Medical a pedido, con orientación de medidas, colores disponibles y comodidad para rutinas largas.',
+        'Schön Medical by Maçaroca: scrubs, pijama médico y uniformes para profesionales de la salud, hechos a pedido con orientación de medidas, colores y comodidad para rutinas largas.',
       keywords:
-        'Schön Medical, Schon Medical, scrub a pedido, scrubs de colores, uniformes salud, uniformes profesionales, Maçaroca',
+        'Schön, Schon, Schön Medical, Schon Medical, scrub, scrubs, pijama médico, pijama medico, uniforme médico, uniforme medico, uniformes salud, scrubs a pedido, Maçaroca',
     },
     en: {
-      title: 'Schön Medical | Made-to-order scrubs by Maçaroca',
+      title: 'Schön Medical | Made-to-order scrubs and medical uniforms',
       description:
-        'Made-to-order Schön Medical scrubs with measurement guidance, available colors and comfort for long routines.',
+        'Schön Medical by Maçaroca: scrubs and medical uniforms for healthcare professionals, made to order with measurement guidance, colors and comfort for long routines.',
       keywords:
-        'Schön Medical, Schon Medical, made-to-order scrubs, colorful scrubs, professional uniforms, healthcare uniforms, Maçaroca',
+        'Schön, Schon, Schön Medical, Schon Medical, scrub, scrubs, medical scrubs, medical uniform, healthcare uniforms, made-to-order scrubs, Maçaroca',
     },
   },
   '/sobre': {
     pt: {
-      title: 'Sobre a marca | Maçaroca',
+      title: 'Sobre a marca | Maçaroca moda autoral',
       description:
-        'Conheça a história da Maçaroca e da Schön Medical: criação autoral, produção sob demanda e presença no vestir.',
+        'Conheça a Maçaroca: moda feminina autoral, peças sob medida e sob demanda com estética de luxo, presença e identidade no vestir.',
       keywords:
-        'sobre Maçaroca, história Maçaroca, Schön Medical, Macaroca, moda autoral, produção sob demanda, fabricado no Paraguai',
+        'sobre Maçaroca, história Maçaroca, Maçaroca moda, moda feminina, moda autoral, moda sob medida, sob medida, luxo Maçaroca, luxo maçarora',
     },
     es: {
-      title: 'Sobre la marca | Maçaroca',
+      title: 'Sobre la marca | Maçaroca moda de autor',
       description:
-        'Conoce la historia de Maçaroca y Schön Medical: creación de autor, producción a pedido y presencia al vestir.',
+        'Conoce Maçaroca: moda femenina de autor, piezas a medida y a pedido con estética de lujo, presencia e identidad al vestir.',
       keywords:
-        'sobre Maçaroca, historia Maçaroca, Schön Medical, Macaroca, moda de autor, producción a pedido, fabricado en Paraguay',
+        'sobre Maçaroca, historia Maçaroca, Maçaroca moda, moda femenina, moda de autor, moda a medida, a medida, lujo Maçaroca, luxo maçarora',
     },
     en: {
-      title: 'About the brand | Maçaroca',
+      title: 'About the brand | Maçaroca authorial fashion',
       description:
-        'Learn about Maçaroca and Schön Medical: authorial creation, made-to-order production and presence in dressing.',
+        'Meet Maçaroca: authorial womenswear, made-to-measure and made-to-order pieces with luxury aesthetics, presence and identity.',
       keywords:
-        'about Maçaroca, Maçaroca story, Macaroca, Schön Medical, authorial fashion, made-to-order production, made in Paraguay',
+        'about Maçaroca, Maçaroca story, Maçaroca fashion, womenswear, authorial fashion, made to measure, luxury Maçaroca, luxo maçarora',
     },
   },
   '/contato': {
@@ -119,22 +117,19 @@ const pages: Record<string, Record<Language, SEOPage>> = {
       title: 'Contato | Maçaroca',
       description:
         'Fale com a Maçaroca para pedidos sob demanda, orientação de medidas, scrubs Schön Medical e atendimento Brasil ou Paraguai.',
-      keywords:
-        'contato Maçaroca, atendimento Schön Medical, WhatsApp Maçaroca, pedidos sob demanda, scrubs Brasil, scrubs Paraguai',
+      keywords: 'contato Maçaroca, atendimento Schön Medical, WhatsApp Maçaroca, pedidos sob demanda',
     },
     es: {
       title: 'Contacto | Maçaroca',
       description:
         'Habla con Maçaroca para pedidos a medida, orientación de medidas, scrubs Schön Medical y atención Brasil o Paraguay.',
-      keywords:
-        'contacto Maçaroca, atención Schön Medical, WhatsApp Maçaroca, pedidos a medida, scrubs Brasil, scrubs Paraguay',
+      keywords: 'contacto Maçaroca, atención Schön Medical, WhatsApp Maçaroca, pedidos a medida',
     },
     en: {
       title: 'Contact | Maçaroca',
       description:
         'Contact Maçaroca for made-to-order requests, measurement guidance, Schön Medical scrubs and Brazil or Paraguay service.',
-      keywords:
-        'Maçaroca contact, Schön Medical service, Maçaroca WhatsApp, made-to-order requests, scrubs Brazil, scrubs Paraguay',
+      keywords: 'Maçaroca contact, Schön Medical service, Maçaroca WhatsApp, made-to-order requests',
     },
   },
 }
@@ -188,12 +183,17 @@ export function SEO() {
   useEffect(() => {
     const pathname = location.pathname.replace(/\/$/, '') || '/'
     const page = pages[pathname]?.[language] ?? fallback[language]
-    const origin = window.location.origin
+    const origin = siteOrigin
     const canonicalUrl = `${origin}${pathname}`
-    const logoUrl = `${origin}${iconPath}`
     const imageUrl = `${origin}${imagePath}`
     const locale = language === 'pt' ? 'pt_BR' : language === 'es' ? 'es_PY' : 'en_US'
     const shouldIndex = Boolean(pages[pathname])
+    const pageAbout =
+      pathname === '/schon-medical'
+        ? { '@id': `${origin}/schon-medical#service` }
+        : pathname === '/' || pathname === '/sobre'
+          ? { '@id': `${origin}/#fashion-service` }
+          : { '@id': `${origin}/#organization` }
 
     document.title = page.title
 
@@ -201,8 +201,6 @@ export function SEO() {
     setMeta('name', 'keywords', page.keywords)
     setMeta('name', 'robots', shouldIndex ? 'index, follow' : 'noindex, follow')
     setMeta('name', 'author', 'Maçaroca')
-    setMeta('name', 'creator', 'Maçaroca')
-    setMeta('name', 'publisher', 'Maçaroca + Schön Medical')
     setMeta('property', 'og:type', 'website')
     setMeta('property', 'og:site_name', baseTitle)
     setMeta('property', 'og:title', page.title)
@@ -214,11 +212,7 @@ export function SEO() {
     setMeta('name', 'twitter:title', page.title)
     setMeta('name', 'twitter:description', page.description)
     setMeta('name', 'twitter:image', imageUrl)
-    setMeta('name', 'theme-color', '#0b0b0b')
     setLink('canonical', canonicalUrl)
-    setLink('icon', iconPath)
-    setLink('shortcut icon', icoPath)
-    setLink('apple-touch-icon', appleIconPath)
 
     const structuredData = {
       '@context': 'https://schema.org',
@@ -230,15 +224,14 @@ export function SEO() {
           alternateName: [
             'Maçaroca',
             'Macaroca',
-            'Maçaroca Moda',
-            'Macaroca Moda',
+            'Maçaroca moda',
+            'Macaroca moda',
             'Schön Medical',
             'Schon Medical',
             'Schön Medical by Maçaroca',
-            'Schon Medical by Macaroca',
           ],
           url: origin,
-          logo: logoUrl,
+          logo: imageUrl,
           image: imageUrl,
           description: organizationDescription[language],
           email: contactInfo.email.display,
@@ -251,66 +244,21 @@ export function SEO() {
             { '@type': 'Country', name: 'Paraguai' },
           ],
           knowsAbout: [
-            'moda autoral',
             'moda feminina',
+            'moda autoral',
             'moda sob medida',
+            'peças sob medida',
             'peças sob demanda',
-            'roupas sob demanda',
-            'roupas sob medida',
+            'luxo Maçaroca',
+            'scrub',
             'scrubs',
-            'scrubs coloridos',
-            'scrubs sob demanda',
+            'pijama médico',
+            'pijama medico',
+            'uniforme médico',
+            'uniforme medico',
             'orientação de medidas',
-            'uniformes profissionais',
             'uniformes para profissionais da saúde',
-            'fabricado no Paraguai',
           ],
-          hasOfferCatalog: {
-            '@type': 'OfferCatalog',
-            name: 'Catálogo Maçaroca + Schön Medical',
-            itemListElement: [
-              {
-                '@type': 'OfferCatalog',
-                name: 'Moda autoral feminina Maçaroca',
-                itemListElement: [
-                  {
-                    '@type': 'Offer',
-                    itemOffered: {
-                      '@type': 'Service',
-                      name: 'Atendimento sob consulta para peças autorais',
-                      brand: { '@id': `${origin}/#macaroca-brand` },
-                      serviceType: 'Moda autoral feminina sob demanda',
-                      areaServed: [
-                        { '@type': 'Country', name: 'Brasil' },
-                        { '@type': 'Country', name: 'Paraguai' },
-                      ],
-                      provider: { '@id': `${origin}/#organization` },
-                    },
-                  },
-                ],
-              },
-              {
-                '@type': 'OfferCatalog',
-                name: 'Scrubs Schön Medical',
-                itemListElement: [
-                  {
-                    '@type': 'Offer',
-                    itemOffered: {
-                      '@type': 'Service',
-                      name: 'Atendimento sob consulta para scrubs Schön Medical',
-                      brand: { '@id': `${origin}/#schon-medical-brand` },
-                      serviceType: 'Scrubs sob demanda',
-                      areaServed: [
-                        { '@type': 'Country', name: 'Brasil' },
-                        { '@type': 'Country', name: 'Paraguai' },
-                      ],
-                      provider: { '@id': `${origin}/#organization` },
-                    },
-                  },
-                ],
-              },
-            ],
-          },
           brand: [
             {
               '@type': 'Brand',
@@ -346,12 +294,54 @@ export function SEO() {
           ],
         },
         {
+          '@type': 'Service',
+          '@id': `${origin}/schon-medical#service`,
+          name: 'Schön Medical - scrubs e pijama médico sob demanda',
+          alternateName: [
+            'Schon Medical',
+            'Schön',
+            'Schon',
+            'scrubs profissionais',
+            'pijama médico',
+            'pijama medico',
+          ],
+          serviceType: 'Scrubs, pijama médico e uniformes para profissionais da saúde',
+          url: `${origin}/schon-medical`,
+          provider: { '@id': `${origin}/#organization` },
+          areaServed: [
+            { '@type': 'Country', name: 'Brasil' },
+            { '@type': 'Country', name: 'Paraguai' },
+          ],
+          keywords:
+            'schon, schon medical, pijama medico, pijama médico, scrub, scrubs, uniforme médico, uniforme medico',
+        },
+        {
+          '@type': 'Service',
+          '@id': `${origin}/#fashion-service`,
+          name: 'Maçaroca - moda feminina autoral e sob medida',
+          alternateName: ['Maçaroca moda', 'Macaroca moda', 'luxo Maçaroca', 'luxo maçarora'],
+          serviceType: 'Moda feminina autoral, peças sob medida e sob demanda',
+          url: origin,
+          provider: { '@id': `${origin}/#organization` },
+          areaServed: [
+            { '@type': 'Country', name: 'Brasil' },
+            { '@type': 'Country', name: 'Paraguai' },
+          ],
+          keywords:
+            'moda, moda feminina, sob medida, luxo Maçaroca, luxo maçarora, moda autoral',
+        },
+        {
           '@type': 'WebSite',
           '@id': `${origin}/#website`,
           name: baseTitle,
           url: origin,
           inLanguage: locale.replace('_', '-'),
           publisher: { '@id': `${origin}/#organization` },
+          potentialAction: {
+            '@type': 'SearchAction',
+            target: `${origin}/colecoes?q={search_term_string}`,
+            'query-input': 'required name=search_term_string',
+          },
         },
         {
           '@type': 'WebPage',
@@ -361,7 +351,9 @@ export function SEO() {
           description: page.description,
           inLanguage: locale.replace('_', '-'),
           isPartOf: { '@id': `${origin}/#website` },
-          about: { '@id': `${origin}/#organization` },
+          about: pageAbout,
+          keywords: page.keywords,
+          publisher: { '@id': `${origin}/#organization` },
           primaryImageOfPage: {
             '@type': 'ImageObject',
             url: imageUrl,
